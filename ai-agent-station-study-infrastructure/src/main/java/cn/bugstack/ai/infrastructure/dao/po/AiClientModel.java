@@ -44,6 +44,11 @@ public class AiClientModel {
     private String modelType;
 
     /**
+     * 模型类型名称
+     */
+    private String typeName;
+
+    /**
      * 模型用途
      */
     private String modelUsage;

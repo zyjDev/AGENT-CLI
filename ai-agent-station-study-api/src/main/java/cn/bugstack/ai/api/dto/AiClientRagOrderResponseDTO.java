@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 知识库配置响应 DTO
  *
- * @author bugstack虫洞栈
+ * @author bugstack.cn
  * @description 知识库配置响应数据传输对象
  */
 @Data
@@ -48,6 +48,21 @@ public class AiClientRagOrderResponseDTO implements Serializable {
      * 状态(0:禁用,1:启用)
      */
     private Integer status;
+
+    /**
+     * 版本号
+     */
+    private Integer version;
+
+    /**
+     * 文件内容哈希
+     */
+    private String fileHash;
+
+    /**
+     * 更新原因
+     */
+    private String updateReason;
 
     /**
      * 创建时间

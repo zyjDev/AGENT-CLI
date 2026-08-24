@@ -49,6 +49,11 @@ public class AiClientToolMcp {
     private Integer requestTimeout;
 
     /**
+     * 环境变量
+     */
+    private String env;
+
+    /**
      * 状态(0:禁用,1:启用)
      */
     private Integer status;

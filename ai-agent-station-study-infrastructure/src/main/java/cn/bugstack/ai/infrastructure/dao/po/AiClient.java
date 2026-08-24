@@ -34,6 +34,11 @@ public class AiClient {
     private String clientName;
 
     /**
+     * 客户端描述
+     */
+    private String clientDesc;
+
+    /**
      * 描述
      */
     private String description;

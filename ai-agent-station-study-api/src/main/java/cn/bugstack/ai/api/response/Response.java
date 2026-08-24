@@ -17,6 +17,24 @@ public class Response<T> implements Serializable {
 
     private String code;
     private String info;
+    private String message;
     private T data;
+
+    public static <T> Response<T> success(T data) {
+        return Response.<T>builder()
+                .code("200")
+                .info("success")
+                .message("success")
+                .data(data)
+                .build();
+    }
+
+    public static <T> Response<T> error(String message) {
+        return Response.<T>builder()
+                .code("500")
+                .info(message)
+                .message(message)
+                .build();
+    }
 
 }

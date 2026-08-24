@@ -51,7 +51,9 @@ public class AiClientModelNode extends AbstractArmorySupport {
 
             // 获取当前模型关联的 Tool MCP Bean 对象
             List<McpSyncClient> mcpSyncClients = new ArrayList<>();
-            for (String toolMcpId : modelVO.getToolMcpIds()) {
+            List<String> toolMcpIds = modelVO.getToolMcpIds();
+            if (toolMcpIds == null) toolMcpIds = java.util.Collections.emptyList();
+            for (String toolMcpId : toolMcpIds) {
                 McpSyncClient mcpSyncClient = getBean(AiAgentEnumVO.AI_CLIENT_TOOL_MCP.getBeanName(toolMcpId));
                 mcpSyncClients.add(mcpSyncClient);
             }

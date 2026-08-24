@@ -82,6 +82,18 @@
             <groupId>cn.bugstack.ai</groupId>
             <artifactId>ai-agent-station-study-types</artifactId>
         </dependency>
+        
+        <!-- API 模块 -->
+        <dependency>
+            <groupId>cn.bugstack.ai</groupId>
+            <artifactId>ai-agent-station-study-api</artifactId>
+        </dependency>
+        
+        <!-- MyBatis-Plus -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

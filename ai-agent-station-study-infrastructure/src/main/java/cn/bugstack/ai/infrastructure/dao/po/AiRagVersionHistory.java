@@ -8,15 +8,15 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 知识库配置表
+ * 知识库版本历史表
  * @author bugstack.cn
- * @description 知识库配置表 PO 对象
+ * @description 知识库版本历史 PO 对象
  */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class AiClientRagOrder {
+public class AiRagVersionHistory {
 
     /**
      * 主键ID
@@ -29,27 +29,12 @@ public class AiClientRagOrder {
     private String ragId;
 
     /**
-     * 知识库名称
-     */
-    private String ragName;
-
-    /**
-     * 知识标签
-     */
-    private String knowledgeTag;
-
-    /**
-     * 状态(0:禁用,1:启用)
-     */
-    private Integer status;
-
-    /**
      * 版本号
      */
     private Integer version;
 
     /**
-     * 文件内容哈希
+     * 文件哈希
      */
     private String fileHash;
 
@@ -59,13 +44,18 @@ public class AiClientRagOrder {
     private String updateReason;
 
     /**
+     * 元数据快照(JSON)
+     */
+    private String metadataSnapshot;
+
+    /**
+     * 文档数量
+     */
+    private Integer documentCount;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;
-
-    /**
-     * 更新时间
-     */
-    private LocalDateTime updateTime;
 
 }

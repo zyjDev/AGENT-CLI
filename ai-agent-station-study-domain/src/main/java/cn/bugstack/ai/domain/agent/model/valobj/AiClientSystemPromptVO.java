@@ -35,5 +35,9 @@ public class AiClientSystemPromptVO {
      */
     private String description;
 
+    /**
+     * 状态(0:禁用,1:启用)
+     */
+    private Integer status;
 
 }

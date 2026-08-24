@@ -51,4 +51,21 @@ public interface IAgentRepository {
 
     List<AiClientApiVO> queryAiClientApiVOListByApiIds(List<String> apiIdList);
 
+    /**
+     * 更新知识库配置
+     * @param ragId 知识库ID
+     * @param fileHash 文件哈希
+     * @param updateReason 更新原因
+     * @param version 版本号
+     * @return 是否成功
+     */
+    boolean updateRagOrder(String ragId, String fileHash, String updateReason, Integer version);
+
+    /**
+     * 查询知识库配置
+     * @param ragId 知识库ID
+     * @return 知识库配置
+     */
+    AiRagOrderVO queryRagOrderById(String ragId);
+
 }

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 知识库订单
  * @author Fuzhengwei bugstack.cn @小傅哥
@@ -17,6 +19,11 @@ import lombok.NoArgsConstructor;
 public class AiRagOrderVO {
 
     /**
+     * 知识库ID
+     */
+    private String ragId;
+
+    /**
      * 知识库名称
      */
     private String ragName;
@@ -25,5 +32,35 @@ public class AiRagOrderVO {
      * 知识标签
      */
     private String knowledgeTag;
+
+    /**
+     * 状态(0:禁用,1:启用)
+     */
+    private Integer status;
+
+    /**
+     * 版本号
+     */
+    private Integer version;
+
+    /**
+     * 文件内容哈希
+     */
+    private String fileHash;
+
+    /**
+     * 更新原因
+     */
+    private String updateReason;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updateTime;
 
 }

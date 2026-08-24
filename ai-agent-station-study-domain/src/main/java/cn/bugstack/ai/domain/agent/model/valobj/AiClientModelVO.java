@@ -39,6 +39,16 @@ public class AiClientModelVO {
     private String modelType;
 
     /**
+     * 模型类型名称
+     */
+    private String typeName;
+
+    /**
+     * 状态：0-禁用，1-启用
+     */
+    private Integer status;
+
+    /**
      * 工具 mcp ids
      */
     private List<String> toolMcpIds;

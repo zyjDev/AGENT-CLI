@@ -23,12 +23,12 @@ public class AiClientToolMcpVO {
     /**
      * MCP ID
      */
-    private String mcpId;
+    private String toolMcpId;
 
     /**
      * MCP名称
      */
-    private String mcpName;
+    private String toolMcpName;
 
     /**
      * 传输类型(sse/stdio)

@@ -44,6 +44,7 @@ public class AiClientNode extends AbstractArmorySupport {
             // 1. 预设话术
             StringBuilder defaultSystem = new StringBuilder("Ai 智能体 \r\n");
             List<String> promptIdList = aiClientVO.getPromptIdList();
+            if (promptIdList == null) promptIdList = java.util.Collections.emptyList();
             for (String promptId : promptIdList) {
                 AiClientSystemPromptVO aiClientSystemPromptVO = systemPromptMap.get(promptId);
                 defaultSystem.append(aiClientSystemPromptVO.getPromptContent());

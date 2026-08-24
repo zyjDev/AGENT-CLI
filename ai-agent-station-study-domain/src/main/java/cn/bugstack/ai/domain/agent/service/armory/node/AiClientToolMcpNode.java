@@ -48,7 +48,7 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
             McpSyncClient mcpSyncClient = createMcpSyncClient(mcpVO);
 
             // 注册 MCP 对象
-            registerBean(beanName(mcpVO.getMcpId()), McpSyncClient.class, mcpSyncClient);
+            registerBean(beanName(mcpVO.getToolMcpId()), McpSyncClient.class, mcpSyncClient);
         }
 
         return router(requestParameter, dynamicContext);
@@ -105,7 +105,7 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
             case "stdio" -> {
                 AiClientToolMcpVO.TransportConfigStdio transportConfigStdio = aiClientToolMcpVO.getTransportConfigStdio();
                 Map<String, AiClientToolMcpVO.TransportConfigStdio.Stdio> stdioMap = transportConfigStdio.getStdio();
-                AiClientToolMcpVO.TransportConfigStdio.Stdio stdio = stdioMap.get(aiClientToolMcpVO.getMcpName());
+                AiClientToolMcpVO.TransportConfigStdio.Stdio stdio = stdioMap.get(aiClientToolMcpVO.getToolMcpName());
 
                 // https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
                 var stdioParams = ServerParameters.builder(stdio.getCommand())
