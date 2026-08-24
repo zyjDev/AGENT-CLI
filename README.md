@@ -1,4 +1,4 @@
-# AI Agent Station Study - AI智能体学习平台 - @小傅哥 v2.2
+# Agent CLI 智能体CLI
 
 ## 项目简介
 
