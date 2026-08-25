@@ -54,8 +54,12 @@ public class AiClientModelNode extends AbstractArmorySupport {
             List<String> toolMcpIds = modelVO.getToolMcpIds();
             if (toolMcpIds == null) toolMcpIds = java.util.Collections.emptyList();
             for (String toolMcpId : toolMcpIds) {
-                McpSyncClient mcpSyncClient = getBean(AiAgentEnumVO.AI_CLIENT_TOOL_MCP.getBeanName(toolMcpId));
-                mcpSyncClients.add(mcpSyncClient);
+                try {
+                    McpSyncClient mcpSyncClient = getBean(AiAgentEnumVO.AI_CLIENT_TOOL_MCP.getBeanName(toolMcpId));
+                    mcpSyncClients.add(mcpSyncClient);
+                } catch (Exception e) {
+                    log.warn("MCP Bean获取失败，跳过: toolMcpId={}, error={}", toolMcpId, e.getMessage());
+                }
             }
 
             // 实例化对话模型（如果有其他模型对接，可以使用 one-api 服务，转换为 openai 模型格式）

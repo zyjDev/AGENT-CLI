@@ -44,11 +44,14 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
         }
 
         for (AiClientToolMcpVO mcpVO : aiClientToolMcpList) {
-            // 创建 MCP 服务
-            McpSyncClient mcpSyncClient = createMcpSyncClient(mcpVO);
-
-            // 注册 MCP 对象
-            registerBean(beanName(mcpVO.getToolMcpId()), McpSyncClient.class, mcpSyncClient);
+            try {
+                // 创建 MCP 服务
+                McpSyncClient mcpSyncClient = createMcpSyncClient(mcpVO);
+                // 注册 MCP 对象
+                registerBean(beanName(mcpVO.getToolMcpId()), McpSyncClient.class, mcpSyncClient);
+            } catch (Exception e) {
+                log.warn("MCP初始化失败，跳过: mcpId={}, mcpName={}, error={}", mcpVO.getToolMcpId(), mcpVO.getToolMcpName(), e.getMessage());
+            }
         }
 
         return router(requestParameter, dynamicContext);

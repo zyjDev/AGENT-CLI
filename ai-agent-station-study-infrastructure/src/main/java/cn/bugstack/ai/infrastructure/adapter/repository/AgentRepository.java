@@ -205,34 +205,42 @@ public class AgentRepository implements IAgentRepository {
         List<AiClientSystemPromptVO> result = new ArrayList<>();
 
         for (String clientId : clientIdList) {
-            // 1. 通过clientId查询关联的modelId
+            // 1. 通过clientId查询关联的配置
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
-            for (AiClientConfig config : configs) {
-                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
-                    String modelId = config.getTargetId();
+            // 收集所有需要查询的promptId
+            Set<String> promptIds = new HashSet<>();
 
-                    // 2. 查询该模型关联的system_prompt配置
+            for (AiClientConfig config : configs) {
+                if (config.getStatus() != 1) continue;
+                // 1a. 直接挂在client上的prompt
+                if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(config.getTargetType())) {
+                    promptIds.add(config.getTargetId());
+                }
+                // 1b. 通过client -> model -> prompt链路查找
+                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType())) {
+                    String modelId = config.getTargetId();
                     List<AiClientConfig> promptConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                     for (AiClientConfig promptConfig : promptConfigs) {
                         if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && promptConfig.getStatus() == 1) {
-                            String promptId = promptConfig.getTargetId();
-
-                            // 3. 查询system_prompt配置信息
-                            AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
-                            if (prompt != null && prompt.getStatus() == 1) {
-                                AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
-                                        .promptId(prompt.getPromptId())
-                                        .promptName(prompt.getPromptName())
-                                        .promptContent(prompt.getPromptContent())
-                                        .description(prompt.getDescription())
-                                        .status(prompt.getStatus())
-                                        .build();
-
-                                result.add(promptVO);
-                            }
+                            promptIds.add(promptConfig.getTargetId());
                         }
                     }
+                }
+            }
+
+            // 2. 批量查询prompt配置
+            for (String promptId : promptIds) {
+                AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
+                if (prompt != null && prompt.getStatus() == 1) {
+                    AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
+                            .promptId(prompt.getPromptId())
+                            .promptName(prompt.getPromptName())
+                            .promptContent(prompt.getPromptContent())
+                            .description(prompt.getDescription())
+                            .status(prompt.getStatus())
+                            .build();
+                    result.add(promptVO);
                 }
             }
         }
@@ -249,34 +257,42 @@ public class AgentRepository implements IAgentRepository {
         Map<String, AiClientSystemPromptVO> result = new HashMap<>();
 
         for (String clientId : clientIdList) {
-            // 1. 通过clientId查询关联的modelId
+            // 1. 通过clientId查询关联的配置
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
-            for (AiClientConfig config : configs) {
-                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
-                    String modelId = config.getTargetId();
+            // 收集所有需要查询的promptId
+            Set<String> promptIds = new HashSet<>();
 
-                    // 2. 查询该模型关联的system_prompt配置
+            for (AiClientConfig config : configs) {
+                if (config.getStatus() != 1) continue;
+                // 1a. 直接挂在client上的prompt
+                if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(config.getTargetType())) {
+                    promptIds.add(config.getTargetId());
+                }
+                // 1b. 通过client -> model -> prompt链路查找
+                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType())) {
+                    String modelId = config.getTargetId();
                     List<AiClientConfig> promptConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                     for (AiClientConfig promptConfig : promptConfigs) {
                         if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && promptConfig.getStatus() == 1) {
-                            String promptId = promptConfig.getTargetId();
-
-                            // 3. 查询system_prompt配置信息
-                            AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
-                            if (prompt != null && prompt.getStatus() == 1) {
-                                AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
-                                        .promptId(prompt.getPromptId())
-                                        .promptName(prompt.getPromptName())
-                                        .promptContent(prompt.getPromptContent())
-                                        .description(prompt.getDescription())
-                                        .status(prompt.getStatus())
-                                        .build();
-
-                                result.put(clientId, promptVO);
-                            }
+                            promptIds.add(promptConfig.getTargetId());
                         }
                     }
+                }
+            }
+
+            // 2. 批量查询prompt配置
+            for (String promptId : promptIds) {
+                AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
+                if (prompt != null && prompt.getStatus() == 1) {
+                    AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
+                            .promptId(prompt.getPromptId())
+                            .promptName(prompt.getPromptName())
+                            .promptContent(prompt.getPromptContent())
+                            .description(prompt.getDescription())
+                            .status(prompt.getStatus())
+                            .build();
+                    result.put(promptId, promptVO);
                 }
             }
         }
@@ -351,11 +367,33 @@ public class AgentRepository implements IAgentRepository {
         for (String clientId : clientIdList) {
             AiClient aiClient = aiClientDao.queryByClientId(clientId);
             if (aiClient != null && aiClient.getStatus() == 1) {
+                // 查询 ai_client_config 获取关联的 model/prompt/mcp/advisor
+                List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
+
+                String modelId = null;
+                List<String> promptIdList = new ArrayList<>();
+                List<String> mcpIdList = new ArrayList<>();
+                List<String> advisorIdList = new ArrayList<>();
+
+                for (AiClientConfig config : configs) {
+                    if (config.getStatus() != 1) continue;
+                    switch (config.getTargetType()) {
+                        case "model" -> modelId = config.getTargetId();
+                        case "prompt" -> promptIdList.add(config.getTargetId());
+                        case "tool_mcp" -> mcpIdList.add(config.getTargetId());
+                        case "advisor" -> advisorIdList.add(config.getTargetId());
+                    }
+                }
+
                 AiClientVO clientVO = AiClientVO.builder()
                         .clientId(aiClient.getClientId())
                         .clientName(aiClient.getClientName())
                         .clientDesc(aiClient.getClientDesc())
                         .status(aiClient.getStatus())
+                        .modelId(modelId)
+                        .promptIdList(promptIdList)
+                        .mcpIdList(mcpIdList)
+                        .advisorIdList(advisorIdList)
                         .build();
 
                 result.add(clientVO);

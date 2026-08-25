@@ -30,16 +30,16 @@ public class AiAgentConfig {
      */
     @Bean("vectorStore")
     @ConditionalOnBean(name = "pgVectorJdbcTemplate")
-    public PgVectorStore pgVectorStore(@Value("${spring.ai.openai.base-url}") String baseUrl,
-                                       @Value("${spring.ai.openai.api-key}") String apiKey,
+    public PgVectorStore pgVectorStore(@Value("${spring.ai.openai.embedding.base-url:https://api.openai.com/v1}") String embeddingBaseUrl,
+                                       @Value("${spring.ai.openai.embedding.api-key:${spring.ai.openai.api-key}}") String embeddingApiKey,
                                        @Qualifier("pgVectorJdbcTemplate") JdbcTemplate jdbcTemplate) {
 
-        OpenAiApi openAiApi = OpenAiApi.builder()
-                .baseUrl(baseUrl)
-                .apiKey(apiKey)
+        OpenAiApi embeddingApi = OpenAiApi.builder()
+                .baseUrl(embeddingBaseUrl)
+                .apiKey(embeddingApiKey)
                 .build();
 
-        OpenAiEmbeddingModel embeddingModel = new OpenAiEmbeddingModel(openAiApi);
+        OpenAiEmbeddingModel embeddingModel = new OpenAiEmbeddingModel(embeddingApi);
         return PgVectorStore.builder(jdbcTemplate, embeddingModel)
                 .vectorTableName("vector_store_openai")
                 .build();

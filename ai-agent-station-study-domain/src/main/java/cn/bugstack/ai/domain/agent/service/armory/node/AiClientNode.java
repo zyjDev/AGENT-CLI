@@ -47,7 +47,11 @@ public class AiClientNode extends AbstractArmorySupport {
             if (promptIdList == null) promptIdList = java.util.Collections.emptyList();
             for (String promptId : promptIdList) {
                 AiClientSystemPromptVO aiClientSystemPromptVO = systemPromptMap.get(promptId);
-                defaultSystem.append(aiClientSystemPromptVO.getPromptContent());
+                if (aiClientSystemPromptVO != null) {
+                    defaultSystem.append(aiClientSystemPromptVO.getPromptContent());
+                } else {
+                    log.warn("System prompt not found for promptId: {}, clientId: {}", promptId, aiClientVO.getClientId());
+                }
             }
 
             // 2. 对话模型
@@ -57,7 +61,11 @@ public class AiClientNode extends AbstractArmorySupport {
             List<McpSyncClient> mcpSyncClients = new ArrayList<>();
             List<String> mcpBeanNameList = aiClientVO.getMcpBeanNameList();
             for (String mcpBeanName : mcpBeanNameList) {
-                mcpSyncClients.add(getBean(mcpBeanName));
+                try {
+                    mcpSyncClients.add(getBean(mcpBeanName));
+                } catch (Exception e) {
+                    log.warn("MCP Bean获取失败，跳过: beanName={}, error={}", mcpBeanName, e.getMessage());
+                }
             }
 
             // 4. advisor 顾问角色
