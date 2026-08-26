@@ -1,0 +1,180 @@
+{
+    "nodes": [
+        {
+            "id": "start_0",
+            "type": "start",
+            "meta": {
+                "position": {
+                    "x": -842,
+                    "y": 39.5
+                }
+            },
+            "data": {
+                "title": "Start",
+                "outputs": {
+                    "type": "object",
+                    "required": []
+                }
+            }
+        },
+        {
+            "id": "agent_QyqMj",
+            "type": "agent",
+            "meta": {
+                "position": {
+                    "x": -444,
+                    "y": 39.5
+                }
+            },
+            "data": {
+                "title": "Agent_1",
+                "inputsValues": {
+                    "agentName": [
+                        {
+                            "key": "",
+                            "value": {
+                                "content": "111"
+                            }
+                        }
+                    ],
+                    "description": [
+                        {
+                            "key": "",
+                            "value": {
+                                "content": "1111"
+                            }
+                        }
+                    ],
+                    "channel": "agent",
+                    "strategy": "fixedAgentExecuteStrategy"
+                },
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "agentName": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "client_7sQjK",
+            "type": "client",
+            "meta": {
+                "position": {
+                    "x": 18,
+                    "y": -21.5
+                }
+            },
+            "data": {
+                "title": "Client_1",
+                "inputsValues": {
+                    "clientType": [
+                        {
+                            "key": "client_type_df6HSJ",
+                            "value": "DEFAULT"
+                        }
+                    ],
+                    "clientId": "",
+                    "clientName": "测试客户端",
+                    "sequence": [
+                        {
+                            "key": "sequence_1qT0Vd",
+                            "value": 1
+                        }
+                    ],
+                    "stepPrompt": [
+                        {
+                            "key": "step_prompt_d-VodW",
+                            "value": ""
+                        }
+                    ]
+                },
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "clientType": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "clientId": {
+                            "type": "string"
+                        },
+                        "clientName": {
+                            "type": "string"
+                        },
+                        "sequence": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "number"
+                                    }
+                                }
+                            }
+                        },
+                        "stepPrompt": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "edges": [
+        {
+            "sourceNodeID": "start_0",
+            "targetNodeID": "agent_QyqMj"
+        },
+        {
+            "sourceNodeID": "agent_QyqMj",
+            "targetNodeID": "client_7sQjK",
+            "sourcePortID": "agent_output"
+        }
+    ]
+}

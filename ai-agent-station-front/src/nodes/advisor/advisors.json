@@ -1,0 +1,14 @@
+[
+  {
+    "id": "advisor_001",
+    "value": "技术顾问"
+  },
+  {
+    "id": "advisor_002", 
+    "value": "产品顾问"
+  },
+  {
+    "id": "advisor_003",
+    "value": "运营顾问"
+  }
+]

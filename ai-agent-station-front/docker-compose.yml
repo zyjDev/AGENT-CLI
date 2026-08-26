@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  ai-agent-station-front:
+    image: fuzhengwei/ai-agent-station-front-app:1.0
+    container_name: ai-agent-station-front-app
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+    networks:
+      - ai-agent-network
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  ai-agent-network:
+    driver: bridge
+    name: ai-agent-network
