@@ -1,0 +1,94 @@
+{
+    "code": "0000",
+    "info": "成功",
+    "data": [
+        {
+            "id": 6,
+            "mcpId": "5001",
+            "mcpName": "CSDN自动发帖",
+            "transportType": "sse",
+            "transportConfig": "{\n\t\"baseUri\":\"http://127.0.0.1:8101\",\n        \"sseEndpoint\":\"/sse\"\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-09-27T18:55:54"
+        },
+        {
+            "id": 7,
+            "mcpId": "5002",
+            "mcpName": "微信公众号消息通知",
+            "transportType": "sse",
+            "transportConfig": "{\n\t\"baseUri\":\"http://127.0.0.1:8102\",\n        \"sseEndpoint\":\"/sse\"\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-09-27T18:55:51"
+        },
+        {
+            "id": 8,
+            "mcpId": "5003",
+            "mcpName": "filesystem",
+            "transportType": "stdio",
+            "transportConfig": "{\n    \"filesystem\": {\n        \"command\": \"npx\",\n        \"args\": [\n            \"-y\",\n            \"@modelcontextprotocol/server-filesystem\",\n            \"/Users/fuzhengwei/Desktop\",\n            \"/Users/fuzhengwei/Desktop\"\n        ]\n    }\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-09-27T18:55:47"
+        },
+        {
+            "id": 9,
+            "mcpId": "5004",
+            "mcpName": "g-search",
+            "transportType": "stdio",
+            "transportConfig": "{\n    \"g-search\": {\n        \"command\": \"npx\",\n        \"args\": [\n            \"-y\",\n            \"g-search-mcp\"\n        ]\n    }\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-09-27T18:55:44"
+        },
+        {
+            "id": 10,
+            "mcpId": "5005",
+            "mcpName": "高德地图",
+            "transportType": "sse",
+            "transportConfig": "{\n\t\"baseUri\":\"https://mcp.amap.com\",\n        \"sseEndpoint\":\"/sse?key=YOUR_AMAP_KEY_HERE\"\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-09-27T18:55:40"
+        },
+        {
+            "id": 12,
+            "mcpId": "5006",
+            "mcpName": "baidu-search",
+            "transportType": "sse",
+            "transportConfig": "{\n\t\"baseUri\":\"http://appbuilder.baidu.com/v2/ai_search/mcp/\",\n        \"sseEndpoint\":\"sse?api_key=YOUR_BAIDU_API_KEY_HERE\"\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-07-27T14:44:17"
+        },
+        {
+            "id": 13,
+            "mcpId": "5007",
+            "mcpName": "elasticsearch-mcp-server",
+            "transportType": "stdio",
+            "transportConfig": "{\n    \"elasticsearch-mcp-server\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"@awesome-ai/elasticsearch-mcp\"\n      ],\n      \"env\": {\n        \"ES_HOST\": \"http://127.0.0.1:9200\",\n        \"ES_API_KEY\": \"your-api-key\",\n        \"OTEL_SDK_DISABLED\":\"true\",\n        \"NODE_OPTIONS\":\"--no-warnings\"\n      }\n    }\n}",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-08-09T14:12:22"
+        },
+        {
+            "id": 14,
+            "mcpId": "5008",
+            "mcpName": "grafana-mcp-server",
+            "transportType": "stdio",
+            "transportConfig": "{\n    \"grafana-mcp-server\": {\n      \"command\": \"docker\",\n      \"args\": [\n        \"run\",\n        \"--rm\",\n        \"-i\",\n        \"-e\",\n        \"GRAFANA_URL\",\n        \"-e\",\n        \"GRAFANA_API_KEY\",\n        \"mcp/grafana\",\n        \"-t\",\n        \"stdio\"\n      ],\n      \"env\": {\n        \"GRAFANA_URL\": \"http://192.168.1.110:4000\",\n        \"GRAFANA_API_KEY\": \"YOUR_GRAFANA_API_KEY_HERE\"\n      }\n    }",
+            "requestTimeout": 180,
+            "status": 1,
+            "createTime": "2025-06-14T12:36:30",
+            "updateTime": "2025-08-16T11:04:06"
+        }
+    ]
+}

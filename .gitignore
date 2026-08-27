@@ -42,6 +42,7 @@ build/
 /ai-agent-station-study-app/.local-config
 
 ### 敏感配置文件 ###
+ai-agent-station-front/docs/mcp.json
 ai-agent-station-study-app/src/main/resources/application-dev.yml
 ai-agent-station-study-app/src/main/resources/application-test.yml
 ai-agent-station-study-app/src/main/resources/application-prod.yml
@@ -54,3 +55,4 @@ docs/dev-ops/
 
 ### SQL 文件（包含敏感信息） ###
 *.sql
+/docs/RAG-Knowledge-Base-Update-Requirements.md
