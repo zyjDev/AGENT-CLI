@@ -15,6 +15,11 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <insert id="insert" parameterType="cn.bugstack.ai.infrastructure.dao.po.AiClientRagOrder" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_client_rag_order (rag_id, rag_name, knowledge_tag, status, version, file_hash, update_reason, create_time, update_time)
+        VALUES (#{ragId}, #{ragName}, #{knowledgeTag}, #{status}, #{version}, #{fileHash}, #{updateReason}, NOW(), NOW())
+    </insert>
+
     <select id="queryByUpdateTimeAfter" parameterType="java.time.LocalDateTime" resultMap="AiClientRagOrderMap">
         SELECT id, rag_id, rag_name, knowledge_tag, status, version, file_hash, update_reason, create_time, update_time
         FROM ai_client_rag_order

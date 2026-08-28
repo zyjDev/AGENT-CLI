@@ -41,4 +41,8 @@ public class AutoAgentRequestDTO implements Serializable {
      */
     private Integer maxStep;
 
+    /**
+     * 可选：指定知识域标签，用于 RAG 动态过滤
+     */
+    private String knowledgeTag;
 }

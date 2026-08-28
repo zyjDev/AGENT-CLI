@@ -34,4 +34,8 @@ public class ExecuteCommandEntity {
      */
     private Integer maxStep;
 
+    /**
+     * 可选：知识域标签
+     */
+    private String knowledgeTag;
 }

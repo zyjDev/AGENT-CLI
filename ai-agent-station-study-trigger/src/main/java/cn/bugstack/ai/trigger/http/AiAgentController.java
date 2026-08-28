@@ -67,6 +67,7 @@ public class AiAgentController implements IAiAgentService {
                     .message(request.getMessage())
                     .sessionId(request.getSessionId())
                     .maxStep(request.getMaxStep())
+                    .knowledgeTag(request.getKnowledgeTag())
                     .build();
 
             // 3. 调度处理

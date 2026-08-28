@@ -50,9 +50,13 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
 
             content = chatClient.prompt(requestParameter.getMessage() + "，" + content)
                     .system(s -> s.param("current_date", LocalDate.now().toString()))
-                    .advisors(a -> a
-                            .param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId())
-                            .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 100))
+                    .advisors(a -> {
+                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId());
+                                a.param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 100);
+                                if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
+                                    a.param("qa_filter_expression", "knowledge == '" + requestParameter.getKnowledgeTag().trim() + "'");
+                                }
+                            })
                     .call().content();
 
             log.info("智能体对话进行，客户端ID {}", requestParameter.getAiAgentId());

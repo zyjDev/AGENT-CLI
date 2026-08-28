@@ -46,7 +46,7 @@ public class RagAnswerAdvisor implements BaseAdvisor {
 
 //        String query = (new PromptTemplate(userText)).render();
 
-        SearchRequest searchRequestToUse = SearchRequest.from(this.searchRequest).query(userText).filterExpression(this.doGetFilterExpression(context)).build();
+        SearchRequest searchRequestToUse = SearchRequest.from(this.searchRequest).query(userText).filterExpression(this.resolveFilterExpression(context)).build();
         List<Document> documents = this.vectorStore.similaritySearch(searchRequestToUse);
         context.put("qa_retrieved_documents", documents);
 
@@ -94,7 +94,44 @@ public class RagAnswerAdvisor implements BaseAdvisor {
     }
 
     protected Filter.Expression doGetFilterExpression(Map<String, Object> context) {
-        return context.containsKey("qa_filter_expression") && StringUtils.hasText(context.get("qa_filter_expression").toString()) ? (new FilterExpressionTextParser()).parse(context.get("qa_filter_expression").toString()) : this.searchRequest.getFilterExpression();
+        return context.containsKey("qa_filter_expression") && StringUtils.hasText((String) context.get("qa_filter_expression")) ? (new FilterExpressionTextParser()).parse((String) context.get("qa_filter_expression")) : this.searchRequest.getFilterExpression();
+    }
+
+    private Filter.Expression resolveFilterExpression(Map<String, Object> context) {
+        // 1. 显式表达式优先
+        String expression = context.containsKey("qa_filter_expression") && StringUtils.hasText((String) context.get("qa_filter_expression"))
+                ? (String) context.get("qa_filter_expression")
+                : (this.searchRequest.getFilterExpression() != null ? this.searchRequest.getFilterExpression().toString() : null);
+
+        // 2. 动态注入 knowledgeTag
+        if (!context.containsKey("qa_filter_expression") || !StringUtils.hasText((String) context.get("qa_filter_expression"))) {
+            Object tagObj = context.getOrDefault("knowledgeTag", context.get("ragKnowledgeTag"));
+            if (tagObj != null && StringUtils.hasText(tagObj.toString())) {
+                expression = "knowledge == '" + tagObj.toString().replace("'", "") + "'";
+            }
+        }
+
+        if (!StringUtils.hasText(expression)) {
+            return null;
+        }
+
+        expression = resolvePlaceholders(expression, context);
+        return (new FilterExpressionTextParser()).parse(expression);
+    }
+
+    private String resolvePlaceholders(String template, Map<String, Object> context) {
+        if (template == null || !template.contains("${")) {
+            return template;
+        }
+        String result = template;
+        for (Map.Entry<String, Object> entry : context.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (key != null && value != null) {
+                result = result.replace("${" + key + "}", value.toString());
+            }
+        }
+        return result;
     }
 
 }
