@@ -14,7 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public class AiAgentConfig {
 
     @Bean("vectorStore")
-    public PgVectorStore pgVectorStore(@Value("${spring.ai.openai.embedding.base-url:https://api.openai.com/v1}") String embeddingBaseUrl,
+    public PgVectorStore pgVectorStore(
+                                       @Value("${spring.ai.openai.embedding.base-url:https://api.openai.com/v1}") String embeddingBaseUrl,
                                        @Value("${spring.ai.openai.embedding.api-key:${spring.ai.openai.api-key}}") String embeddingApiKey,
                                        @Qualifier("pgVectorJdbcTemplate") JdbcTemplate jdbcTemplate) {
 
@@ -23,8 +24,8 @@ public class AiAgentConfig {
                 .apiKey(embeddingApiKey)
                 .build();
 
-        OpenAiEmbeddingModel embeddingModel = new OpenAiEmbeddingModel(embeddingApi);
-        return PgVectorStore.builder(jdbcTemplate, embeddingModel)
+        OpenAiEmbeddingModel openAiEmbeddingModel = new OpenAiEmbeddingModel(embeddingApi);
+        return PgVectorStore.builder(jdbcTemplate, openAiEmbeddingModel)
                 .vectorTableName("vector_store_openai")
                 .build();
     }
