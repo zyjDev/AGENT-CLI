@@ -99,24 +99,24 @@ public class RagAnswerAdvisor implements BaseAdvisor {
 
     private Filter.Expression resolveFilterExpression(Map<String, Object> context) {
         // 1. 显式表达式优先
-        String expression = context.containsKey("qa_filter_expression") && StringUtils.hasText((String) context.get("qa_filter_expression"))
-                ? (String) context.get("qa_filter_expression")
-                : (this.searchRequest.getFilterExpression() != null ? this.searchRequest.getFilterExpression().toString() : null);
-
-        // 2. 动态注入 knowledgeTag
-        if (!context.containsKey("qa_filter_expression") || !StringUtils.hasText((String) context.get("qa_filter_expression"))) {
-            Object tagObj = context.getOrDefault("knowledgeTag", context.get("ragKnowledgeTag"));
-            if (tagObj != null && StringUtils.hasText(tagObj.toString())) {
-                expression = "knowledge == '" + tagObj.toString().replace("'", "") + "'";
+        if (context.containsKey("qa_filter_expression") && StringUtils.hasText((String) context.get("qa_filter_expression"))) {
+            String expression = (String) context.get("qa_filter_expression");
+            expression = resolvePlaceholders(expression, context);
+            // 占位符未解析完成时不做强制解析，继续走动态标签/兜底逻辑
+            if (StringUtils.hasText(expression) && !expression.contains("${")) {
+                return (new FilterExpressionTextParser()).parse(expression);
             }
         }
 
-        if (!StringUtils.hasText(expression)) {
-            return null;
+        // 2. 动态注入 knowledgeTag
+        Object tagObj = context.getOrDefault("knowledgeTag", context.get("ragKnowledgeTag"));
+        if (tagObj != null && StringUtils.hasText(tagObj.toString())) {
+            String expression = "knowledge == '" + tagObj.toString().replace("'", "") + "'";
+            return (new FilterExpressionTextParser()).parse(expression);
         }
 
-        expression = resolvePlaceholders(expression, context);
-        return (new FilterExpressionTextParser()).parse(expression);
+        // 3. 兜底：直接返回已解析的 Filter.Expression 对象，避免 toString 再解析
+        return this.searchRequest.getFilterExpression();
     }
 
     private String resolvePlaceholders(String template, Map<String, Object> context) {

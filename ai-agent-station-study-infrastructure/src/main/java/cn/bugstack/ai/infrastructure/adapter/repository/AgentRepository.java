@@ -501,6 +501,10 @@ public class AgentRepository implements IAgentRepository {
     @Override
     public AiAgentVO queryAiAgentByAgentId(String aiAgentId) {
         AiAgent aiAgent = aiAgentDao.queryByAgentId(aiAgentId);
+        if (null == aiAgent) {
+            log.warn("查询智能体信息为空，aiAgentId：{}", aiAgentId);
+            return null;
+        }
 
         return AiAgentVO.builder()
                 .agentId(aiAgent.getAgentId())

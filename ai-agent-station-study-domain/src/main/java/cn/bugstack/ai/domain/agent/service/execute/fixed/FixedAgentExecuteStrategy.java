@@ -54,7 +54,7 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
                                 a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId());
                                 a.param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 100);
                                 if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
-                                    a.param("qa_filter_expression", "knowledge == '" + requestParameter.getKnowledgeTag().trim() + "'");
+                                    a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                                 }
                             })
                     .call().content();

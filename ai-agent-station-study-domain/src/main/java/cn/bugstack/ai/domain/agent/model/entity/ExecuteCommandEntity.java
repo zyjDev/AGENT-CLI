@@ -37,5 +37,5 @@ public class ExecuteCommandEntity {
     /**
      * 可选：知识域标签
      */
-    private String knowledgeTag;
+    private String  knowledgeTag;
 }

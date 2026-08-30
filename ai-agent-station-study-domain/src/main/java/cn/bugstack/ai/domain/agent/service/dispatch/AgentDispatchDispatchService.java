@@ -40,6 +40,9 @@ public class AgentDispatchDispatchService implements IAgentDispatchService {
     @Override
     public void dispatch(ExecuteCommandEntity requestParameter, ResponseBodyEmitter emitter) throws Exception {
         AiAgentVO aiAgentVO = repository.queryAiAgentByAgentId(requestParameter.getAiAgentId());
+        if (null == aiAgentVO) {
+            throw new BizException("智能体不存在: " + requestParameter.getAiAgentId());
+        }
 
         String strategy = aiAgentVO.getStrategy();
         IExecuteStrategy executeStrategy = executeStrategyMap.get(strategy);
