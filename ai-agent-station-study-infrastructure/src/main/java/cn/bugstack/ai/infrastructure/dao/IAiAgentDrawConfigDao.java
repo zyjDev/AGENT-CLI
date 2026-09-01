@@ -1,92 +1,78 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * AI智能体拖拉拽配置主表 DAO
  * @author bugstack虫洞栈
- * @description AI智能体拖拉拽配置主表数据访问对象
+ * @description AI智能体拖拉拽配置主表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAiAgentDrawConfigDao {
+public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
 
-    /**
-     * 插入拖拉拽配置
-     * @param aiAgentDrawConfig 拖拉拽配置对象
-     * @return 影响行数
-     */
-    int insert(AiAgentDrawConfig aiAgentDrawConfig);
+    default int updateById(AiAgentDrawConfig aiAgentDrawConfig) {
+        UpdateWrapper<AiAgentDrawConfig> uw = new UpdateWrapper<>();
+        uw.eq("id", aiAgentDrawConfig.getId());
+        uw.set("config_id", aiAgentDrawConfig.getConfigId());
+        uw.set("config_name", aiAgentDrawConfig.getConfigName());
+        uw.set("description", aiAgentDrawConfig.getDescription());
+        uw.set("agent_id", aiAgentDrawConfig.getAgentId());
+        uw.set("config_data", aiAgentDrawConfig.getConfigData());
+        uw.set("version", aiAgentDrawConfig.getVersion());
+        uw.set("status", aiAgentDrawConfig.getStatus());
+        uw.set("create_by", aiAgentDrawConfig.getCreateBy());
+        uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新拖拉拽配置
-     * @param aiAgentDrawConfig 拖拉拽配置对象
-     * @return 影响行数
-     */
-    int updateById(AiAgentDrawConfig aiAgentDrawConfig);
+    default int updateByConfigId(AiAgentDrawConfig aiAgentDrawConfig) {
+        UpdateWrapper<AiAgentDrawConfig> uw = new UpdateWrapper<>();
+        uw.eq("config_id", aiAgentDrawConfig.getConfigId());
+        uw.set("config_name", aiAgentDrawConfig.getConfigName());
+        uw.set("description", aiAgentDrawConfig.getDescription());
+        uw.set("agent_id", aiAgentDrawConfig.getAgentId());
+        uw.set("config_data", aiAgentDrawConfig.getConfigData());
+        uw.set("version", aiAgentDrawConfig.getVersion());
+        uw.set("status", aiAgentDrawConfig.getStatus());
+        uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据配置ID更新拖拉拽配置
-     * @param aiAgentDrawConfig 拖拉拽配置对象
-     * @return 影响行数
-     */
-    int updateByConfigId(AiAgentDrawConfig aiAgentDrawConfig);
+    default int deleteByConfigId(String configId) {
+        return delete(new QueryWrapper<AiAgentDrawConfig>().eq("config_id", configId));
+    }
 
-    /**
-     * 根据ID删除拖拉拽配置
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(Long id);
+    default AiAgentDrawConfig queryById(Long id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据配置ID删除拖拉拽配置
-     * @param configId 配置ID
-     * @return 影响行数
-     */
-    int deleteByConfigId(@Param("configId") String configId);
+    default AiAgentDrawConfig queryByConfigId(String configId) {
+        return selectOne(new QueryWrapper<AiAgentDrawConfig>().eq("config_id", configId));
+    }
 
-    /**
-     * 根据ID查询拖拉拽配置
-     * @param id 主键ID
-     * @return 拖拉拽配置对象
-     */
-    AiAgentDrawConfig queryById(Long id);
+    default AiAgentDrawConfig queryByAgentId(String agentId) {
+        return selectOne(new QueryWrapper<AiAgentDrawConfig>().eq("agent_id", agentId));
+    }
 
-    /**
-     * 根据配置ID查询拖拉拽配置
-     * @param configId 配置ID
-     * @return 拖拉拽配置对象
-     */
-    AiAgentDrawConfig queryByConfigId(@Param("configId") String configId);
+    default List<AiAgentDrawConfig> queryEnabledConfigs() {
+        return selectList(new QueryWrapper<AiAgentDrawConfig>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据智能体ID查询拖拉拽配置
-     * @param agentId 智能体ID
-     * @return 拖拉拽配置对象
-     */
-    AiAgentDrawConfig queryByAgentId(@Param("agentId") String agentId);
+    default List<AiAgentDrawConfig> queryByConfigName(String configName) {
+        return selectList(new QueryWrapper<AiAgentDrawConfig>().like("config_name", configName).orderByDesc("create_time"));
+    }
 
-    /**
-     * 查询启用状态的拖拉拽配置列表
-     * @return 拖拉拽配置列表
-     */
-    List<AiAgentDrawConfig> queryEnabledConfigs();
-
-    /**
-     * 根据配置名称模糊查询拖拉拽配置列表
-     * @param configName 配置名称
-     * @return 拖拉拽配置列表
-     */
-    List<AiAgentDrawConfig> queryByConfigName(@Param("configName") String configName);
-
-    /**
-     * 查询所有拖拉拽配置
-     * @return 拖拉拽配置列表
-     */
-    List<AiAgentDrawConfig> queryAll();
+    default List<AiAgentDrawConfig> queryAll() {
+        return selectList(new QueryWrapper<AiAgentDrawConfig>().orderByDesc("create_time"));
+    }
 
 }

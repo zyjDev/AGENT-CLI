@@ -1,99 +1,72 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * 管理员用户表 DAO
- * @description 管理员用户表数据访问对象
+ * @description 管理员用户表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAdminUserDao {
+public interface IAdminUserDao extends BaseMapper<AdminUser> {
 
-    /**
-     * 插入管理员用户
-     * @param adminUser 管理员用户对象
-     * @return 影响行数
-     */
-    int insert(AdminUser adminUser);
+    default int updateById(AdminUser adminUser) {
+        UpdateWrapper<AdminUser> uw = new UpdateWrapper<>();
+        uw.eq("id", adminUser.getId());
+        uw.set("user_id", adminUser.getUserId());
+        uw.set("username", adminUser.getUsername());
+        uw.set("password", adminUser.getPassword());
+        uw.set("status", adminUser.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新管理员用户
-     * @param adminUser 管理员用户对象
-     * @return 影响行数
-     */
-    int updateById(AdminUser adminUser);
+    default int updateByUserId(AdminUser adminUser) {
+        UpdateWrapper<AdminUser> uw = new UpdateWrapper<>();
+        uw.eq("user_id", adminUser.getUserId());
+        uw.set("username", adminUser.getUsername());
+        uw.set("password", adminUser.getPassword());
+        uw.set("status", adminUser.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据用户ID更新管理员用户
-     * @param adminUser 管理员用户对象
-     * @return 影响行数
-     */
-    int updateByUserId(AdminUser adminUser);
+    default int deleteByUserId(String userId) {
+        return delete(new QueryWrapper<AdminUser>().eq("user_id", userId));
+    }
 
-    /**
-     * 根据ID删除管理员用户
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(Long id);
+    default AdminUser queryById(Long id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据用户ID删除管理员用户
-     * @param userId 用户ID
-     * @return 影响行数
-     */
-    int deleteByUserId(String userId);
+    default AdminUser queryByUserId(String userId) {
+        return selectOne(new QueryWrapper<AdminUser>().eq("user_id", userId));
+    }
 
-    /**
-     * 根据ID查询管理员用户
-     * @param id 主键ID
-     * @return 管理员用户对象
-     */
-    AdminUser queryById(Long id);
+    default AdminUser queryByUsername(String username) {
+        return selectOne(new QueryWrapper<AdminUser>().eq("username", username));
+    }
 
-    /**
-     * 根据用户ID查询管理员用户
-     * @param userId 用户ID
-     * @return 管理员用户对象
-     */
-    AdminUser queryByUserId(String userId);
+    default List<AdminUser> queryEnabledUsers() {
+        return selectList(new QueryWrapper<AdminUser>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据用户名查询管理员用户
-     * @param username 用户名
-     * @return 管理员用户对象
-     */
-    AdminUser queryByUsername(String username);
+    default List<AdminUser> queryByStatus(Integer status) {
+        return selectList(new QueryWrapper<AdminUser>().eq("status", status).orderByDesc("create_time"));
+    }
 
-    /**
-     * 查询启用状态的管理员用户列表
-     * @return 管理员用户列表
-     */
-    List<AdminUser> queryEnabledUsers();
+    default List<AdminUser> queryAll() {
+        return selectList(new QueryWrapper<AdminUser>().orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据状态查询管理员用户列表
-     * @param status 状态
-     * @return 管理员用户列表
-     */
-    List<AdminUser> queryByStatus(Integer status);
-
-    /**
-     * 查询所有管理员用户
-     * @return 管理员用户列表
-     */
-    List<AdminUser> queryAll();
-
-    /**
-     * 用户登录验证
-     * @param username 用户名
-     * @param password 密码
-     * @return 管理员用户对象
-     */
-    AdminUser queryByUsernameAndPassword(@Param("username") String username, @Param("password") String password);
+    default AdminUser queryByUsernameAndPassword(String username, String password) {
+        return selectOne(new QueryWrapper<AdminUser>().eq("username", username).eq("password", password).eq("status", 1));
+    }
 
 }

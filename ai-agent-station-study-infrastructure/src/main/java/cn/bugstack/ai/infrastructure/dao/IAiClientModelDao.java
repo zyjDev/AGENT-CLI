@@ -1,91 +1,73 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientModel;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * 聊天模型配置表 DAO
  * @author bugstack虫洞栈
- * @description 聊天模型配置表数据访问对象
+ * @description 聊天模型配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAiClientModelDao {
+public interface IAiClientModelDao extends BaseMapper<AiClientModel> {
 
-    /**
-     * 插入聊天模型配置
-     * @param aiClientModel 聊天模型配置对象
-     * @return 影响行数
-     */
-    int insert(AiClientModel aiClientModel);
+    default int updateById(AiClientModel aiClientModel) {
+        UpdateWrapper<AiClientModel> uw = new UpdateWrapper<>();
+        uw.eq("id", aiClientModel.getId());
+        uw.set("model_id", aiClientModel.getModelId());
+        uw.set("api_id", aiClientModel.getApiId());
+        uw.set("model_name", aiClientModel.getModelName());
+        uw.set("model_type", aiClientModel.getModelType());
+        uw.set("model_usage", aiClientModel.getModelUsage());
+        uw.set("status", aiClientModel.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新聊天模型配置
-     * @param aiClientModel 聊天模型配置对象
-     * @return 影响行数
-     */
-    int updateById(AiClientModel aiClientModel);
+    default int updateByModelId(AiClientModel aiClientModel) {
+        UpdateWrapper<AiClientModel> uw = new UpdateWrapper<>();
+        uw.eq("model_id", aiClientModel.getModelId());
+        uw.set("api_id", aiClientModel.getApiId());
+        uw.set("model_name", aiClientModel.getModelName());
+        uw.set("model_type", aiClientModel.getModelType());
+        uw.set("model_usage", aiClientModel.getModelUsage());
+        uw.set("status", aiClientModel.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据模型ID更新聊天模型配置
-     * @param aiClientModel 聊天模型配置对象
-     * @return 影响行数
-     */
-    int updateByModelId(AiClientModel aiClientModel);
+    default int deleteByModelId(String modelId) {
+        return delete(new QueryWrapper<AiClientModel>().eq("model_id", modelId));
+    }
 
-    /**
-     * 根据ID删除聊天模型配置
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(Long id);
+    default AiClientModel queryById(Long id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据模型ID删除聊天模型配置
-     * @param modelId 模型ID
-     * @return 影响行数
-     */
-    int deleteByModelId(String modelId);
+    default AiClientModel queryByModelId(String modelId) {
+        return selectOne(new QueryWrapper<AiClientModel>().eq("model_id", modelId));
+    }
 
-    /**
-     * 根据ID查询聊天模型配置
-     * @param id 主键ID
-     * @return 聊天模型配置对象
-     */
-    AiClientModel queryById(Long id);
+    default List<AiClientModel> queryByApiId(String apiId) {
+        return selectList(new QueryWrapper<AiClientModel>().eq("api_id", apiId).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据模型ID查询聊天模型配置
-     * @param modelId 模型ID
-     * @return 聊天模型配置对象
-     */
-    AiClientModel queryByModelId(String modelId);
+    default List<AiClientModel> queryByModelType(String modelType) {
+        return selectList(new QueryWrapper<AiClientModel>().eq("model_type", modelType).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据API配置ID查询聊天模型配置
-     * @param apiId API配置ID
-     * @return 聊天模型配置列表
-     */
-    List<AiClientModel> queryByApiId(String apiId);
+    default List<AiClientModel> queryEnabledModels() {
+        return selectList(new QueryWrapper<AiClientModel>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据模型类型查询聊天模型配置
-     * @param modelType 模型类型
-     * @return 聊天模型配置列表
-     */
-    List<AiClientModel> queryByModelType(String modelType);
-
-    /**
-     * 查询所有启用的聊天模型配置
-     * @return 聊天模型配置列表
-     */
-    List<AiClientModel> queryEnabledModels();
-
-    /**
-     * 查询所有聊天模型配置
-     * @return 聊天模型配置列表
-     */
-    List<AiClientModel> queryAll();
+    default List<AiClientModel> queryAll() {
+        return selectList(new QueryWrapper<AiClientModel>().orderByDesc("create_time"));
+    }
 
 }

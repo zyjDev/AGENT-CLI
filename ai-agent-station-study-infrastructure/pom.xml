@@ -10,12 +10,7 @@
     <artifactId>ai-agent-station-study-infrastructure</artifactId>
 
     <dependencies>
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-        </dependency>
-
-        <!-- MyBatis-Plus -->
+        <!-- MyBatis-Plus（仅保留 MP starter；移除原生 mybatis-spring-boot-starter 避免双 starter 重复扫描 Mapper） -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>

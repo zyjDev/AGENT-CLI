@@ -1,77 +1,65 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * AI客户端API配置表 DAO
  * @author bugstack虫洞栈
- * @description AI客户端API配置表数据访问对象
+ * @description AI客户端API配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAiClientApiDao {
+public interface IAiClientApiDao extends BaseMapper<AiClientApi> {
 
-    /**
-     * 插入AI客户端API配置
-     * @param aiClientApi AI客户端API配置对象
-     * @return 影响行数
-     */
-    int insert(AiClientApi aiClientApi);
+    default int updateById(AiClientApi aiClientApi) {
+        UpdateWrapper<AiClientApi> uw = new UpdateWrapper<>();
+        uw.eq("id", aiClientApi.getId());
+        uw.set("api_id", aiClientApi.getApiId());
+        uw.set("base_url", aiClientApi.getBaseUrl());
+        uw.set("api_key", aiClientApi.getApiKey());
+        uw.set("completions_path", aiClientApi.getCompletionsPath());
+        uw.set("embeddings_path", aiClientApi.getEmbeddingsPath());
+        uw.set("status", aiClientApi.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新AI客户端API配置
-     * @param aiClientApi AI客户端API配置对象
-     * @return 影响行数
-     */
-    int updateById(AiClientApi aiClientApi);
+    default int updateByApiId(AiClientApi aiClientApi) {
+        UpdateWrapper<AiClientApi> uw = new UpdateWrapper<>();
+        uw.eq("api_id", aiClientApi.getApiId());
+        uw.set("base_url", aiClientApi.getBaseUrl());
+        uw.set("api_key", aiClientApi.getApiKey());
+        uw.set("completions_path", aiClientApi.getCompletionsPath());
+        uw.set("embeddings_path", aiClientApi.getEmbeddingsPath());
+        uw.set("status", aiClientApi.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据API ID更新AI客户端API配置
-     * @param aiClientApi AI客户端API配置对象
-     * @return 影响行数
-     */
-    int updateByApiId(AiClientApi aiClientApi);
+    default int deleteByApiId(String apiId) {
+        return delete(new QueryWrapper<AiClientApi>().eq("api_id", apiId));
+    }
 
-    /**
-     * 根据ID删除AI客户端API配置
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(Long id);
+    default AiClientApi queryById(Long id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据API ID删除AI客户端API配置
-     * @param apiId API ID
-     * @return 影响行数
-     */
-    int deleteByApiId(String apiId);
+    default AiClientApi queryByApiId(String apiId) {
+        return selectOne(new QueryWrapper<AiClientApi>().eq("api_id", apiId));
+    }
 
-    /**
-     * 根据ID查询AI客户端API配置
-     * @param id 主键ID
-     * @return AI客户端API配置对象
-     */
-    AiClientApi queryById(Long id);
+    default List<AiClientApi> queryEnabledApis() {
+        return selectList(new QueryWrapper<AiClientApi>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据API ID查询AI客户端API配置
-     * @param apiId API ID
-     * @return AI客户端API配置对象
-     */
-    AiClientApi queryByApiId(String apiId);
-
-    /**
-     * 查询所有启用的AI客户端API配置
-     * @return AI客户端API配置列表
-     */
-    List<AiClientApi> queryEnabledApis();
-
-    /**
-     * 查询所有AI客户端API配置
-     * @return AI客户端API配置列表
-     */
-    List<AiClientApi> queryAll();
+    default List<AiClientApi> queryAll() {
+        return selectList(new QueryWrapper<AiClientApi>().orderByDesc("create_time"));
+    }
 
 }

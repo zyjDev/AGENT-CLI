@@ -1,89 +1,67 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentTaskSchedule;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 智能体任务调度配置表 DAO
  * @author bugstack虫洞栈
- * @description 智能体任务调度配置表数据访问对象
+ * @description 智能体任务调度配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAiAgentTaskScheduleDao {
+public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule> {
 
-    /**
-     * 插入智能体任务调度配置
-     * @param aiAgentTaskSchedule 智能体任务调度配置对象
-     * @return 影响行数
-     */
-    int insert(AiAgentTaskSchedule aiAgentTaskSchedule);
+    default int updateById(AiAgentTaskSchedule aiAgentTaskSchedule) {
+        UpdateWrapper<AiAgentTaskSchedule> uw = new UpdateWrapper<>();
+        uw.eq("id", aiAgentTaskSchedule.getId());
+        uw.set("agent_id", aiAgentTaskSchedule.getAgentId());
+        uw.set("task_name", aiAgentTaskSchedule.getTaskName());
+        uw.set("description", aiAgentTaskSchedule.getDescription());
+        uw.set("cron_expression", aiAgentTaskSchedule.getCronExpression());
+        uw.set("task_param", aiAgentTaskSchedule.getTaskParam());
+        uw.set("status", aiAgentTaskSchedule.getStatus());
+        uw.set("update_time", LocalDateTime.now());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新智能体任务调度配置
-     * @param aiAgentTaskSchedule 智能体任务调度配置对象
-     * @return 影响行数
-     */
-    int updateById(AiAgentTaskSchedule aiAgentTaskSchedule);
+    default int deleteByAgentId(Long agentId) {
+        return delete(new QueryWrapper<AiAgentTaskSchedule>().eq("agent_id", agentId));
+    }
 
-    /**
-     * 根据ID删除智能体任务调度配置
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(Long id);
+    default AiAgentTaskSchedule queryById(Long id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据智能体ID删除任务调度配置
-     * @param agentId 智能体ID
-     * @return 影响行数
-     */
-    int deleteByAgentId(Long agentId);
+    default List<AiAgentTaskSchedule> queryByAgentId(Long agentId) {
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>().eq("agent_id", agentId).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据ID查询智能体任务调度配置
-     * @param id 主键ID
-     * @return 智能体任务调度配置对象
-     */
-    AiAgentTaskSchedule queryById(Long id);
+    default List<AiAgentTaskSchedule> queryEnabledTasks() {
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据智能体ID查询任务调度配置列表
-     * @param agentId 智能体ID
-     * @return 智能体任务调度配置列表
-     */
-    List<AiAgentTaskSchedule> queryByAgentId(Long agentId);
+    default AiAgentTaskSchedule queryByTaskName(String taskName) {
+        return selectOne(new QueryWrapper<AiAgentTaskSchedule>().eq("task_name", taskName));
+    }
 
-    /**
-     * 查询所有有效的任务调度配置
-     * @return 智能体任务调度配置列表
-     */
-    List<AiAgentTaskSchedule> queryEnabledTasks();
+    default List<AiAgentTaskSchedule> queryAll() {
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>().orderByDesc("create_time"));
+    }
 
-    /**
-     * 根据任务名称查询任务调度配置
-     * @param taskName 任务名称
-     * @return 智能体任务调度配置对象
-     */
-    AiAgentTaskSchedule queryByTaskName(String taskName);
+    default List<AiAgentTaskSchedule> queryAllValidTaskSchedule() {
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1).orderByDesc("create_time"));
+    }
 
-    /**
-     * 查询所有智能体任务调度配置
-     * @return 智能体任务调度配置列表
-     */
-    List<AiAgentTaskSchedule> queryAll();
-
-    /**
-     * 查询所有有效的任务调度配置
-     * @return 智能体任务调度配置列表
-     */
-    List<AiAgentTaskSchedule> queryAllValidTaskSchedule();
-
-    /**
-     * 查询所有无效的任务调度配置ID
-     * @return 无效任务调度配置ID列表
-     */
-    List<Long> queryAllInvalidTaskScheduleIds();
+    default List<Long> queryAllInvalidTaskScheduleIds() {
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>().select("id").eq("status", 0))
+                .stream().map(AiAgentTaskSchedule::getId).collect(Collectors.toList());
+    }
 
 }

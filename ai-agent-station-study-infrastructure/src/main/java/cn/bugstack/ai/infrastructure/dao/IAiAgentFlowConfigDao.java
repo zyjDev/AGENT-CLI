@@ -1,80 +1,53 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 /**
  * 智能体-客户端关联表 DAO
  * @author bugstack虫洞栈
- * @description 智能体-客户端关联表数据访问对象
+ * @description 智能体-客户端关联表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper
-public interface IAiAgentFlowConfigDao {
+public interface IAiAgentFlowConfigDao extends BaseMapper<AiAgentFlowConfig> {
 
-    /**
-     * 插入智能体-客户端关联配置
-     * @param aiAgentFlowConfig 智能体-客户端关联配置对象
-     * @return 影响行数
-     */
-    int insert(AiAgentFlowConfig aiAgentFlowConfig);
+    default int updateById(AiAgentFlowConfig aiAgentFlowConfig) {
+        UpdateWrapper<AiAgentFlowConfig> uw = new UpdateWrapper<>();
+        uw.eq("id", aiAgentFlowConfig.getId());
+        uw.set("agent_id", aiAgentFlowConfig.getAgentId());
+        uw.set("client_id", aiAgentFlowConfig.getClientId());
+        uw.set("sequence", aiAgentFlowConfig.getSequence());
+        uw.set("step_prompt", aiAgentFlowConfig.getStepPrompt());
+        return update(null, uw);
+    }
 
-    /**
-     * 根据ID更新智能体-客户端关联配置
-     * @param aiAgentFlowConfig 智能体-客户端关联配置对象
-     * @return 影响行数
-     */
-    int updateById(AiAgentFlowConfig aiAgentFlowConfig);
+    default int deleteByAgentId(String agentId) {
+        return delete(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId));
+    }
 
-    /**
-     * 根据ID删除智能体-客户端关联配置
-     * @param id 主键ID
-     * @return 影响行数
-     */
-    int deleteById(String id);
+    default AiAgentFlowConfig queryById(String id) {
+        return selectById(id);
+    }
 
-    /**
-     * 根据智能体ID删除关联配置
-     * @param agentId 智能体ID
-     * @return 影响行数
-     */
-    int deleteByAgentId(String agentId);
+    default List<AiAgentFlowConfig> queryByAgentId(String agentId) {
+        return selectList(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId).orderByAsc("sequence"));
+    }
 
-    /**
-     * 根据ID查询智能体-客户端关联配置
-     * @param id 主键ID
-     * @return 智能体-客户端关联配置对象
-     */
-    AiAgentFlowConfig queryById(String id);
+    default List<AiAgentFlowConfig> queryByClientId(String clientId) {
+        return selectList(new QueryWrapper<AiAgentFlowConfig>().eq("client_id", clientId).orderByAsc("sequence"));
+    }
 
-    /**
-     * 根据智能体ID查询关联配置列表
-     * @param agentId 智能体ID
-     * @return 智能体-客户端关联配置列表
-     */
-    List<AiAgentFlowConfig> queryByAgentId(String agentId);
+    default AiAgentFlowConfig queryByAgentIdAndClientId(String agentId, String clientId) {
+        return selectOne(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId).eq("client_id", clientId));
+    }
 
-    /**
-     * 根据客户端ID查询关联配置列表
-     * @param clientId 客户端ID
-     * @return 智能体-客户端关联配置列表
-     */
-    List<AiAgentFlowConfig> queryByClientId(String clientId);
-
-    /**
-     * 根据智能体ID和客户端ID查询关联配置
-     * @param agentId 智能体ID
-     * @param clientId 客户端ID
-     * @return 智能体-客户端关联配置对象
-     */
-    AiAgentFlowConfig queryByAgentIdAndClientId(@Param("agentId") String agentId, @Param("clientId") String clientId);
-
-    /**
-     * 查询所有智能体-客户端关联配置
-     * @return 智能体-客户端关联配置列表
-     */
-    List<AiAgentFlowConfig> queryAll();
+    default List<AiAgentFlowConfig> queryAll() {
+        return selectList(new QueryWrapper<AiAgentFlowConfig>().orderByAsc("agent_id").orderByAsc("sequence"));
+    }
 
 }
