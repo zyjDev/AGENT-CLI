@@ -45,7 +45,7 @@
 ```json
 {
   "aiAgentId": "3",
-  "message": "检索小傅哥的相关项目，列出一份学习计划",
+  "message": "1 + 1",
   "sessionId": "session_1642345678901_abc123def",
   "maxStep": 5
 }
@@ -129,7 +129,7 @@ data: {"type":"summary","subType":"summary_overview","step":5,"content":"## 学�
 // 准备请求数据
 const requestData = {
     aiAgentId: "3",
-    message: "检索小傅哥的相关项目，列出一份学习计划",
+    message: "1 + 1",
     sessionId: "session_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
     maxStep: 5
 };
