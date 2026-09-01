@@ -4,6 +4,7 @@ import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
 import cn.bugstack.ai.domain.agent.model.entity.ArmoryCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientApiVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientModelVO;
+import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.service.armory.business.data.ILoadDataStrategy;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
 import jakarta.annotation.Resource;
@@ -42,6 +43,12 @@ public class AiClientModelLoadDataStrategy implements ILoadDataStrategy {
             log.info("查询配置数据(ai_client_model) {}", modelIdList);
             return repository.AiClientModelVOByModelIds(modelIdList);
         }, threadPoolExecutor);
+        // 将查询结果放入dynamicContext中
+        CompletableFuture.allOf(aiClientApiListFuture, aiClientModelListFuture).thenRun(() -> {
+            dynamicContext.setValue(AiAgentEnumVO.AI_CLIENT_API.getDataName(), aiClientApiListFuture.join());
+            dynamicContext.setValue(AiAgentEnumVO.AI_CLIENT_MODEL.getDataName(), aiClientModelListFuture.join());
+
+        }).join();
 
     }
 
