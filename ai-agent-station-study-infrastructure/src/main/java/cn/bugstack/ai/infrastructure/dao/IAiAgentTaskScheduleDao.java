@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,7 +26,7 @@ public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule>
         uw.set("cron_expression", aiAgentTaskSchedule.getCronExpression());
         uw.set("task_param", aiAgentTaskSchedule.getTaskParam());
         uw.set("status", aiAgentTaskSchedule.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiAgentTaskSchedule.getUpdateTime());
         return update(null, uw);
     }
 
@@ -60,7 +59,10 @@ public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule>
     }
 
     default List<Long> queryAllInvalidTaskScheduleIds() {
-        return selectList(new QueryWrapper<AiAgentTaskSchedule>().select("id").eq("status", 0))
+        return selectList(new QueryWrapper<AiAgentTaskSchedule>()
+                .select("id")
+                .eq("status", 0)
+                .orderByDesc("create_time"))
                 .stream().map(AiAgentTaskSchedule::getId).collect(Collectors.toList());
     }
 

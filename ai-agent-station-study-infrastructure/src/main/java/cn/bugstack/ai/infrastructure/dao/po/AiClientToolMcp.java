@@ -56,8 +56,9 @@ public class AiClientToolMcp {
     private Integer requestTimeout;
 
     /**
-     * 环境变量
+     * 环境变量（应用层字段，旧 XML 未持久化）
      */
+    @TableField(exist = false)
     private String env;
 
     /**

@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -23,7 +22,7 @@ public interface IAdminUserDao extends BaseMapper<AdminUser> {
         uw.set("username", adminUser.getUsername());
         uw.set("password", adminUser.getPassword());
         uw.set("status", adminUser.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", adminUser.getUpdateTime());
         return update(null, uw);
     }
 
@@ -33,7 +32,7 @@ public interface IAdminUserDao extends BaseMapper<AdminUser> {
         uw.set("username", adminUser.getUsername());
         uw.set("password", adminUser.getPassword());
         uw.set("status", adminUser.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", adminUser.getUpdateTime());
         return update(null, uw);
     }
 

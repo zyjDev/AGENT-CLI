@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -26,7 +25,7 @@ public interface IAiClientAdvisorDao extends BaseMapper<AiClientAdvisor> {
         uw.set("order_num", aiClientAdvisor.getOrderNum());
         uw.set("ext_param", aiClientAdvisor.getExtParam());
         uw.set("status", aiClientAdvisor.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiClientAdvisor.getUpdateTime());
         return update(null, uw);
     }
 
@@ -38,7 +37,7 @@ public interface IAiClientAdvisorDao extends BaseMapper<AiClientAdvisor> {
         uw.set("order_num", aiClientAdvisor.getOrderNum());
         uw.set("ext_param", aiClientAdvisor.getExtParam());
         uw.set("status", aiClientAdvisor.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiClientAdvisor.getUpdateTime());
         return update(null, uw);
     }
 

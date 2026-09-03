@@ -34,7 +34,8 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
 
     default AiClientRagOrder queryByRagId(String ragId) {
         return selectOne(new LambdaQueryWrapper<AiClientRagOrder>()
-                .eq(AiClientRagOrder::getRagId, ragId));
+                .eq(AiClientRagOrder::getRagId, ragId)
+                .last("LIMIT 1"));
     }
 
     default List<AiClientRagOrder> queryAll() {

@@ -4,7 +4,6 @@ import cn.bugstack.ai.infrastructure.dao.po.AiClientSystemPrompt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
@@ -38,13 +37,13 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
     default int updateById(AiClientSystemPrompt aiClientSystemPrompt) {
         LambdaUpdateWrapper<AiClientSystemPrompt> uw = new LambdaUpdateWrapper<>();
         uw.eq(AiClientSystemPrompt::getId, aiClientSystemPrompt.getId());
-        if (StringUtils.isNotBlank(aiClientSystemPrompt.getPromptId())) {
+        if (aiClientSystemPrompt.getPromptId() != null && !aiClientSystemPrompt.getPromptId().isEmpty()) {
             uw.set(AiClientSystemPrompt::getPromptId, aiClientSystemPrompt.getPromptId());
         }
-        if (StringUtils.isNotBlank(aiClientSystemPrompt.getPromptName())) {
+        if (aiClientSystemPrompt.getPromptName() != null && !aiClientSystemPrompt.getPromptName().isEmpty()) {
             uw.set(AiClientSystemPrompt::getPromptName, aiClientSystemPrompt.getPromptName());
         }
-        if (StringUtils.isNotBlank(aiClientSystemPrompt.getPromptContent())) {
+        if (aiClientSystemPrompt.getPromptContent() != null && !aiClientSystemPrompt.getPromptContent().isEmpty()) {
             uw.set(AiClientSystemPrompt::getPromptContent, aiClientSystemPrompt.getPromptContent());
         }
         if (aiClientSystemPrompt.getDescription() != null) {
@@ -63,10 +62,10 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
     default int updateByPromptId(AiClientSystemPrompt aiClientSystemPrompt) {
         LambdaUpdateWrapper<AiClientSystemPrompt> uw = new LambdaUpdateWrapper<>();
         uw.eq(AiClientSystemPrompt::getPromptId, aiClientSystemPrompt.getPromptId());
-        if (StringUtils.isNotBlank(aiClientSystemPrompt.getPromptName())) {
+        if (aiClientSystemPrompt.getPromptName() != null && !aiClientSystemPrompt.getPromptName().isEmpty()) {
             uw.set(AiClientSystemPrompt::getPromptName, aiClientSystemPrompt.getPromptName());
         }
-        if (StringUtils.isNotBlank(aiClientSystemPrompt.getPromptContent())) {
+        if (aiClientSystemPrompt.getPromptContent() != null && !aiClientSystemPrompt.getPromptContent().isEmpty()) {
             uw.set(AiClientSystemPrompt::getPromptContent, aiClientSystemPrompt.getPromptContent());
         }
         if (aiClientSystemPrompt.getDescription() != null) {

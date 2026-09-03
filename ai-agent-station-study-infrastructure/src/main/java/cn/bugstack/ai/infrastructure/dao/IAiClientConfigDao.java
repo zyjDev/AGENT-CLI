@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -35,7 +34,7 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
                 .set(AiClientConfig::getTargetId, aiClientConfig.getTargetId())
                 .set(AiClientConfig::getExtParam, aiClientConfig.getExtParam())
                 .set(AiClientConfig::getStatus, aiClientConfig.getStatus())
-                .set(AiClientConfig::getUpdateTime, LocalDateTime.now()));
+                .set(AiClientConfig::getUpdateTime, aiClientConfig.getUpdateTime()));
     }
 
     /**
@@ -50,7 +49,7 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
                 .set(AiClientConfig::getTargetId, aiClientConfig.getTargetId())
                 .set(AiClientConfig::getExtParam, aiClientConfig.getExtParam())
                 .set(AiClientConfig::getStatus, aiClientConfig.getStatus())
-                .set(AiClientConfig::getUpdateTime, LocalDateTime.now()));
+                .set(AiClientConfig::getUpdateTime, aiClientConfig.getUpdateTime()));
     }
 
     /**

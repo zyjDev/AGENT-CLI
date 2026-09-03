@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -26,7 +25,7 @@ public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
         uw.set("transport_config", aiClientToolMcp.getTransportConfig());
         uw.set("request_timeout", aiClientToolMcp.getRequestTimeout());
         uw.set("status", aiClientToolMcp.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiClientToolMcp.getUpdateTime());
         return update(null, uw);
     }
 
@@ -38,7 +37,7 @@ public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
         uw.set("transport_config", aiClientToolMcp.getTransportConfig());
         uw.set("request_timeout", aiClientToolMcp.getRequestTimeout());
         uw.set("status", aiClientToolMcp.getStatus());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiClientToolMcp.getUpdateTime());
         return update(null, uw);
     }
 

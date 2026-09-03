@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -29,7 +28,7 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
         uw.set("status", aiAgentDrawConfig.getStatus());
         uw.set("create_by", aiAgentDrawConfig.getCreateBy());
         uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiAgentDrawConfig.getUpdateTime());
         return update(null, uw);
     }
 
@@ -43,7 +42,7 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
         uw.set("version", aiAgentDrawConfig.getVersion());
         uw.set("status", aiAgentDrawConfig.getStatus());
         uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
-        uw.set("update_time", LocalDateTime.now());
+        uw.set("update_time", aiAgentDrawConfig.getUpdateTime());
         return update(null, uw);
     }
 
