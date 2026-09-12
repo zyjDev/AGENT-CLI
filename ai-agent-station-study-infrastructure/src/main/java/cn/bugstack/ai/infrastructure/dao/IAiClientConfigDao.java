@@ -24,32 +24,16 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
     }
 
     /**
-     * 根据源ID更新AI客户端配置（等价原 XML updateBySourceId 全字段更新）
+     * 根据源ID更新AI客户端配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
      */
     default int updateBySourceId(AiClientConfig aiClientConfig) {
-        return update(null, new LambdaUpdateWrapper<AiClientConfig>()
-                .eq(AiClientConfig::getSourceId, aiClientConfig.getSourceId())
-                .set(AiClientConfig::getSourceType, aiClientConfig.getSourceType())
-                .set(AiClientConfig::getTargetType, aiClientConfig.getTargetType())
-                .set(AiClientConfig::getTargetId, aiClientConfig.getTargetId())
-                .set(AiClientConfig::getExtParam, aiClientConfig.getExtParam())
-                .set(AiClientConfig::getStatus, aiClientConfig.getStatus())
-                .set(AiClientConfig::getUpdateTime, aiClientConfig.getUpdateTime()));
-    }
-
-    /**
-     * 根据ID更新AI客户端配置（等价原 XML updateById 全字段更新）
-     */
-    default int updateById(AiClientConfig aiClientConfig) {
-        return update(null, new LambdaUpdateWrapper<AiClientConfig>()
-                .eq(AiClientConfig::getId, aiClientConfig.getId())
-                .set(AiClientConfig::getSourceType, aiClientConfig.getSourceType())
-                .set(AiClientConfig::getSourceId, aiClientConfig.getSourceId())
-                .set(AiClientConfig::getTargetType, aiClientConfig.getTargetType())
-                .set(AiClientConfig::getTargetId, aiClientConfig.getTargetId())
-                .set(AiClientConfig::getExtParam, aiClientConfig.getExtParam())
-                .set(AiClientConfig::getStatus, aiClientConfig.getStatus())
-                .set(AiClientConfig::getUpdateTime, aiClientConfig.getUpdateTime()));
+        return update(aiClientConfig, new LambdaUpdateWrapper<AiClientConfig>()
+                .eq(AiClientConfig::getSourceId, aiClientConfig.getSourceId()));
     }
 
     /**

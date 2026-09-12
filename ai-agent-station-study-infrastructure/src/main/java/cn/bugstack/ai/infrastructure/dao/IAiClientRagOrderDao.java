@@ -55,16 +55,15 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }
 
+    /**
+     * 根据知识库ID更新知识库配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     */
     default int updateByRagId(AiClientRagOrder aiClientRagOrder) {
-        return update(null, new LambdaUpdateWrapper<AiClientRagOrder>()
-                .eq(AiClientRagOrder::getRagId, aiClientRagOrder.getRagId())
-                .set(AiClientRagOrder::getRagName, aiClientRagOrder.getRagName())
-                .set(AiClientRagOrder::getKnowledgeTag, aiClientRagOrder.getKnowledgeTag())
-                .set(AiClientRagOrder::getStatus, aiClientRagOrder.getStatus())
-                .set(AiClientRagOrder::getVersion, aiClientRagOrder.getVersion())
-                .set(AiClientRagOrder::getFileHash, aiClientRagOrder.getFileHash())
-                .set(AiClientRagOrder::getUpdateReason, aiClientRagOrder.getUpdateReason())
-                .set(AiClientRagOrder::getUpdateTime, LocalDateTime.now()));
+        return update(aiClientRagOrder, new LambdaUpdateWrapper<AiClientRagOrder>()
+                .eq(AiClientRagOrder::getRagId, aiClientRagOrder.getRagId()));
     }
 
     default int deleteByRagId(String ragId) {

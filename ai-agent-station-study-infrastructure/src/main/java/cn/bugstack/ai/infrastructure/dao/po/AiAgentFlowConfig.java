@@ -61,6 +61,15 @@ public class AiAgentFlowConfig {
     private String stepPrompt;
 
     /**
+     * 状态；0无效，1有效
+     * <p>
+     * 对应建表 SQL ai_agent_flow_config.status。执行链路（Flow/Auto/Fixed 策略与 Armory 装配）
+     * 只允许加载 status=1 的流程配置，请使用 IAiAgentFlowConfigDao#queryEnabledByAgentId 查询；
+     * 数据中存在 status=0 的占位/禁用节点（如 agent_id='1' 的 2101~2103），若一并加载会被真实执行。
+     */
+    private Integer status;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

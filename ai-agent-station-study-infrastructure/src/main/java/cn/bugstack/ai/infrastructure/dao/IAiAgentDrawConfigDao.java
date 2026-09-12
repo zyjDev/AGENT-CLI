@@ -16,34 +16,16 @@ import java.util.List;
 @Mapper
 public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
 
-    default int updateById(AiAgentDrawConfig aiAgentDrawConfig) {
-        UpdateWrapper<AiAgentDrawConfig> uw = new UpdateWrapper<>();
-        uw.eq("id", aiAgentDrawConfig.getId());
-        uw.set("config_id", aiAgentDrawConfig.getConfigId());
-        uw.set("config_name", aiAgentDrawConfig.getConfigName());
-        uw.set("description", aiAgentDrawConfig.getDescription());
-        uw.set("agent_id", aiAgentDrawConfig.getAgentId());
-        uw.set("config_data", aiAgentDrawConfig.getConfigData());
-        uw.set("version", aiAgentDrawConfig.getVersion());
-        uw.set("status", aiAgentDrawConfig.getStatus());
-        uw.set("create_by", aiAgentDrawConfig.getCreateBy());
-        uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
-        uw.set("update_time", aiAgentDrawConfig.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据配置ID更新拖拉拽配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByConfigId(AiAgentDrawConfig aiAgentDrawConfig) {
-        UpdateWrapper<AiAgentDrawConfig> uw = new UpdateWrapper<>();
-        uw.eq("config_id", aiAgentDrawConfig.getConfigId());
-        uw.set("config_name", aiAgentDrawConfig.getConfigName());
-        uw.set("description", aiAgentDrawConfig.getDescription());
-        uw.set("agent_id", aiAgentDrawConfig.getAgentId());
-        uw.set("config_data", aiAgentDrawConfig.getConfigData());
-        uw.set("version", aiAgentDrawConfig.getVersion());
-        uw.set("status", aiAgentDrawConfig.getStatus());
-        uw.set("update_by", aiAgentDrawConfig.getUpdateBy());
-        uw.set("update_time", aiAgentDrawConfig.getUpdateTime());
-        return update(null, uw);
+        return update(aiAgentDrawConfig, new UpdateWrapper<AiAgentDrawConfig>().eq("config_id", aiAgentDrawConfig.getConfigId()));
     }
 
     default int deleteByConfigId(String configId) {

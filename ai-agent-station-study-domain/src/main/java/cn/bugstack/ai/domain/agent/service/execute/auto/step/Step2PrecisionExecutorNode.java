@@ -5,6 +5,8 @@ import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -49,7 +51,11 @@ public class Step2PrecisionExecutorNode extends AbstractExecuteSupport{
                         })
                 .call().content();
 
-        assert executionResult != null;
+        // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致后续解析抛 NPE
+        if (executionResult == null) {
+            throw new BizException(ResponseCode.UN_ERROR.getCode(),
+                    "精准执行阶段未返回结果（模型调用失败或超时），sessionId=" + requestParameter.getSessionId());
+        }
         parseExecutionResult(dynamicContext, executionResult, requestParameter.getSessionId());
         
         // 将执行结果保存到动态上下文中，供下一步使用

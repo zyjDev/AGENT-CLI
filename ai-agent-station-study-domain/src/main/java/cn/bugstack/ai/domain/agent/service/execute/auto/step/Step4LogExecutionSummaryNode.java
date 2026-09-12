@@ -90,7 +90,12 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
                             })
                     .call().content();
 
-            assert summaryResult != null;
+            // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致 logFinalReport 内 NPE。
+            // 本方法整体已被 catch 兜底、总结属于可降级环节，故此处跳过而非抛出（完成标识由策略层兜底发送）。
+            if (summaryResult == null) {
+                log.warn("⚠️ 总结阶段未返回结果（模型调用失败或超时），跳过最终总结，sessionId={}", requestParameter.getSessionId());
+                return;
+            }
             logFinalReport(dynamicContext, summaryResult, requestParameter.getSessionId());
             
             // 将总结结果保存到动态上下文中

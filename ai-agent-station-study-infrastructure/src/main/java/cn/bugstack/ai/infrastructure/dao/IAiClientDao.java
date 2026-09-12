@@ -16,25 +16,17 @@ import java.util.List;
 @Mapper
 public interface IAiClientDao extends BaseMapper<AiClient> {
 
-    default int updateById(AiClient aiClient) {
-        UpdateWrapper<AiClient> uw = new UpdateWrapper<>();
-        uw.eq("id", aiClient.getId());
-        uw.set("client_id", aiClient.getClientId());
-        uw.set("client_name", aiClient.getClientName());
-        uw.set("description", aiClient.getDescription());
-        uw.set("status", aiClient.getStatus());
-        uw.set("update_time", aiClient.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据客户端ID更新AI客户端配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发，
+     * 导致内置「只更新非 null 字段」语义失效并把未传字段写成 NULL。按 id 更新请直接使用 BaseMapper.updateById。
+     */
     default int updateByClientId(AiClient aiClient) {
-        UpdateWrapper<AiClient> uw = new UpdateWrapper<>();
-        uw.eq("client_id", aiClient.getClientId());
-        uw.set("client_name", aiClient.getClientName());
-        uw.set("description", aiClient.getDescription());
-        uw.set("status", aiClient.getStatus());
-        uw.set("update_time", aiClient.getUpdateTime());
-        return update(null, uw);
+        return update(aiClient, new UpdateWrapper<AiClient>().eq("client_id", aiClient.getClientId()));
     }
 
     default int deleteByClientId(String clientId) {

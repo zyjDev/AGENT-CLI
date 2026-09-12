@@ -16,29 +16,16 @@ import java.util.List;
 @Mapper
 public interface IAiClientAdvisorDao extends BaseMapper<AiClientAdvisor> {
 
-    default int updateById(AiClientAdvisor aiClientAdvisor) {
-        UpdateWrapper<AiClientAdvisor> uw = new UpdateWrapper<>();
-        uw.eq("id", aiClientAdvisor.getId());
-        uw.set("advisor_id", aiClientAdvisor.getAdvisorId());
-        uw.set("advisor_name", aiClientAdvisor.getAdvisorName());
-        uw.set("advisor_type", aiClientAdvisor.getAdvisorType());
-        uw.set("order_num", aiClientAdvisor.getOrderNum());
-        uw.set("ext_param", aiClientAdvisor.getExtParam());
-        uw.set("status", aiClientAdvisor.getStatus());
-        uw.set("update_time", aiClientAdvisor.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据顾问ID更新顾问配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByAdvisorId(AiClientAdvisor aiClientAdvisor) {
-        UpdateWrapper<AiClientAdvisor> uw = new UpdateWrapper<>();
-        uw.eq("advisor_id", aiClientAdvisor.getAdvisorId());
-        uw.set("advisor_name", aiClientAdvisor.getAdvisorName());
-        uw.set("advisor_type", aiClientAdvisor.getAdvisorType());
-        uw.set("order_num", aiClientAdvisor.getOrderNum());
-        uw.set("ext_param", aiClientAdvisor.getExtParam());
-        uw.set("status", aiClientAdvisor.getStatus());
-        uw.set("update_time", aiClientAdvisor.getUpdateTime());
-        return update(null, uw);
+        return update(aiClientAdvisor, new UpdateWrapper<AiClientAdvisor>().eq("advisor_id", aiClientAdvisor.getAdvisorId()));
     }
 
     default int deleteByAdvisorId(String advisorId) {

@@ -15,25 +15,16 @@ import java.util.List;
 @Mapper
 public interface IAdminUserDao extends BaseMapper<AdminUser> {
 
-    default int updateById(AdminUser adminUser) {
-        UpdateWrapper<AdminUser> uw = new UpdateWrapper<>();
-        uw.eq("id", adminUser.getId());
-        uw.set("user_id", adminUser.getUserId());
-        uw.set("username", adminUser.getUsername());
-        uw.set("password", adminUser.getPassword());
-        uw.set("status", adminUser.getStatus());
-        uw.set("update_time", adminUser.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据用户ID更新管理员用户
+     * <p>
+     * 使用实体驱动更新：只有实体中非 null 的字段才会进入 SET 子句（MyBatis-Plus 默认 NOT_NULL 策略），
+     * 避免调用方未传的字段被写成 NULL；update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByUserId(AdminUser adminUser) {
-        UpdateWrapper<AdminUser> uw = new UpdateWrapper<>();
-        uw.eq("user_id", adminUser.getUserId());
-        uw.set("username", adminUser.getUsername());
-        uw.set("password", adminUser.getPassword());
-        uw.set("status", adminUser.getStatus());
-        uw.set("update_time", adminUser.getUpdateTime());
-        return update(null, uw);
+        return update(adminUser, new UpdateWrapper<AdminUser>().eq("user_id", adminUser.getUserId()));
     }
 
     default int deleteByUserId(String userId) {

@@ -5,6 +5,8 @@ import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -145,7 +147,12 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
                     .call()
                     .content();
 
-            assert executionResult != null;
+            // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致下方 substring 抛 NPE。
+            // 抛出后由本方法外层 catch 交给 handleStepExecutionError 处理，记录并继续后续步骤。
+            if (executionResult == null) {
+                throw new BizException(ResponseCode.UN_ERROR.getCode(),
+                        "第 " + stepNumber + " 步执行未返回结果（模型调用失败或超时）");
+            }
             log.info("步骤 {} 执行结果: {}", stepNumber, executionResult.substring(0, Math.min(150, executionResult.length())) + "...");
 
             // 保存执行结果

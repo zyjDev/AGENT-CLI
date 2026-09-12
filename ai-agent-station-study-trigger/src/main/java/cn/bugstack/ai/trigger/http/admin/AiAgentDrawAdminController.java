@@ -356,6 +356,8 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                                         .clientType(clientType)
                                         .sequence(sequence)
                                         .stepPrompt(stepPrompt)
+                                        // 新保存的流程节点显式置为有效；否则 status 为 null 时只能依赖 DB 默认值
+                                        .status(1)
                                         .createTime(LocalDateTime.now())
                                         .build();
 

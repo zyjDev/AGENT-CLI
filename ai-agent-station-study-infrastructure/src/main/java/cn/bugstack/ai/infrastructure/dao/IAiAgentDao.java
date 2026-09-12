@@ -15,29 +15,16 @@ import java.util.List;
 @Mapper
 public interface IAiAgentDao extends BaseMapper<AiAgent> {
 
-    default int updateById(AiAgent aiAgent) {
-        UpdateWrapper<AiAgent> uw = new UpdateWrapper<>();
-        uw.eq("id", aiAgent.getId());
-        uw.set("agent_id", aiAgent.getAgentId());
-        uw.set("agent_name", aiAgent.getAgentName());
-        uw.set("description", aiAgent.getDescription());
-        uw.set("channel", aiAgent.getChannel());
-        uw.set("strategy", aiAgent.getStrategy());
-        uw.set("status", aiAgent.getStatus());
-        uw.set("update_time", aiAgent.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据智能体ID更新AI智能体配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByAgentId(AiAgent aiAgent) {
-        UpdateWrapper<AiAgent> uw = new UpdateWrapper<>();
-        uw.eq("agent_id", aiAgent.getAgentId());
-        uw.set("agent_name", aiAgent.getAgentName());
-        uw.set("description", aiAgent.getDescription());
-        uw.set("channel", aiAgent.getChannel());
-        uw.set("strategy", aiAgent.getStrategy());
-        uw.set("status", aiAgent.getStatus());
-        uw.set("update_time", aiAgent.getUpdateTime());
-        return update(null, uw);
+        return update(aiAgent, new UpdateWrapper<AiAgent>().eq("agent_id", aiAgent.getAgentId()));
     }
 
     default int deleteByAgentId(String agentId) {

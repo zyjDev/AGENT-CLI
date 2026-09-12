@@ -2,7 +2,6 @@ package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentTaskSchedule;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -13,22 +12,12 @@ import java.util.stream.Collectors;
  * 智能体任务调度配置表 DAO
  * @author bugstack虫洞栈
  * @description 智能体任务调度配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
+ * <p>
+ * 注意：本接口不要声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发，
+ * 导致内置「只更新非 null 字段」语义失效并把未传字段写成 NULL。按 id 更新请直接使用 BaseMapper.updateById。
  */
 @Mapper
 public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule> {
-
-    default int updateById(AiAgentTaskSchedule aiAgentTaskSchedule) {
-        UpdateWrapper<AiAgentTaskSchedule> uw = new UpdateWrapper<>();
-        uw.eq("id", aiAgentTaskSchedule.getId());
-        uw.set("agent_id", aiAgentTaskSchedule.getAgentId());
-        uw.set("task_name", aiAgentTaskSchedule.getTaskName());
-        uw.set("description", aiAgentTaskSchedule.getDescription());
-        uw.set("cron_expression", aiAgentTaskSchedule.getCronExpression());
-        uw.set("task_param", aiAgentTaskSchedule.getTaskParam());
-        uw.set("status", aiAgentTaskSchedule.getStatus());
-        uw.set("update_time", aiAgentTaskSchedule.getUpdateTime());
-        return update(null, uw);
-    }
 
     default int deleteByAgentId(Long agentId) {
         return delete(new QueryWrapper<AiAgentTaskSchedule>().eq("agent_id", agentId));

@@ -16,29 +16,16 @@ import java.util.List;
 @Mapper
 public interface IAiClientApiDao extends BaseMapper<AiClientApi> {
 
-    default int updateById(AiClientApi aiClientApi) {
-        UpdateWrapper<AiClientApi> uw = new UpdateWrapper<>();
-        uw.eq("id", aiClientApi.getId());
-        uw.set("api_id", aiClientApi.getApiId());
-        uw.set("base_url", aiClientApi.getBaseUrl());
-        uw.set("api_key", aiClientApi.getApiKey());
-        uw.set("completions_path", aiClientApi.getCompletionsPath());
-        uw.set("embeddings_path", aiClientApi.getEmbeddingsPath());
-        uw.set("status", aiClientApi.getStatus());
-        uw.set("update_time", aiClientApi.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据API ID更新AI客户端API配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByApiId(AiClientApi aiClientApi) {
-        UpdateWrapper<AiClientApi> uw = new UpdateWrapper<>();
-        uw.eq("api_id", aiClientApi.getApiId());
-        uw.set("base_url", aiClientApi.getBaseUrl());
-        uw.set("api_key", aiClientApi.getApiKey());
-        uw.set("completions_path", aiClientApi.getCompletionsPath());
-        uw.set("embeddings_path", aiClientApi.getEmbeddingsPath());
-        uw.set("status", aiClientApi.getStatus());
-        uw.set("update_time", aiClientApi.getUpdateTime());
-        return update(null, uw);
+        return update(aiClientApi, new UpdateWrapper<AiClientApi>().eq("api_id", aiClientApi.getApiId()));
     }
 
     default int deleteByApiId(String apiId) {

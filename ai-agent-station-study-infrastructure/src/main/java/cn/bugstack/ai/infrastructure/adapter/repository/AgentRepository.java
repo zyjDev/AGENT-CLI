@@ -468,7 +468,8 @@ public class AgentRepository implements IAgentRepository {
     @Override
     public Map<String, AiAgentClientFlowConfigVO> queryAiAgentClientFlowConfig(String aiAgentId) {
         try {
-            List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryByAgentId(aiAgentId);
+            // 只加载 status=1 的有效流程配置，避免已禁用的占位节点（如 agent_id='1' 的 2101~2103）参与执行
+            List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentId(aiAgentId);
             Map<String, AiAgentClientFlowConfigVO> result = new HashMap<>();
 
             for (AiAgentFlowConfig flowConfig : flowConfigs) {
@@ -525,7 +526,8 @@ public class AgentRepository implements IAgentRepository {
     public List<AiAgentClientFlowConfigVO> queryAiAgentClientsByAgentId(String aiAgentId) {
         List<AiAgentClientFlowConfigVO> aiAgentClientFlowConfigVOS = new ArrayList<>();
 
-        List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryByAgentId(aiAgentId);
+        // 只加载 status=1 的有效流程配置：本方法同时服务于 FixedAgentExecuteStrategy 执行与 Armory 装配
+        List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentId(aiAgentId);
         for (AiAgentFlowConfig flowConfig : flowConfigs) {
             AiAgentClientFlowConfigVO configVO = AiAgentClientFlowConfigVO.builder()
                     .clientId(flowConfig.getClientId())
@@ -600,8 +602,18 @@ public class AgentRepository implements IAgentRepository {
     @Override
     public List<AiClientApiVO> queryAiClientApiVOListByApiIds(List<String> apiIdList) {
         List<AiClientApiVO> aiClientApiVOS = new ArrayList<>();
+        if (apiIdList == null || apiIdList.isEmpty()) {
+            return aiClientApiVOS;
+        }
+
         for (String apiId : apiIdList) {
             AiClientApi aiClientApi = aiClientApiDao.queryByApiId(apiId);
+            // apiId 在 ai_client_api 中不存在（如 ai_client.api_id 悬空）时 queryByApiId 返回 null，
+            // 直接取属性会 NPE 并中断整个 Armory 装配，这里跳过该条并告警
+            if (aiClientApi == null) {
+                log.warn("AI客户端API配置不存在，跳过，apiId：{}", apiId);
+                continue;
+            }
             aiClientApiVOS.add(AiClientApiVO.builder()
                     .apiId(aiClientApi.getApiId())
                     .baseUrl(aiClientApi.getBaseUrl())

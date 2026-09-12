@@ -16,29 +16,16 @@ import java.util.List;
 @Mapper
 public interface IAiClientModelDao extends BaseMapper<AiClientModel> {
 
-    default int updateById(AiClientModel aiClientModel) {
-        UpdateWrapper<AiClientModel> uw = new UpdateWrapper<>();
-        uw.eq("id", aiClientModel.getId());
-        uw.set("model_id", aiClientModel.getModelId());
-        uw.set("api_id", aiClientModel.getApiId());
-        uw.set("model_name", aiClientModel.getModelName());
-        uw.set("model_type", aiClientModel.getModelType());
-        uw.set("model_usage", aiClientModel.getModelUsage());
-        uw.set("status", aiClientModel.getStatus());
-        uw.set("update_time", aiClientModel.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据模型ID更新聊天模型配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByModelId(AiClientModel aiClientModel) {
-        UpdateWrapper<AiClientModel> uw = new UpdateWrapper<>();
-        uw.eq("model_id", aiClientModel.getModelId());
-        uw.set("api_id", aiClientModel.getApiId());
-        uw.set("model_name", aiClientModel.getModelName());
-        uw.set("model_type", aiClientModel.getModelType());
-        uw.set("model_usage", aiClientModel.getModelUsage());
-        uw.set("status", aiClientModel.getStatus());
-        uw.set("update_time", aiClientModel.getUpdateTime());
-        return update(null, uw);
+        return update(aiClientModel, new UpdateWrapper<AiClientModel>().eq("model_id", aiClientModel.getModelId()));
     }
 
     default int deleteByModelId(String modelId) {

@@ -16,29 +16,16 @@ import java.util.List;
 @Mapper
 public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
 
-    default int updateById(AiClientToolMcp aiClientToolMcp) {
-        UpdateWrapper<AiClientToolMcp> uw = new UpdateWrapper<>();
-        uw.eq("id", aiClientToolMcp.getId());
-        uw.set("mcp_id", aiClientToolMcp.getMcpId());
-        uw.set("mcp_name", aiClientToolMcp.getMcpName());
-        uw.set("transport_type", aiClientToolMcp.getTransportType());
-        uw.set("transport_config", aiClientToolMcp.getTransportConfig());
-        uw.set("request_timeout", aiClientToolMcp.getRequestTimeout());
-        uw.set("status", aiClientToolMcp.getStatus());
-        uw.set("update_time", aiClientToolMcp.getUpdateTime());
-        return update(null, uw);
-    }
-
+    /**
+     * 根据MCP ID更新MCP客户端配置
+     * <p>
+     * 实体驱动更新：只有非 null 字段进入 SET 子句，未传字段保持库中原值；
+     * update_time 由 TimeMetaObjectHandler 自动填充。
+     * <p>
+     * 注意：不要在此接口中声明 default int updateById(...)，否则会覆盖 BaseMapper.updateById 的 SQL 派发。
+     */
     default int updateByMcpId(AiClientToolMcp aiClientToolMcp) {
-        UpdateWrapper<AiClientToolMcp> uw = new UpdateWrapper<>();
-        uw.eq("mcp_id", aiClientToolMcp.getMcpId());
-        uw.set("mcp_name", aiClientToolMcp.getMcpName());
-        uw.set("transport_type", aiClientToolMcp.getTransportType());
-        uw.set("transport_config", aiClientToolMcp.getTransportConfig());
-        uw.set("request_timeout", aiClientToolMcp.getRequestTimeout());
-        uw.set("status", aiClientToolMcp.getStatus());
-        uw.set("update_time", aiClientToolMcp.getUpdateTime());
-        return update(null, uw);
+        return update(aiClientToolMcp, new UpdateWrapper<AiClientToolMcp>().eq("mcp_id", aiClientToolMcp.getMcpId()));
     }
 
     default int deleteByMcpId(String mcpId) {
