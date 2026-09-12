@@ -42,7 +42,15 @@ public class AiClient {
 
     /**
      * 客户端描述
+     * <p>
+     * 【已废弃，请勿使用】本字段不是数据库列（`ai_client` 表只有 `description`），
+     * 且 MP 不会为 `exist = false` 的字段生成 SELECT 列，因此**读取值恒为 null**。
+     * 客户端描述请使用 {@link #description}。
+     *
+     * @deprecated 用 {@link #description} 代替；保留仅为兼容 `docs/MyBatis-Plus-迁移-交接文档.md`
+     * 中「已知非数据库字段」的记录
      */
+    @Deprecated
     @TableField(exist = false)
     private String clientDesc;
 

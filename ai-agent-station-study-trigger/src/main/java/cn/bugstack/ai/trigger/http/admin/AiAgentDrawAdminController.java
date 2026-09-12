@@ -12,6 +12,7 @@ import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
 import cn.bugstack.ai.trigger.http.admin.util.DrawConfigParser;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 拖拉拽， 方便快速装配agent，不需要去数据库中进行配置
@@ -110,157 +112,189 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         }
     }
 
+    /**
+     * 保存拖拉拽流程图配置（新建 / 更新共用）
+     * <p>
+     * <b>事务语义</b>：本方法带 {@code @Transactional(rollbackFor = Exception.class)}，
+     * 因此**任何失败都必须以异常外抛的方式结束** —— 在方法内部 {@code catch} 后 {@code return}
+     * 会让 Spring 感知不到异常，事务照常提交，从而留下半成品配置（ai_agent / ai_agent_draw_config
+     * 已写入，而关系表写入失败）。异常统一交给 {@code GlobalExceptionHandler} 转成错误响应。
+     */
     @Override
     @PostMapping("/save-config")
     @Transactional(rollbackFor = Exception.class)
     public Response<String> saveDrawConfig(@RequestBody AiAgentDrawConfigRequestDTO request) {
-        try {
-            log.info("保存流程图配置请求：{}", request);
+        log.info("保存流程图配置请求：{}", request);
 
-            // 生成8位数字的唯一AgentId
-            String agentId = String.format("%08d", System.currentTimeMillis() % 100000000L);
-            request.setAgentId(agentId);
+        // 1. 参数校验（前置：避免为非法请求做无意义的 agentId 生成与库操作）
+        if (!StringUtils.hasText(request.getConfigName())) {
+            return Response.<String>builder()
+                    .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                    .info("配置名称不能为空")
+                    .build();
+        }
 
-            // 参数校验
-            if (!StringUtils.hasText(request.getConfigName())) {
-                return Response.<String>builder()
-                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
-                        .info("配置名称不能为空")
-                        .build();
-            }
+        if (!StringUtils.hasText(request.getConfigData())) {
+            return Response.<String>builder()
+                    .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                    .info("配置数据不能为空")
+                    .build();
+        }
 
-            if (!StringUtils.hasText(request.getConfigData())) {
-                return Response.<String>builder()
-                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
-                        .info("配置数据不能为空")
-                        .build();
-            }
+        // 2. 解析配置ID，并据此判定本次是「新建」还是「更新」
+        String configId = StringUtils.hasText(request.getConfigId())
+                ? request.getConfigId()
+                : UUID.randomUUID().toString().replace("-", "");
+        AiAgentDrawConfig existingConfig = aiAgentDrawConfigDao.queryByConfigId(configId);
 
-            // 解析JSON中的agent信息
-            String[] agentInfo = parseAgentInfoFromJson(request.getConfigData());
-            String agentName = agentInfo[0];
-            String description = agentInfo[1];
-            String channel = agentInfo[2];
-            String strategy = agentInfo[3];
+        // 3. 决定 agentId
+        //    更新：必须复用原 agentId。原实现在更新分支同样重新生成 agentId 并 insert 一条新 agent，
+        //          导致每次编辑都遗留一条孤儿 ai_agent 记录 + 一批孤儿 ai_agent_flow_config，
+        //          并切断 ai_agent_task_schedule 对原 agentId 的引用（定时任务因此指向失效智能体）。
+        //    新建：生成一个未被占用的 agentId。
+        String agentId = (existingConfig != null && StringUtils.hasText(existingConfig.getAgentId()))
+                ? existingConfig.getAgentId()
+                : generateUniqueAgentId();
+        request.setAgentId(agentId);
 
+        // 4. 解析JSON中的agent信息
+        String[] agentInfo = parseAgentInfoFromJson(request.getConfigData());
+        String agentName = agentInfo[0];
+        String description = agentInfo[1];
+        String channel = agentInfo[2];
+        String strategy = agentInfo[3];
+
+        // 5. 写入 ai_agent：不存在则 insert，存在则更新元信息
+        //    注意 ai_agent.agent_id 上有唯一索引 uk_agent_id，更新场景绝不能重复 insert
+        AiAgent existingAgent = aiAgentDao.queryByAgentId(agentId);
+        if (existingAgent == null) {
             aiAgentDao.insert(AiAgent.builder()
-                    .agentId(request.getAgentId())
+                    .agentId(agentId)
                     .agentName(agentName)
                     .channel(channel)
                     .strategy(strategy)
                     .status(1)
                     .description(description)
                     .build());
-
-            // 生成配置ID（如果没有提供）
-            String configId = request.getConfigId();
-            if (!StringUtils.hasText(configId)) {
-                configId = UUID.randomUUID().toString().replace("-", "");
-            }
-
-            // 检查配置是否已存在
-            AiAgentDrawConfig existingConfig = aiAgentDrawConfigDao.queryByConfigId(configId);
-
-            AiAgentDrawConfig drawConfig = new AiAgentDrawConfig();
-            BeanUtils.copyProperties(request, drawConfig);
-            drawConfig.setConfigId(configId);
-            drawConfig.setVersion(1); // 默认版本号
-            drawConfig.setStatus(1); // 默认启用状态
-
-            int result;
-            if (existingConfig != null) {
-                // 更新现有配置
-                drawConfig.setId(existingConfig.getId());
-                drawConfig.setVersion(existingConfig.getVersion() + 1);
-                drawConfig.setUpdateTime(LocalDateTime.now());
-                result = aiAgentDrawConfigDao.updateByConfigId(drawConfig);
-                log.info("更新流程图配置，configId: {}, result: {}", configId, result);
-            } else {
-                // 创建新配置
-                drawConfig.setCreateTime(LocalDateTime.now());
-                drawConfig.setUpdateTime(LocalDateTime.now());
-                result = aiAgentDrawConfigDao.insert(drawConfig);
-                log.info("创建流程图配置，configId: {}, result: {}", configId, result);
-            }
-
-            if (result > 0) {
-                // 解析JSON配置数据，生成关系映射并存储到ai_client_config表
-                try {
-                    List<AiClientConfig> configRelations = DrawConfigParser.parseConfigData(request.getConfigData());
-                    if (!configRelations.isEmpty()) {
-                        // 先删除该配置相关的旧关系数据（如果是更新操作）
-                        if (existingConfig != null) {
-                            aiClientConfigDao.deleteBySourceId(configId);
-                            log.info("删除配置{}的旧关系数据", configId);
-                        }
-
-                        // 批量插入新的关系数据
-                        for (AiClientConfig config : configRelations) {
-                            // 检查是否已经存在相同的记录
-                            List<AiClientConfig> existingConfigs = aiClientConfigDao.queryByConditions(
-                                config.getSourceType(), 
-                                config.getSourceId(), 
-                                config.getTargetType(), 
-                                config.getTargetId()
-                            );
-                            
-                            if (existingConfigs.isEmpty()) {
-                                // 设置扩展参数，记录来源配置ID
-                                config.setExtParam("{\"configId\":\"" + configId + "\"}");
-                                aiClientConfigDao.insert(config);
-                                log.debug("插入新的配置关系: sourceType={}, sourceId={}, targetType={}, targetId={}", 
-                                    config.getSourceType(), config.getSourceId(), config.getTargetType(), config.getTargetId());
-                            } else {
-                                log.debug("配置关系已存在，跳过插入: sourceType={}, sourceId={}, targetType={}, targetId={}", 
-                                    config.getSourceType(), config.getSourceId(), config.getTargetType(), config.getTargetId());
-                            }
-                        }
-                        log.info("成功保存{}条配置关系数据", configRelations.size());
-                    }
-                } catch (Exception e) {
-                    log.error("解析和保存配置关系数据失败，configId: {}", configId, e);
-                }
-
-                // 解析JSON配置数据，提取client信息并保存agent-client关系
-                try {
-                    List<AiAgentFlowConfig> agentFlowConfigs = parseClientInfoFromJson(request.getConfigData(), agentId);
-                    if (!agentFlowConfigs.isEmpty()) {
-                        // 先删除该agentId相关的旧关系数据（如果是更新操作）
-                        if (existingConfig != null) {
-                            aiAgentFlowConfigDao.deleteByAgentId(agentId);
-                            log.info("删除agentId{}的旧流程配置数据", agentId);
-                        }
-
-                        // 批量插入新的agent-client关系数据
-                        for (AiAgentFlowConfig flowConfig : agentFlowConfigs) {
-                            aiAgentFlowConfigDao.insert(flowConfig);
-                        }
-                        log.info("成功保存{}条agent-client关系数据", agentFlowConfigs.size());
-                    }
-                } catch (Exception e) {
-                    log.error("解析和保存agent-client关系数据失败，agentId: {}", agentId, e);
-                    // 这里不影响主流程，只记录错误日志
-                }
-
-                return Response.<String>builder()
-                        .code(ResponseCode.SUCCESS.getCode())
-                        .info(ResponseCode.SUCCESS.getInfo())
-                        .data(configId)
-                        .build();
-            } else {
-                return Response.<String>builder()
-                        .code(ResponseCode.UN_ERROR.getCode())
-                        .info("保存失败")
-                        .build();
-            }
-
-        } catch (Exception e) {
-            log.error("保存流程图配置失败", e);
-            return Response.<String>builder()
-                    .code(ResponseCode.UN_ERROR.getCode())
-                    .info("保存失败：" + e.getMessage())
-                    .build();
+        } else {
+            // 只更新元信息，不动 status —— 编辑流程图不应隐式把已禁用的智能体重置为启用
+            AiAgent updateAgent = new AiAgent();
+            updateAgent.setId(existingAgent.getId());
+            updateAgent.setAgentName(agentName);
+            updateAgent.setChannel(channel);
+            updateAgent.setStrategy(strategy);
+            updateAgent.setDescription(description);
+            updateAgent.setUpdateTime(LocalDateTime.now());
+            aiAgentDao.updateById(updateAgent);
         }
+
+        // 6. 写入 ai_agent_draw_config
+        AiAgentDrawConfig drawConfig = new AiAgentDrawConfig();
+        BeanUtils.copyProperties(request, drawConfig);
+        drawConfig.setConfigId(configId);
+        drawConfig.setAgentId(agentId);
+        drawConfig.setStatus(1); // 默认启用状态
+
+        int result;
+        if (existingConfig != null) {
+            // 更新现有配置
+            drawConfig.setId(existingConfig.getId());
+            drawConfig.setVersion(existingConfig.getVersion() + 1);
+            drawConfig.setUpdateTime(LocalDateTime.now());
+            result = aiAgentDrawConfigDao.updateByConfigId(drawConfig);
+            log.info("更新流程图配置，configId: {}, result: {}", configId, result);
+        } else {
+            // 创建新配置
+            drawConfig.setVersion(1); // 默认版本号
+            drawConfig.setCreateTime(LocalDateTime.now());
+            drawConfig.setUpdateTime(LocalDateTime.now());
+            result = aiAgentDrawConfigDao.insert(drawConfig);
+            log.info("创建流程图配置，configId: {}, result: {}", configId, result);
+        }
+
+        if (result <= 0) {
+            // 抛异常而不是返回错误码：只有异常外抛才会触发事务回滚，
+            // 否则上面已写入的 ai_agent 会残留成孤儿数据。
+            // 说明：JDBC URL 未开启 useAffectedRows，MySQL 返回的是「匹配行数」，
+            // 因此 result == 0 代表确实没匹配到配置行（而非「值未变化」），可安全视为失败。
+            throw new BizException(ResponseCode.UN_ERROR.getCode(), "保存流程图配置失败，configId=" + configId);
+        }
+
+        // 7. 重建 ai_client_config 关系
+        //    不再用 try/catch 吞异常 —— 关系写失败说明配置不完整，必须让整个事务回滚，
+        //    否则会产生「接口返回成功、但流程缺客户端」的半成品配置。
+        List<AiClientConfig> configRelations = DrawConfigParser.parseConfigData(request.getConfigData());
+        if (!configRelations.isEmpty()) {
+            // 【注意】此处原本有一段「更新时先删旧关系」的逻辑：aiClientConfigDao.deleteBySourceId(configId)。
+            // 它其实是一条**无效清理**：ai_client_config 没有 config_id 列，其 source_id / target_id 存的是
+            // 节点引用的客户端 / 模型 ID（见 DrawConfigParser.createAiClientConfig；库中实际值为 '2000'、'3001' 等），
+            // 拿 32 位 configId 去匹配 source_id 永远查不到任何行。故已移除，避免留下「看起来在清理」的假象。
+            // 目前的去重依赖下面「已存在则跳过」的判断（全局去重，不按配置隔离）。
+            // 已知遗留设计缺陷（需给 ai_client_config 增加 config_id 列才能根治）：
+            //   1) 删除某条 draw config 时，它写入的关系行不会被清理；
+            //   2) 多条 draw config 若引用同一组节点，会共用同一批关系行，且 ext_param 里的 configId 归属会失真。
+
+            // 批量插入新的关系数据
+            for (AiClientConfig config : configRelations) {
+                // 检查是否已经存在相同的记录
+                List<AiClientConfig> existingConfigs = aiClientConfigDao.queryByConditions(
+                        config.getSourceType(),
+                        config.getSourceId(),
+                        config.getTargetType(),
+                        config.getTargetId()
+                );
+
+                if (existingConfigs.isEmpty()) {
+                    // 设置扩展参数，记录来源配置ID
+                    config.setExtParam("{\"configId\":\"" + configId + "\"}");
+                    aiClientConfigDao.insert(config);
+                    log.debug("插入新的配置关系: sourceType={}, sourceId={}, targetType={}, targetId={}",
+                            config.getSourceType(), config.getSourceId(), config.getTargetType(), config.getTargetId());
+                } else {
+                    log.debug("配置关系已存在，跳过插入: sourceType={}, sourceId={}, targetType={}, targetId={}",
+                            config.getSourceType(), config.getSourceId(), config.getTargetType(), config.getTargetId());
+                }
+            }
+            log.info("成功保存{}条配置关系数据", configRelations.size());
+        }
+
+        // 8. 重建 ai_agent_flow_config 关系
+        //    先按 agentId 清空旧数据再重建。原实现在更新分支执行 deleteByAgentId(新生成的 agentId)，
+        //    而该 agentId 是刚生成的、必然查不到任何旧数据 —— 等于没清理；
+        //    同时「新配置里没有 client 节点」时会整个跳过清理，导致旧流程配置残留。
+        List<AiAgentFlowConfig> agentFlowConfigs = parseClientInfoFromJson(request.getConfigData(), agentId);
+        aiAgentFlowConfigDao.deleteByAgentId(agentId);
+        for (AiAgentFlowConfig flowConfig : agentFlowConfigs) {
+            aiAgentFlowConfigDao.insert(flowConfig);
+        }
+        log.info("成功保存{}条agent-client关系数据", agentFlowConfigs.size());
+
+        return Response.<String>builder()
+                .code(ResponseCode.SUCCESS.getCode())
+                .info(ResponseCode.SUCCESS.getInfo())
+                .data(configId)
+                .build();
+    }
+
+    /**
+     * 生成一个未被占用的 8 位数字 agentId
+     * <p>
+     * 原实现为 {@code String.format("%08d", System.currentTimeMillis() % 100000000L)}：
+     * 取模后约 <b>27.8 小时回绕一次</b>，且同一毫秒内的并发请求会得到相同值，
+     * 而 {@code ai_agent.agent_id} 上有唯一索引 {@code uk_agent_id}，重复会直接抛 DuplicateKeyException。
+     * <p>
+     * 这里保留 8 位数字格式（{@code ai_agent_task_schedule.agent_id} 是 bigint，不能改用 UUID），
+     * 改为「随机取值 + 存在性校验 + 有限重试」。
+     */
+    private String generateUniqueAgentId() {
+        for (int i = 0; i < 5; i++) {
+            String candidate = String.format("%08d", ThreadLocalRandom.current().nextInt(100_000_000));
+            if (aiAgentDao.queryByAgentId(candidate) == null) {
+                return candidate;
+            }
+            log.warn("agentId {} 已被占用，重新生成（第 {} 次）", candidate, i + 1);
+        }
+        throw new BizException(ResponseCode.UN_ERROR.getCode(), "生成唯一 agentId 失败，请重试");
     }
 
     /**

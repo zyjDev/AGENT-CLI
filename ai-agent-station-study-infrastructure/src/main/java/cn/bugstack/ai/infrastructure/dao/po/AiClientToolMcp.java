@@ -57,7 +57,15 @@ public class AiClientToolMcp {
 
     /**
      * 环境变量（应用层字段，旧 XML 未持久化）
+     * <p>
+     * 【已废弃，请勿使用】不是数据库列，MP 不会生成对应 SELECT 列；全项目**既无赋值也无读取**。
+     * MCP 的 stdio 环境变量实际由 Spring AI 的 `StdioServerParameters` 承载
+     * （见 `AiClientToolMcpNode:116` 的 `stdio.getEnv()`）。
+     *
+     * @deprecated 无任何读写点，保留仅为兼容 `docs/MyBatis-Plus-迁移-交接文档.md`
+     * 中「已知非数据库字段」的记录
      */
+    @Deprecated
     @TableField(exist = false)
     private String env;
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useClientContext, getNodeForm, FlowNodeEntity } from '@flowgram.ai/free-layout-editor';
 import { Button, Badge, Toast } from '@douyinfe/semi-ui';
 import { API_ENDPOINTS, DEFAULT_HEADERS } from '../../config/api';
+import { getUrlParam, setUrlParam } from '../../utils/url';
 
 export function Save(props: { disabled: boolean }) {
   const [errorCount, setErrorCount] = useState(0);
@@ -55,10 +56,19 @@ export function Save(props: { disabled: boolean }) {
       };
 
       const { name: configName, desc: description } = getAgentInfoFromConfig(configData);
+
+      // 编辑已有配置时必须回传 configId，否则后端一律按「新建」处理 ——
+      // 症状：从列表点进某条配置、改完点保存，结果多出一条新配置，原配置纹丝不动（等于另存为副本）。
+      // 这里的 configId 来自地址栏（列表页跳转时带上的 ?configId=xxx），与 editor.tsx 加载配置用的是同一个来源。
+      const editingConfigId = getUrlParam('configId') ?? undefined;
+
       const requestData = {
+        configId: editingConfigId,
         configName,
         description,
-        agentId: '1', // 默认agentId，可以根据实际需求修改
+        // agentId 由后端决定：新建时生成唯一值、更新时复用原值（ai_agent_task_schedule 依赖它），
+        // 这里传的值会被后端覆盖，保留仅为兼容请求结构
+        agentId: '1',
         configData: JSON.stringify(configData),
         createBy: 'system',
         updateBy: 'system'
@@ -74,6 +84,11 @@ export function Save(props: { disabled: boolean }) {
 
       if (result.code === '0000') {
         Toast.success(`保存成功！配置ID: ${result.data}`);
+        // 新建成功后把 configId 写回地址栏：否则下一次点保存又会新建一份，而不是更新刚创建的这一份。
+        // 用 replaceState 写入，不会触发 editor.tsx 对 location.search 的监听，因此画布不会重载。
+        if (!editingConfigId && result.data) {
+          setUrlParam('configId', result.data);
+        }
         return result.data;
       } else {
         Toast.error(`保存失败: ${result.info}`);
