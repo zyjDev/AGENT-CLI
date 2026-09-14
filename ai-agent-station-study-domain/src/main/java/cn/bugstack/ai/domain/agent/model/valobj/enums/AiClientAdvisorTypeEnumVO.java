@@ -1,14 +1,17 @@
 package cn.bugstack.ai.domain.agent.model.valobj.enums;
 
+import cn.bugstack.ai.domain.agent.model.valobj.AdvisorCreateContextVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientAdvisorVO;
+import cn.bugstack.ai.domain.agent.model.valobj.ContextBudgetVO;
+import cn.bugstack.ai.domain.agent.service.context.TokenBudgetChatMemory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.element.RagAnswerAdvisor;
 
 import java.util.HashMap;
@@ -25,23 +28,29 @@ import java.util.Map;
 @NoArgsConstructor
 public enum AiClientAdvisorTypeEnumVO {
 
-    CHAT_MEMORY("ChatMemory", "上下文记忆（内存模式）") {
+    CHAT_MEMORY("ChatMemory", "上下文记忆（Token 预算 + 摘要压缩）") {
         @Override
-        public Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, VectorStore vectorStore) {
-            AiClientAdvisorVO.ChatMemory chatMemory = aiClientAdvisorVO.getChatMemory();
-            return PromptChatMemoryAdvisor.builder(
-                    MessageWindowChatMemory.builder()
-                            .maxMessages(chatMemory.getMaxMessages())
-                            .build()
-            ).build();
+        public Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, AdvisorCreateContextVO ctx) {
+            // DB ext_param 逐项覆盖 yml 默认值；ext_param 为空时 override(null) 直接返回全局默认
+            ContextBudgetVO budget = ctx.getDefaultBudget().override(aiClientAdvisorVO.getChatMemory());
+
+            // 每个 ChatClient 持有独立的记忆仓库，与改造前 MessageWindowChatMemory 的行为保持一致
+            // （同一 sessionId 在不同 client 之间不共享记忆）
+            ChatMemory chatMemory = new TokenBudgetChatMemory(
+                    new InMemoryChatMemoryRepository(),
+                    ctx.getTokenCounter(),
+                    ctx.getContextSummarizer(),
+                    budget);
+
+            return PromptChatMemoryAdvisor.builder(chatMemory).build();
         }
     },
     
     RAG_ANSWER("RagAnswer", "知识库") {
         @Override
-        public Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, VectorStore vectorStore) {
+        public Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, AdvisorCreateContextVO ctx) {
             AiClientAdvisorVO.RagAnswer ragAnswer = aiClientAdvisorVO.getRagAnswer();
-            return new RagAnswerAdvisor(vectorStore, SearchRequest.builder()
+            return new RagAnswerAdvisor(ctx.getVectorStore(), SearchRequest.builder()
                     .topK(ragAnswer.getTopK())
                     .filterExpression(ragAnswer.getFilterExpression())
                     .build());
@@ -65,11 +74,16 @@ public enum AiClientAdvisorTypeEnumVO {
     
     /**
      * 策略方法：创建顾问对象
+     * <p>
+     * 参数从单个 VectorStore 改为 {@link AdvisorCreateContextVO}：
+     * 枚举静态方法拿不到 Spring Bean，而 Token 预算版 ChatMemory 需要 token 计数器与摘要器，
+     * 故把创建期依赖打包传入。
+     *
      * @param aiClientAdvisorVO 顾问配置对象
-     * @param vectorStore 向量存储
+     * @param ctx               创建期依赖包
      * @return 顾问对象
      */
-    public abstract Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, VectorStore vectorStore);
+    public abstract Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, AdvisorCreateContextVO ctx);
     
     /**
      * 根据code获取枚举

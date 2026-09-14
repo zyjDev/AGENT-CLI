@@ -74,7 +74,8 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
             dynamicContext.setCompleted(true);
         }
         
-        // 更新执行历史
+        // 更新执行历史：appendHistory 内部会累加 executedSteps，
+        // 并在超出 token 预算时把较早的步骤压成摘要（B 套）
         String stepSummary = String.format("""
                 === 第 %d 步完整记录 ===
                 【分析阶段】%s
@@ -85,7 +86,7 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
                 executionResult, 
                 supervisionResult);
         
-        dynamicContext.getExecutionHistory().append(stepSummary);
+        appendHistory(requestParameter, dynamicContext, stepSummary);
         
         // 增加步骤计数
         dynamicContext.setStep(dynamicContext.getStep() + 1);

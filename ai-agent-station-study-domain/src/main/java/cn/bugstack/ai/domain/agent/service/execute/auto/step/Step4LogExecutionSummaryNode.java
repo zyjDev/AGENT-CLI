@@ -28,7 +28,7 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
         log.info("\n📊 阶段4: 执行总结分析");
         
         // 记录执行总结
-        logExecutionSummary(dynamicContext.getMaxStep(), dynamicContext.getExecutionHistory(), dynamicContext.isCompleted());
+        logExecutionSummary(dynamicContext.getMaxStep(), dynamicContext.getExecutedSteps(), dynamicContext.isCompleted());
         
         // 生成最终总结报告（无论任务是否完成都需要生成）
         generateFinalReport(requestParameter, dynamicContext);
@@ -46,11 +46,12 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
     
     /**
      * 记录执行总结
+     * <p>
+     * 步数改用 DynamicContext.executedSteps：执行历史被 token 预算压缩后，
+     * 早期步骤已不在 executionHistory 里，再用 split("=== 第") 推导会算少。
      */
-    private void logExecutionSummary(int maxSteps, StringBuilder executionHistory, boolean isCompleted) {
+    private void logExecutionSummary(int maxSteps, int actualSteps, boolean isCompleted) {
         log.info("\n📊 === 动态多轮执行总结 ====");
-        
-        int actualSteps = Math.min(maxSteps, executionHistory.toString().split("=== 第").length - 1);
         log.info("📈 总执行步数: {} 步", actualSteps);
         
         if (isCompleted) {
@@ -60,7 +61,7 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
         }
         
         // 计算执行效率
-        double efficiency = isCompleted ? 100.0 : (double) actualSteps / maxSteps * 100;
+        double efficiency = isCompleted ? 100.0 : (maxSteps > 0 ? (double) actualSteps / maxSteps * 100 : 0d);
         log.info("📊 执行效率: {}%", efficiency);
     }
     
@@ -74,7 +75,9 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
 
             AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = dynamicContext.getAiAgentClientFlowConfigVOMap().get(AiClientTypeEnumVO.RESPONSE_ASSISTANT.getCode());
 
-            String summaryPrompt = getSummaryPrompt(aiAgentClientFlowConfigVO, requestParameter, dynamicContext, isCompleted);
+            // 历史由 composeHistory 组装：早期步骤摘要 + 最近步骤完整记录
+            String historyText = composeHistory(dynamicContext);
+            String summaryPrompt = getSummaryPrompt(aiAgentClientFlowConfigVO, requestParameter, isCompleted, historyText);
 
             // 获取对话客户端 - 使用任务分析客户端进行总结
             ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
@@ -106,12 +109,12 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
         }
     }
 
-    private static String getSummaryPrompt(AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO, ExecuteCommandEntity requestParameter, DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext, boolean isCompleted) {
+    private static String getSummaryPrompt(AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO, ExecuteCommandEntity requestParameter, boolean isCompleted, String historyText) {
         String summaryPrompt;
         if (isCompleted) {
             summaryPrompt = String.format(aiAgentClientFlowConfigVO.getStepPrompt(),
                     requestParameter.getMessage(),
-                    dynamicContext.getExecutionHistory().toString());
+                    historyText);
         } else {
             summaryPrompt = String.format("""
                     虽然任务未完全执行完成，但请基于已有的执行过程，尽力回答用户的原始问题：
@@ -131,7 +134,7 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
                     请基于现有信息给出用户问题的答案：
                     """,
                     requestParameter.getMessage(),
-                    dynamicContext.getExecutionHistory().toString());
+                    historyText);
         }
         return summaryPrompt;
     }

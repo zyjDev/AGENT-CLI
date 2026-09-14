@@ -5,14 +5,19 @@ import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientSystemPromptVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientVO;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.context.ITokenCounter;
+import cn.bugstack.ai.domain.agent.service.context.TokenUsageRegistry;
+import cn.bugstack.ai.domain.agent.service.context.advisor.TokenUsageAdvisor;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import io.modelcontextprotocol.client.McpSyncClient;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.core.Ordered;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,6 +32,12 @@ import java.util.Map;
 @Slf4j
 @Service
 public class AiClientNode extends AbstractArmorySupport {
+
+    @Resource
+    private ITokenCounter tokenCounter;
+
+    @Resource
+    private TokenUsageRegistry tokenUsageRegistry;
 
     @Override
     protected String doApply(ArmoryCommandEntity requestParameter, DefaultArmoryStrategyFactory.DynamicContext dynamicContext) throws Exception {
@@ -74,6 +85,11 @@ public class AiClientNode extends AbstractArmorySupport {
             for (String advisorBeanName : advisorBeanNameList) {
                 advisors.add(getBean(advisorBeanName));
             }
+
+            // 4.1 追加 token 用量采集顾问：纯旁路、不改写 prompt，
+            //     作用是让 8 处 .call().content() 无需改动即可拿到真实 usage
+            advisors.add(new TokenUsageAdvisor(tokenCounter, tokenUsageRegistry,
+                    Ordered.HIGHEST_PRECEDENCE + 2000));
 
             Advisor[] advisorArray = advisors.toArray(new Advisor[]{});
 

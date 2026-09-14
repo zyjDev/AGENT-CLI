@@ -47,7 +47,14 @@ public class DefaultAutoAgentExecuteStrategyFactory {
         // 最大任务步骤
         private int maxStep = 1;
 
+        // 最近若干步的完整执行记录（受 token 预算约束，超出时压缩到 historySummary）
         private StringBuilder executionHistory;
+
+        // 更早步骤的压缩摘要（token 预算管理新增）
+        private String historySummary;
+
+        // 已执行完成的步数（不受压缩影响，供 Step4 统计使用；token 预算管理新增）
+        private int executedSteps = 0;
 
         private String currentTask;
 

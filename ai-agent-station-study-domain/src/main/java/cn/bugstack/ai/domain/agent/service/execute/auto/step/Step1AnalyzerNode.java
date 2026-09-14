@@ -31,11 +31,13 @@ public class Step1AnalyzerNode extends AbstractExecuteSupport {
 
         // 第一阶段：任务分析
         log.info("\n📊 阶段1: 任务状态分析");
+        // 历史由 composeHistory 组装：早期步骤摘要 + 最近步骤完整记录，受 token 预算约束
+        // （占位符数量与改造前一致，ai_agent_flow_config.step_prompt 模板无需改动）
         String analysisPrompt = String.format(aiAgentClientFlowConfigVO.getStepPrompt(),
                 requestParameter.getMessage(),
                 dynamicContext.getStep(),
                 dynamicContext.getMaxStep(),
-                !dynamicContext.getExecutionHistory().isEmpty() ? dynamicContext.getExecutionHistory().toString() : "[首次执行]",
+                composeHistory(dynamicContext),
                 dynamicContext.getCurrentTask()
         );
 

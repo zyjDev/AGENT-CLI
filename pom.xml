@@ -124,6 +124,13 @@
                 <version>1.15</version>
             </dependency>
 
+            <!-- jtokkit：token 估算（Spring AI 的 JTokkitTokenCountEstimator 依赖它，此处显式声明版本） -->
+            <dependency>
+                <groupId>com.knuddels</groupId>
+                <artifactId>jtokkit</artifactId>
+                <version>1.1.0</version>
+            </dependency>
+
             <!-- spring ai 1.0.0 https://central.sonatype.com/artifact/org.springframework.ai/spring-ai-bom -->
             <dependency>
                 <groupId>org.springframework.ai</groupId>

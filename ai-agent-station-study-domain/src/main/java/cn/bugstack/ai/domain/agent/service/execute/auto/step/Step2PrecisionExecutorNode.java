@@ -60,15 +60,11 @@ public class Step2PrecisionExecutorNode extends AbstractExecuteSupport{
         
         // 将执行结果保存到动态上下文中，供下一步使用
         dynamicContext.setValue("executionResult", executionResult);
-        
-        // 更新执行历史
-        String stepSummary = String.format("""
-                === 第 %d 步执行记录 ===
-                【分析阶段】%s
-                【执行阶段】%s
-                """, dynamicContext.getStep(), analysisResult, executionResult);
-        
-        dynamicContext.getExecutionHistory().append(stepSummary);
+
+        // 说明：此处原先还会把「执行记录」append 进 executionHistory，
+        // 但 Step3 随后又会 append 一份包含分析+执行+监督的「完整记录」，
+        // 导致同一步在历史里重复出现两次、白白翻倍 token。
+        // 现改为只由 Step3 统一写入（信息不丢，Step4 的步数统计也因此从错误的 2N 修正为 N）。
 
         return router(requestParameter, dynamicContext);
     }

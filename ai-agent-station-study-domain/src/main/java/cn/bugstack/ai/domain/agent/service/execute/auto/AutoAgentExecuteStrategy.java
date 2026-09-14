@@ -33,6 +33,9 @@ public class AutoAgentExecuteStrategy implements IExecuteStrategy {
         // 如果最大步数未设置则默认为3
         dynamicContext.setMaxStep(executeCommandEntity.getMaxStep() != null ? executeCommandEntity.getMaxStep() : 3);
         dynamicContext.setExecutionHistory(new StringBuilder());
+        // 上下文 token 预算管理：早期步骤摘要 / 已完成步数
+        dynamicContext.setHistorySummary(null);
+        dynamicContext.setExecutedSteps(0);
         dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
         dynamicContext.setValue("emitter", emitter);
         
