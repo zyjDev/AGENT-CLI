@@ -294,7 +294,7 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
                             match = match && api.getBaseUrl().contains(request.getBaseUrl());
                         }
                         if (request.getStatus() != null) {
-                            match = match && api.getStatus().equals(request.getStatus());
+                            match = match && request.getStatus().equals(api.getStatus());
                         }
                         return match;
                     })

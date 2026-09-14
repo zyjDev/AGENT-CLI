@@ -32,6 +32,7 @@ public class FlowAgentExecuteStrategy implements IExecuteStrategy {
         dynamicContext.setExecutionHistory(new StringBuilder());
         dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
         dynamicContext.setValue("emitter", emitter);
+        dynamicContext.setValue("sessionId", executeCommandEntity.getSessionId());
         
         String apply = executeHandler.apply(executeCommandEntity, dynamicContext);
         log.info("流程执行结果:{}", apply);

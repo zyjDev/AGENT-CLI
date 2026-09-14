@@ -55,8 +55,5 @@ public interface IAdminUserDao extends BaseMapper<AdminUser> {
         return selectList(new QueryWrapper<AdminUser>().orderByDesc("create_time"));
     }
 
-    default AdminUser queryByUsernameAndPassword(String username, String password) {
-        return selectOne(new QueryWrapper<AdminUser>().eq("username", username).eq("password", password).eq("status", 1));
-    }
 
 }

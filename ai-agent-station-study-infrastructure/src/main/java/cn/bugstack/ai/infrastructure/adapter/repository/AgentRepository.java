@@ -73,17 +73,17 @@ public class AgentRepository implements IAgentRepository {
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
             for (AiClientConfig config : configs) {
-                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
+                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && isEnabled(config.getStatus())) {
                     String modelId = config.getTargetId();
 
                     // 2. 通过modelId查询模型配置，获取apiId
                     AiClientModel model = aiClientModelDao.queryByModelId(modelId);
-                    if (model != null && model.getStatus() == 1) {
+                    if (model != null && isEnabled(model.getStatus())) {
                         String apiId = model.getApiId();
 
                         // 3. 通过apiId查询API配置信息
                         AiClientApi apiConfig = aiClientApiDao.queryByApiId(apiId);
-                        if (apiConfig != null && apiConfig.getStatus() == 1) {
+                        if (apiConfig != null && isEnabled(apiConfig.getStatus())) {
                             // 4. 转换为VO对象
                             AiClientApiVO apiVO = AiClientApiVO.builder()
                                     .apiId(apiConfig.getApiId())
@@ -119,18 +119,18 @@ public class AgentRepository implements IAgentRepository {
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
             for (AiClientConfig config : configs) {
-                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
+                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && isEnabled(config.getStatus())) {
                     String modelId = config.getTargetId();
 
                     // 2. 通过modelId查询模型配置
                     AiClientModel model = aiClientModelDao.queryByModelId(modelId);
-                    if (model != null && model.getStatus() == 1) {
+                    if (model != null && isEnabled(model.getStatus())) {
 
                         // 3. 查询该模型关联的tool_mcp配置
                         List<AiClientConfig> toolMcpConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                         List<String> toolMcpIds = new ArrayList<>();
                         for (AiClientConfig toolMcpConfig : toolMcpConfigs) {
-                            if (AI_CLIENT_TOOL_MCP.getCode().equals(toolMcpConfig.getTargetType()) && toolMcpConfig.getStatus() == 1) {
+                            if (AI_CLIENT_TOOL_MCP.getCode().equals(toolMcpConfig.getTargetType()) && isEnabled(toolMcpConfig.getStatus())) {
                                 toolMcpIds.add(toolMcpConfig.getTargetId());
                             }
                         }
@@ -168,18 +168,18 @@ public class AgentRepository implements IAgentRepository {
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
             for (AiClientConfig config : configs) {
-                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
+                if (AI_CLIENT_MODEL.getCode().equals(config.getTargetType()) && isEnabled(config.getStatus())) {
                     String modelId = config.getTargetId();
 
                     // 2. 查询该模型关联的tool_mcp配置
                     List<AiClientConfig> toolMcpConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                     for (AiClientConfig toolMcpConfig : toolMcpConfigs) {
-                        if (AI_CLIENT_TOOL_MCP.getCode().equals(toolMcpConfig.getTargetType()) && toolMcpConfig.getStatus() == 1) {
+                        if (AI_CLIENT_TOOL_MCP.getCode().equals(toolMcpConfig.getTargetType()) && isEnabled(toolMcpConfig.getStatus())) {
                             String toolMcpId = toolMcpConfig.getTargetId();
 
                             // 3. 查询tool_mcp配置信息
                             AiClientToolMcp toolMcp = aiClientToolMcpDao.queryByMcpId(toolMcpId);
-                            if (toolMcp != null && toolMcp.getStatus() == 1) {
+                            if (toolMcp != null && isEnabled(toolMcp.getStatus())) {
                                 AiClientToolMcpVO toolMcpVO = AiClientToolMcpVO.builder()
                                         .toolMcpId(toolMcp.getMcpId())
                                         .toolMcpName(toolMcp.getMcpName())
@@ -213,7 +213,7 @@ public class AgentRepository implements IAgentRepository {
             Set<String> promptIds = new HashSet<>();
 
             for (AiClientConfig config : configs) {
-                if (config.getStatus() != 1) continue;
+                if (!isEnabled(config.getStatus())) continue;
                 // 1a. 直接挂在client上的prompt
                 if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(config.getTargetType())) {
                     promptIds.add(config.getTargetId());
@@ -223,7 +223,7 @@ public class AgentRepository implements IAgentRepository {
                     String modelId = config.getTargetId();
                     List<AiClientConfig> promptConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                     for (AiClientConfig promptConfig : promptConfigs) {
-                        if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && promptConfig.getStatus() == 1) {
+                        if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && isEnabled(promptConfig.getStatus())) {
                             promptIds.add(promptConfig.getTargetId());
                         }
                     }
@@ -233,7 +233,7 @@ public class AgentRepository implements IAgentRepository {
             // 2. 批量查询prompt配置
             for (String promptId : promptIds) {
                 AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
-                if (prompt != null && prompt.getStatus() == 1) {
+                if (prompt != null && isEnabled(prompt.getStatus())) {
                     AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
                             .promptId(prompt.getPromptId())
                             .promptName(prompt.getPromptName())
@@ -265,7 +265,7 @@ public class AgentRepository implements IAgentRepository {
             Set<String> promptIds = new HashSet<>();
 
             for (AiClientConfig config : configs) {
-                if (config.getStatus() != 1) continue;
+                if (!isEnabled(config.getStatus())) continue;
                 // 1a. 直接挂在client上的prompt
                 if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(config.getTargetType())) {
                     promptIds.add(config.getTargetId());
@@ -275,7 +275,7 @@ public class AgentRepository implements IAgentRepository {
                     String modelId = config.getTargetId();
                     List<AiClientConfig> promptConfigs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT_MODEL.getCode(), modelId);
                     for (AiClientConfig promptConfig : promptConfigs) {
-                        if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && promptConfig.getStatus() == 1) {
+                        if (AI_CLIENT_SYSTEM_PROMPT.getCode().equals(promptConfig.getTargetType()) && isEnabled(promptConfig.getStatus())) {
                             promptIds.add(promptConfig.getTargetId());
                         }
                     }
@@ -285,7 +285,7 @@ public class AgentRepository implements IAgentRepository {
             // 2. 批量查询prompt配置
             for (String promptId : promptIds) {
                 AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(promptId);
-                if (prompt != null && prompt.getStatus() == 1) {
+                if (prompt != null && isEnabled(prompt.getStatus())) {
                     AiClientSystemPromptVO promptVO = AiClientSystemPromptVO.builder()
                             .promptId(prompt.getPromptId())
                             .promptName(prompt.getPromptName())
@@ -314,12 +314,12 @@ public class AgentRepository implements IAgentRepository {
             List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
             for (AiClientConfig config : configs) {
-                if (AI_CLIENT_ADVISOR.getCode().equals(config.getTargetType()) && config.getStatus() == 1) {
+                if (AI_CLIENT_ADVISOR.getCode().equals(config.getTargetType()) && isEnabled(config.getStatus())) {
                     String advisorId = config.getTargetId();
 
                     // 2. 查询advisor配置信息
                     AiClientAdvisor advisor = aiClientAdvisorDao.queryByAdvisorId(advisorId);
-                    if (advisor != null && advisor.getStatus() == 1) {
+                    if (advisor != null && isEnabled(advisor.getStatus())) {
                         // 3. 解析extParam中的配置
                         AiClientAdvisorVO.ChatMemory chatMemory = null;
                         AiClientAdvisorVO.RagAnswer ragAnswer = null;
@@ -367,7 +367,7 @@ public class AgentRepository implements IAgentRepository {
 
         for (String clientId : clientIdList) {
             AiClient aiClient = aiClientDao.queryByClientId(clientId);
-            if (aiClient != null && aiClient.getStatus() == 1) {
+            if (aiClient != null && isEnabled(aiClient.getStatus())) {
                 // 查询 ai_client_config 获取关联的 model/prompt/mcp/advisor
                 List<AiClientConfig> configs = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
 
@@ -377,7 +377,7 @@ public class AgentRepository implements IAgentRepository {
                 List<String> advisorIdList = new ArrayList<>();
 
                 for (AiClientConfig config : configs) {
-                    if (config.getStatus() != 1) continue;
+                    if (!isEnabled(config.getStatus())) continue;
                     switch (config.getTargetType()) {
                         case "model" -> modelId = config.getTargetId();
                         case "prompt" -> promptIdList.add(config.getTargetId());
@@ -417,12 +417,12 @@ public class AgentRepository implements IAgentRepository {
         for (String modelId : modelIdList) {
             // 1. 通过modelId查询模型配置，获取apiId
             AiClientModel model = aiClientModelDao.queryByModelId(modelId);
-            if (model != null && model.getStatus() == 1) {
+            if (model != null && isEnabled(model.getStatus())) {
                 String apiId = model.getApiId();
 
                 // 2. 通过apiId查询API配置信息
                 AiClientApi apiConfig = aiClientApiDao.queryByApiId(apiId);
-                if (apiConfig != null && apiConfig.getStatus() == 1) {
+                if (apiConfig != null && isEnabled(apiConfig.getStatus())) {
                     AiClientApiVO apiVO = AiClientApiVO.builder()
                             .apiId(apiConfig.getApiId())
                             .baseUrl(apiConfig.getBaseUrl())
@@ -451,7 +451,7 @@ public class AgentRepository implements IAgentRepository {
 
         for (String modelId : modelIdList) {
             AiClientModel model = aiClientModelDao.queryByModelId(modelId);
-            if (model != null && model.getStatus() == 1) {
+            if (model != null && isEnabled(model.getStatus())) {
                 AiClientModelVO modelVO = AiClientModelVO.builder()
                         .modelId(model.getModelId())
                         .modelName(model.getModelName())
@@ -646,6 +646,13 @@ public class AgentRepository implements IAgentRepository {
         
         int rows = aiClientRagOrderDao.updateById(order);
         return rows > 0;
+    }
+
+    /**
+     * 状态值为 1 视为启用；null 视为未启用，避免 Integer 拆箱 NPE。
+     */
+    private boolean isEnabled(Integer status) {
+        return Integer.valueOf(1).equals(status);
     }
 
     @Override

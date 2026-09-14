@@ -307,7 +307,7 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             // 这里需要根据实际的DAO方法实现，如果没有可以通过queryAll然后过滤
             List<AiClientRagOrder> aiClientRagOrders = aiClientRagOrderDao.queryAll();
             List<AiClientRagOrderResponseDTO> responseDTOs = aiClientRagOrders.stream()
-                    .filter(order -> order.getStatus().equals(status))
+                    .filter(order -> status != null && status.equals(order.getStatus()))
                     .map(this::convertToAiClientRagOrderResponseDTO)
                     .collect(Collectors.toList());
             
@@ -349,7 +349,7 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
                             match = match && order.getKnowledgeTag().contains(request.getKnowledgeTag());
                         }
                         if (request.getStatus() != null) {
-                            match = match && order.getStatus().equals(request.getStatus());
+                            match = match && request.getStatus().equals(order.getStatus());
                         }
                         return match;
                     })

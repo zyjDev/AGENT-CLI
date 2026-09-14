@@ -107,6 +107,7 @@ export const API_ENDPOINTS = {
   ADMIN_USER: {
     BASE: `${API_CONFIG.BASE_DOMAIN}/api/${API_CONFIG.API_VERSION}/admin/admin-user`,
     VALIDATE_LOGIN: '/validate-login',
+    LOGIN: '/login',
   },
   
   // 可以在这里添加其他模块的 API 端点
@@ -124,10 +125,19 @@ export const API_ENDPOINTS = {
 } as const;
 
 // 请求头配置
-export const DEFAULT_HEADERS = {
+export const DEFAULT_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json',
   'Accept': 'application/json',
-} as const;
+  get Authorization() {
+    if (typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        return `Bearer ${token}`;
+      }
+    }
+    return '';
+  },
+};
 
 // 导出便捷方法
 export const getApiUrl = (endpoint: string): string => {

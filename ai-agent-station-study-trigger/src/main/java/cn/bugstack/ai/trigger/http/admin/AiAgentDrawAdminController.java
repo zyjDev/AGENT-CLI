@@ -67,7 +67,7 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                 AiAgentDrawConfig cfg = aiAgentDrawConfigDao.queryByAgentId(request.getAgentId());
                 configs = cfg != null ? List.of(cfg) : List.of();
             } else if (request.getStatus() != null) {
-                if (request.getStatus() == 1) {
+                if (request.getStatus().equals(1)) {
                     configs = aiAgentDrawConfigDao.queryEnabledConfigs();
                 } else {
                     configs = aiAgentDrawConfigDao.queryAll();
@@ -608,10 +608,7 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
 
         } catch (Exception e) {
             log.error("删除流程图配置失败", e);
-            return Response.<String>builder()
-                    .code(ResponseCode.UN_ERROR.getCode())
-                    .info("删除失败：" + e.getMessage())
-                    .build();
+            throw new RuntimeException("删除流程图配置失败", e);
         }
     }
 }

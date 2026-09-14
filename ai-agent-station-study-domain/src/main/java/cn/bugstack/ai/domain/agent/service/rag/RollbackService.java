@@ -8,6 +8,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -35,9 +36,13 @@ public class RollbackService implements IRollbackService {
             }
 
             // 2. 查询目标版本历史
-            var targetHistory = ragUpdateRepository.getVersionHistory(ragId, targetVersion);
+            VersionHistoryDTO targetHistory = ragUpdateRepository.getVersionHistory(ragId, targetVersion);
             if (targetHistory == null) {
                 log.error("目标版本不存在: ragId={}, version={}", ragId, targetVersion);
+                return false;
+            }
+            if (!StringUtils.hasText(targetHistory.getMetadataSnapshot())) {
+                log.error("目标版本没有可用文档快照，无法回滚: ragId={}, version={}", ragId, targetVersion);
                 return false;
             }
 
@@ -60,7 +65,7 @@ public class RollbackService implements IRollbackService {
             // 5. 更新配置
             boolean updateResult = ragUpdateRepository.updateRagOrder(
                 ragId,
-                currentOrder.getFileHash(),
+                targetHistory.getFileHash(),
                 "回滚到版本 " + targetVersion,
                 targetVersion
             );

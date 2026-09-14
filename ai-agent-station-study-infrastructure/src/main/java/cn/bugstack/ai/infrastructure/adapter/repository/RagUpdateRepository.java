@@ -129,12 +129,21 @@ public class RagUpdateRepository implements IRagUpdateRepository {
     }
 
     @Override
-    public Object getVersionHistory(String ragId, Integer version) {
+    public VersionHistoryDTO getVersionHistory(String ragId, Integer version) {
         LambdaQueryWrapper<AiRagVersionHistory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AiRagVersionHistory::getRagId, ragId)
                .eq(AiRagVersionHistory::getVersion, version);
         
-        return aiRagVersionHistoryDao.selectOne(wrapper);
+        AiRagVersionHistory history = aiRagVersionHistoryDao.selectOne(wrapper);
+        return history != null ? convertToVersionHistoryDTO(history) : null;
+    }
+
+    @Override
+    public boolean deleteVersionHistory(String ragId, Integer version) {
+        LambdaQueryWrapper<AiRagVersionHistory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiRagVersionHistory::getRagId, ragId)
+               .eq(AiRagVersionHistory::getVersion, version);
+        return aiRagVersionHistoryDao.delete(wrapper) > 0;
     }
 
     @Override

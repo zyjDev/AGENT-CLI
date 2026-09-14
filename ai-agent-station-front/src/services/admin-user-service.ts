@@ -10,6 +10,14 @@ export interface AdminUserLoginRequestDTO {
   password: string;
 }
 
+export interface AdminUserResponseDTO {
+  id?: number;
+  userId?: string;
+  username: string;
+  status?: number;
+  token: string;
+}
+
 // 定义API响应格式
 export interface ApiResponse<T> {
   code: string;
@@ -22,6 +30,37 @@ export interface ApiResponse<T> {
  */
 export class AdminUserService {
   private static readonly BASE_URL = API_ENDPOINTS.ADMIN_USER.BASE;
+
+  /**
+   * 管理员用户登录
+   * @param loginData 登录数据
+   * @returns 登录成功后的用户信息（含token）
+   */
+  static async loginAdminUser(loginData: AdminUserLoginRequestDTO): Promise<AdminUserResponseDTO | null> {
+    try {
+      const response = await fetch(`${this.BASE_URL}${API_ENDPOINTS.ADMIN_USER.LOGIN}`, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(loginData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result: ApiResponse<AdminUserResponseDTO> = await response.json();
+
+      if (result.code === '0000' && result.data?.token) {
+        return result.data;
+      }
+      console.error('登录失败:', result.info);
+      return null;
+    } catch (error) {
+      console.error('登录请求失败:', error);
+      return null;
+    }
+  }
+
 
   /**
    * 验证管理员用户登录

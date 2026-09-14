@@ -105,9 +105,11 @@ public class AsyncRagUpdateService implements IAsyncRagUpdateService {
             }
             
             // 更新任务状态为完成
-            ragUpdateRepository.updateTaskStatus(taskId, "COMPLETED", 100, processed, failed, null);
-            
-            log.info("批量更新任务完成: taskId={}, processed={}, failed={}", taskId, processed, failed);
+            String finalStatus = failed == 0 ? "COMPLETED" : "FAILED";
+            ragUpdateRepository.updateTaskStatus(taskId, finalStatus, 100, processed, failed,
+                    failed == 0 ? null : "存在 " + failed + " 个知识库更新失败");
+
+            log.info("批量更新任务结束: taskId={}, status={}, processed={}, failed={}", taskId, finalStatus, processed, failed);
             
         } catch (Exception e) {
             log.error("批量更新任务失败: taskId={}", taskId, e);

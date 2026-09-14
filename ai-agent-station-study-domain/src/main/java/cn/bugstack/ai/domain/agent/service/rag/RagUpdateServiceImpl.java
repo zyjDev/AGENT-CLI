@@ -2,6 +2,7 @@ package cn.bugstack.ai.domain.agent.service.rag;
 
 import cn.bugstack.ai.api.dto.AiClientRagOrderResponseDTO;
 import cn.bugstack.ai.api.dto.TaskStatusResponseDTO;
+import cn.bugstack.ai.api.dto.VersionHistoryDTO;
 import cn.bugstack.ai.domain.agent.adapter.repository.IRagUpdateRepository;
 import cn.bugstack.ai.domain.agent.service.IRagUpdateService;
 import cn.bugstack.ai.domain.agent.service.IRagVersionService;
@@ -14,6 +15,7 @@ import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
 
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
@@ -67,6 +69,11 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             if (order == null) {
                 log.error("知识库配置不存在: {}", ragId);
                 return false;
+            }
+
+            if (files == null || files.isEmpty()) {
+                log.error("更新知识库必须至少上传一个文件: ragId={}", ragId);
+                throw new IllegalArgumentException("更新知识库必须至少上传一个文件");
             }
 
             // 2. 保存当前版本到历史
@@ -158,9 +165,13 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
     public boolean rollbackRagVersion(String ragId, Integer targetVersion) {
         try {
             // 1. 查询目标版本历史
-            var versionHistory = ragUpdateRepository.getVersionHistory(ragId, targetVersion);
+            VersionHistoryDTO versionHistory = ragUpdateRepository.getVersionHistory(ragId, targetVersion);
             if (versionHistory == null) {
                 log.error("目标版本不存在: ragId={}, version={}", ragId, targetVersion);
+                return false;
+            }
+            if (!StringUtils.hasText(versionHistory.getMetadataSnapshot())) {
+                log.error("目标版本没有可用文档快照，无法回滚: ragId={}, version={}", ragId, targetVersion);
                 return false;
             }
 
@@ -183,7 +194,7 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             // 4. 更新配置
             boolean updateResult = ragUpdateRepository.updateRagOrder(
                 ragId,
-                currentOrder.getFileHash(),
+                versionHistory.getFileHash(),
                 "回滚到版本 " + targetVersion,
                 targetVersion
             );
@@ -215,10 +226,15 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             for (String ragId : ragIds) {
                 try {
                     log.info("处理知识库: ragId={}", ragId);
-                    processed++;
-                    
+                    boolean success = updateRagDocuments(ragId, null, updateReason);
+                    if (success) {
+                        processed++;
+                    } else {
+                        failed++;
+                    }
+
                     // 更新进度
-                    int progress = (processed * 100) / ragIds.size();
+                    int progress = (processed + failed) * 100 / ragIds.size();
                     ragUpdateRepository.updateTaskStatus(taskId, "PROCESSING", progress, processed, failed, null);
                     
                 } catch (Exception e) {
@@ -229,9 +245,11 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             }
             
             // 更新任务状态为完成
-            ragUpdateRepository.updateTaskStatus(taskId, "COMPLETED", 100, processed, failed, null);
-            
-            log.info("批量更新任务完成: taskId={}, processed={}, failed={}", taskId, processed, failed);
+            String finalStatus = failed == 0 ? "COMPLETED" : "FAILED";
+            ragUpdateRepository.updateTaskStatus(taskId, finalStatus, 100, processed, failed,
+                    failed == 0 ? null : "存在 " + failed + " 个知识库更新失败");
+
+            log.info("批量更新任务结束: taskId={}, status={}, processed={}, failed={}", taskId, finalStatus, processed, failed);
             
         } catch (Exception e) {
             log.error("批量更新任务失败: taskId={}", taskId, e);
@@ -256,7 +274,7 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             return sb.toString();
         } catch (Exception e) {
             log.error("计算文件哈希失败", e);
-            return UUID.randomUUID().toString();
+            throw new IllegalStateException("计算文件哈希失败", e);
         }
     }
 
@@ -265,14 +283,10 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
      * 删除旧文档
      */
     private void deleteOldDocuments(String ragId, String knowledgeTag) {
-        try {
-            log.info("删除旧文档: ragId={}, knowledgeTag={}", ragId, knowledgeTag);
-            org.springframework.ai.vectorstore.filter.FilterExpressionTextParser parser = new org.springframework.ai.vectorstore.filter.FilterExpressionTextParser();
-            String filterExpr = String.format("knowledge == '%s' && ragId == '%s'", knowledgeTag, ragId);
-            vectorStore.delete(parser.parse(filterExpr));
-        } catch (Exception e) {
-            log.error("删除旧文档失败: ragId={}", ragId, e);
-        }
+        log.info("删除旧文档: ragId={}, knowledgeTag={}", ragId, knowledgeTag);
+        org.springframework.ai.vectorstore.filter.FilterExpressionTextParser parser = new org.springframework.ai.vectorstore.filter.FilterExpressionTextParser();
+        String filterExpr = String.format("knowledge == '%s' && ragId == '%s'", knowledgeTag, ragId);
+        vectorStore.delete(parser.parse(filterExpr));
     }
 
     /**
@@ -300,6 +314,7 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
                 log.info("保存文档: fileName={}, documentCount={}", file.getOriginalFilename(), documentList.size());
             } catch (Exception e) {
                 log.error("保存文档失败: fileName={}", file.getOriginalFilename(), e);
+                throw new RuntimeException("保存文档失败: " + file.getOriginalFilename(), e);
             }
         }
 

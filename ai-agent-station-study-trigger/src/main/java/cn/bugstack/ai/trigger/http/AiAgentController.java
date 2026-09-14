@@ -33,6 +33,8 @@ import java.util.List;
 @CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
 public class AiAgentController implements IAiAgentService {
 
+    private static final long SSE_TIMEOUT_MILLIS = 30 * 60 * 1000L;
+
     // 注入策略调度器
     @Resource
     private IAgentDispatchService agentDispatchService;
@@ -59,7 +61,7 @@ public class AiAgentController implements IAiAgentService {
             response.setHeader("Connection", "keep-alive");
 
             // 1. 创建流式输出对象
-            ResponseBodyEmitter emitter = new ResponseBodyEmitter(Long.MAX_VALUE);
+            ResponseBodyEmitter emitter = new ResponseBodyEmitter(SSE_TIMEOUT_MILLIS);
 
             // 2. 构建执行命令实体
             ExecuteCommandEntity executeCommandEntity = ExecuteCommandEntity.builder()

@@ -40,7 +40,7 @@ public interface IRagVersionService {
      * @param version 版本号
      * @return 版本历史记录
      */
-    Object getVersionHistory(String ragId, Integer version);
+    VersionHistoryDTO getVersionHistory(String ragId, Integer version);
 
     /**
      * 删除版本历史

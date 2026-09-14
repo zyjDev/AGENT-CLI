@@ -37,15 +37,14 @@ public class RagVersionService implements IRagVersionService {
     }
 
     @Override
-    public Object getVersionHistory(String ragId, Integer version) {
+    public VersionHistoryDTO getVersionHistory(String ragId, Integer version) {
         return ragUpdateRepository.getVersionHistory(ragId, version);
     }
 
     @Override
     public boolean deleteVersionHistory(String ragId, Integer version) {
-        // 暂时返回 true，后续可以实现删除逻辑
         log.info("删除版本历史: ragId={}, version={}", ragId, version);
-        return true;
+        return ragUpdateRepository.deleteVersionHistory(ragId, version);
     }
 
 }

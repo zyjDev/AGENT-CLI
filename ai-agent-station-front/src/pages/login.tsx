@@ -189,19 +189,19 @@ const LoginPage: React.FC = () => {
       }
 
       // 调用后端登录校验接口
-      const isLoginSuccess = await AdminUserService.validateAdminUserLogin({
+      const userInfo = await AdminUserService.loginAdminUser({
         username: values.username,
         password: values.password
       });
-      
-      if (isLoginSuccess) {
-        const userInfo = {
-          username: values.username,
+
+      if (userInfo?.token) {
+        const storedUserInfo = {
+          username: userInfo.username,
           loginTime: new Date().toISOString(),
-          token: 'token-' + Date.now()
+          token: userInfo.token
         };
         localStorage.setItem('token', userInfo.token);
-        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        localStorage.setItem('userInfo', JSON.stringify(storedUserInfo));
         localStorage.setItem('isLoggedIn', 'true');
         Toast.success('登录成功！');
         navigate('/dashboard');

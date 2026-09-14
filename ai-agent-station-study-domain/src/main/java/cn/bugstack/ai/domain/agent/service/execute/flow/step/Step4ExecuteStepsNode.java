@@ -46,7 +46,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             }
             
             // 按顺序执行规划步骤
-            executeStepsInOrder(executorChatClient, stepsMap, dynamicContext);
+            executeStepsInOrder(executorChatClient, stepsMap, dynamicContext, request.getSessionId());
             
             // 发送SSE结果
             AutoAgentExecuteResultEntity result = AutoAgentExecuteResultEntity.createExecutionResult(
@@ -83,7 +83,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
     /**
      * 按顺序执行规划步骤
      */
-    private void executeStepsInOrder(ChatClient executorChatClient, Map<String, String> stepsMap, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext) {
+    private void executeStepsInOrder(ChatClient executorChatClient, Map<String, String> stepsMap, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext, String sessionId) {
         if (stepsMap == null || stepsMap.isEmpty()) {
             log.warn("步骤映射为空，无法执行");
             return;
@@ -121,7 +121,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             }
 
             if (stepContent != null) {
-                executeStep(executorChatClient, stepNumber, stepKey, stepContent, dynamicContext);
+                executeStep(executorChatClient, stepNumber, stepKey, stepContent, dynamicContext, sessionId);
             } else {
                 log.warn("未找到步骤内容: {}", stepKey);
             }
@@ -131,7 +131,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
     /**
      * 执行单个步骤
      */
-    private void executeStep(ChatClient executorChatClient, Integer stepNumber, String stepKey, String stepContent, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext) {
+    private void executeStep(ChatClient executorChatClient, Integer stepNumber, String stepKey, String stepContent, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext, String sessionId) {
         log.info("\n--- 开始执行 {} ---", stepKey);
         log.info("步骤内容: {}", stepContent.substring(0, Math.min(200, stepContent.length())) + "...");
 
@@ -162,7 +162,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             AutoAgentExecuteResultEntity stepResult = AutoAgentExecuteResultEntity.createExecutionResult(
                     stepNumber,
                     stepKey + " 执行完成: " + executionResult.substring(0, Math.min(500, executionResult.length())),
-                    (String) dynamicContext.getValue("sessionId")
+                    sessionId
             );
             sendSseResult(dynamicContext, stepResult);
 
@@ -174,7 +174,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             dynamicContext.setValue("step" + stepNumber + "Error", e.getMessage());
 
             // 记录错误但继续执行下一步
-            handleStepExecutionError(stepNumber, stepKey, e, dynamicContext);
+            handleStepExecutionError(stepNumber, stepKey, e, dynamicContext, sessionId);
         }
 
         log.info("--- 完成执行 {} ---", stepKey);
@@ -183,7 +183,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
     /**
      * 处理步骤执行错误
      */
-    private void handleStepExecutionError(Integer stepNumber, String stepKey, Exception e, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext) {
+    private void handleStepExecutionError(Integer stepNumber, String stepKey, Exception e, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext, String sessionId) {
         log.warn("步骤 {} 执行失败，尝试恢复策略", stepNumber);
 
         // 记录错误统计
@@ -207,7 +207,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             AutoAgentExecuteResultEntity errorResult = AutoAgentExecuteResultEntity.createExecutionResult(
                     stepNumber,
                     stepKey + " 执行失败: " + e.getMessage(),
-                    dynamicContext.getValue("sessionId")
+                    sessionId
             );
             sendSseResult(dynamicContext, errorResult);
         } catch (Exception sseException) {

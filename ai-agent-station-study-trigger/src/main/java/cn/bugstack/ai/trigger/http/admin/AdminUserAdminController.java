@@ -9,6 +9,8 @@ import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAdminUserDao;
 import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.trigger.config.AdminJwtTokenService;
+import cn.bugstack.ai.types.common.PasswordUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -18,6 +20,7 @@ import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -35,17 +38,41 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @Resource
     private IAdminUserDao adminUserDao;
 
+    @Resource
+    private AdminJwtTokenService adminJwtTokenService;
+
     @Override
     @PostMapping("/create")
     public Response<Boolean> createAdminUser(@RequestBody AdminUserRequestDTO request) {
         try {
-            log.info("创建管理员用户请求：{}", request);
-            
-            // DTO转PO
+            if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名和密码不能为空")
+                        .data(false)
+                        .build();
+            }
+            log.info("创建管理员用户请求，username={}", request.getUsername());
+
+            if (adminUserDao.queryByUsername(request.getUsername()) != null) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名已存在")
+                        .data(false)
+                        .build();
+            }
+
             AdminUser adminUser = convertToAdminUser(request);
+            adminUser.setPassword(PasswordUtil.encode(request.getPassword()));
+            if (!StringUtils.hasText(adminUser.getUserId())) {
+                adminUser.setUserId(UUID.randomUUID().toString());
+            }
+            if (adminUser.getStatus() == null) {
+                adminUser.setStatus(1);
+            }
             adminUser.setCreateTime(LocalDateTime.now());
             adminUser.setUpdateTime(LocalDateTime.now());
-            
+
             int result = adminUserDao.insert(adminUser);
             
             return Response.<Boolean>builder()
@@ -67,7 +94,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PutMapping("/update-by-id")
     public Response<Boolean> updateAdminUserById(@RequestBody AdminUserRequestDTO request) {
         try {
-            log.info("根据ID更新管理员用户请求：{}", request);
+            log.info("根据ID更新管理员用户请求，id={}", request.getId());
             
             if (request.getId() == null) {
                 return Response.<Boolean>builder()
@@ -79,14 +106,22 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             
             // DTO转PO
             AdminUser adminUser = convertToAdminUser(request);
+            applyPasswordIfProvided(adminUser, request.getPassword());
             adminUser.setUpdateTime(LocalDateTime.now());
-            
+
             int result = adminUserDao.updateById(adminUser);
-            
+            if (result <= 0) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.UN_ERROR.getCode())
+                        .info("更新失败，用户不存在")
+                        .data(false)
+                        .build();
+            }
+
             return Response.<Boolean>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(result > 0)
+                    .data(true)
                     .build();
         } catch (Exception e) {
             log.error("根据ID更新管理员用户失败", e);
@@ -102,7 +137,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PutMapping("/update-by-user-id")
     public Response<Boolean> updateAdminUserByUserId(@RequestBody AdminUserRequestDTO request) {
         try {
-            log.info("根据用户ID更新管理员用户请求：{}", request);
+            log.info("根据用户ID更新管理员用户请求，userId={}", request.getUserId());
             
             if (!StringUtils.hasText(request.getUserId())) {
                 return Response.<Boolean>builder()
@@ -114,14 +149,22 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             
             // DTO转PO
             AdminUser adminUser = convertToAdminUser(request);
+            applyPasswordIfProvided(adminUser, request.getPassword());
             adminUser.setUpdateTime(LocalDateTime.now());
-            
+
             int result = adminUserDao.updateByUserId(adminUser);
-            
+            if (result <= 0) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.UN_ERROR.getCode())
+                        .info("更新失败，用户不存在")
+                        .data(false)
+                        .build();
+            }
+
             return Response.<Boolean>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(result > 0)
+                    .data(true)
                     .build();
         } catch (Exception e) {
             log.error("根据用户ID更新管理员用户失败", e);
@@ -331,7 +374,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PostMapping("/query-list")
     public Response<List<AdminUserResponseDTO>> queryAdminUserList(@RequestBody AdminUserQueryRequestDTO request) {
         try {
-            log.info("根据条件查询管理员用户列表请求：{}", request);
+            log.info("根据条件查询管理员用户列表请求，username={}", request.getUsername());
             
             // 这里可以根据查询条件进行过滤，暂时先查询所有
             List<AdminUser> adminUsers = adminUserDao.queryAll();
@@ -347,19 +390,21 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                             match = match && user.getUsername().contains(request.getUsername());
                         }
                         if (request.getStatus() != null) {
-                            match = match && user.getStatus().equals(request.getStatus());
+                            match = match && request.getStatus().equals(user.getStatus());
                         }
                         return match;
                     })
                     .collect(Collectors.toList());
             
             // 分页处理
-            int pageNum = request.getPageNum() != null ? request.getPageNum() : 1;
-            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
+            int pageNum = request.getPageNum() != null ? Math.max(1, request.getPageNum()) : 1;
+            int pageSize = request.getPageSize() != null ? Math.max(1, request.getPageSize()) : 10;
             int startIndex = (pageNum - 1) * pageSize;
             int endIndex = Math.min(startIndex + pageSize, filteredUsers.size());
-            
-            List<AdminUser> pagedUsers = filteredUsers.subList(startIndex, endIndex);
+
+            List<AdminUser> pagedUsers = startIndex >= filteredUsers.size()
+                    ? List.of()
+                    : filteredUsers.subList(startIndex, endIndex);
             List<AdminUserResponseDTO> responseDTOs = pagedUsers.stream()
                     .map(this::convertToAdminUserResponseDTO)
                     .collect(Collectors.toList());
@@ -409,35 +454,44 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PostMapping("/login")
     public Response<AdminUserResponseDTO> loginAdminUser(@RequestBody AdminUserLoginRequestDTO request) {
         try {
+            if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名或密码不能为空")
+                        .data(null)
+                        .build();
+            }
             log.info("管理员用户登录请求：{}", request.getUsername());
-            
-            AdminUser adminUser = adminUserDao.queryByUsernameAndPassword(request.getUsername(), request.getPassword());
-            if (adminUser == null) {
+
+            AdminUser adminUser = adminUserDao.queryByUsername(request.getUsername());
+            if (adminUser == null || !passwordMatches(request.getPassword(), adminUser.getPassword())) {
                 return Response.<AdminUserResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("用户名或密码错误")
                         .data(null)
                         .build();
             }
-            
-            // 检查用户状态
-            if (adminUser.getStatus() == 0) {
+
+            Integer status = adminUser.getStatus();
+            if (status != null && status == 0) {
                 return Response.<AdminUserResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("用户已被禁用")
                         .data(null)
                         .build();
             }
-            
-            if (adminUser.getStatus() == 2) {
+            if (status != null && status == 2) {
                 return Response.<AdminUserResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("用户已被锁定")
                         .data(null)
                         .build();
             }
-            
+
+            upgradePlaintextPasswordIfNeeded(adminUser, request.getPassword());
+
             AdminUserResponseDTO responseDTO = convertToAdminUserResponseDTO(adminUser);
+            responseDTO.setToken(adminJwtTokenService.createToken(adminUser.getUserId(), adminUser.getUsername()));
             
             return Response.<AdminUserResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -459,43 +513,42 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     public Response<Boolean> validateAdminUserLogin(@RequestBody AdminUserLoginRequestDTO request) {
         try {
             log.info("管理员用户登录校验请求：{}", request.getUsername());
-            
-            // 参数校验
-            if (!StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
+            if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("用户名或密码不能为空")
                         .data(false)
                         .build();
             }
-            
-            // 查询用户
-            AdminUser adminUser = adminUserDao.queryByUsernameAndPassword(request.getUsername(), request.getPassword());
-            if (adminUser == null) {
+            log.info("管理员用户登录校验请求：{}", request.getUsername());
+
+            AdminUser adminUser = adminUserDao.queryByUsername(request.getUsername());
+            if (adminUser == null || !passwordMatches(request.getPassword(), adminUser.getPassword())) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.LOGIN_FAILED.getCode())
                         .info(ResponseCode.LOGIN_FAILED.getInfo())
                         .data(false)
                         .build();
             }
-            
-            // 检查用户状态
-            if (adminUser.getStatus() == 0) {
+
+            Integer status = adminUser.getStatus();
+            if (status != null && status == 0) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.LOGIN_FAILED.getCode())
                         .info("用户已被禁用")
                         .data(false)
                         .build();
             }
-            
-            if (adminUser.getStatus() == 2) {
+            if (status != null && status == 2) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.LOGIN_FAILED.getCode())
                         .info("用户已被锁定")
                         .data(false)
                         .build();
             }
-            
+
+            upgradePlaintextPasswordIfNeeded(adminUser, request.getPassword());
+
             // 登录校验成功
             return Response.<Boolean>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -515,6 +568,33 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     /**
      * DTO转PO
      */
+    private boolean passwordMatches(String rawPassword, String storedPassword) {
+        if (!StringUtils.hasText(storedPassword)) {
+            return false;
+        }
+        if (PasswordUtil.isHashed(storedPassword)) {
+            return PasswordUtil.matches(rawPassword, storedPassword);
+        }
+        return storedPassword.equals(rawPassword);
+    }
+
+    private void applyPasswordIfProvided(AdminUser adminUser, String rawPassword) {
+        if (StringUtils.hasText(rawPassword) && !PasswordUtil.isHashed(rawPassword)) {
+            adminUser.setPassword(PasswordUtil.encode(rawPassword));
+        }
+    }
+
+    private void upgradePlaintextPasswordIfNeeded(AdminUser adminUser, String rawPassword) {
+        if (adminUser.getId() == null || PasswordUtil.isHashed(adminUser.getPassword())) {
+            return;
+        }
+        AdminUser update = new AdminUser();
+        update.setId(adminUser.getId());
+        update.setPassword(PasswordUtil.encode(rawPassword));
+        adminUserDao.updateById(update);
+        adminUser.setPassword(update.getPassword());
+    }
+
     private AdminUser convertToAdminUser(AdminUserRequestDTO requestDTO) {
         AdminUser adminUser = new AdminUser();
         BeanUtils.copyProperties(requestDTO, adminUser);

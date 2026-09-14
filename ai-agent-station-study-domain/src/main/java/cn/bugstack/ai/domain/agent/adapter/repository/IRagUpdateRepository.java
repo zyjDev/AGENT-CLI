@@ -77,7 +77,15 @@ public interface IRagUpdateRepository {
      * @param version 版本号
      * @return 版本历史记录
      */
-    Object getVersionHistory(String ragId, Integer version);
+    VersionHistoryDTO getVersionHistory(String ragId, Integer version);
+
+    /**
+     * 删除版本历史
+     * @param ragId 知识库ID
+     * @param version 版本号
+     * @return 是否成功
+     */
+    boolean deleteVersionHistory(String ragId, Integer version);
 
     /**
      * 创建更新任务

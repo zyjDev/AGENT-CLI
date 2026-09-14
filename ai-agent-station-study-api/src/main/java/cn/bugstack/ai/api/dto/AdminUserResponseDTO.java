@@ -54,4 +54,9 @@ public class AdminUserResponseDTO implements Serializable {
      */
     private LocalDateTime updateTime;
 
+    /**
+     * 登录令牌，仅登录接口返回；列表/查询接口为 null
+     */
+    private String token;
+
 }

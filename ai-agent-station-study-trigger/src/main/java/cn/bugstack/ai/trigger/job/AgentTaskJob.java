@@ -47,6 +47,7 @@ public class AgentTaskJob implements ITaskDataProvider {
                                     .aiAgentId(aiAgentTaskScheduleVO.getAgentId())
                                     .sessionId(String.valueOf(System.nanoTime()))
                                     .maxStep(1)
+                                    .message(aiAgentTaskScheduleVO.getTaskParam())
                                     .build(), new ResponseBodyEmitter());
                 } catch (Exception e) {
                     log.error("任务执行失败", e);

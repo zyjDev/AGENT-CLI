@@ -1,13 +1,11 @@
 package cn.bugstack.ai.domain.agent.service.armory.node.factory.element;
 
-import com.alibaba.fastjson.JSON;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.AdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
-import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -42,9 +40,6 @@ public class RagAnswerAdvisor implements BaseAdvisor {
         HashMap<String, Object> context = new HashMap(chatClientRequest.context());
 
         String userText = chatClientRequest.prompt().getUserMessage().getText();
-        String advisedUserText = userText + System.lineSeparator() + this.userTextAdvise;
-
-//        String query = (new PromptTemplate(userText)).render();
 
         SearchRequest searchRequestToUse = SearchRequest.from(this.searchRequest).query(userText).filterExpression(this.resolveFilterExpression(context)).build();
         List<Document> documents = this.vectorStore.similaritySearch(searchRequestToUse);
@@ -54,8 +49,11 @@ public class RagAnswerAdvisor implements BaseAdvisor {
         Map<String, Object> advisedUserParams = new HashMap(chatClientRequest.context());
         advisedUserParams.put("question_answer_context", documentContext);
 
+        String advisedUserText = userText + System.lineSeparator()
+                + new PromptTemplate(this.userTextAdvise).render(advisedUserParams);
+
         return ChatClientRequest.builder()
-                .prompt(Prompt.builder().messages(new UserMessage(advisedUserText), new AssistantMessage(JSON.toJSONString(advisedUserParams))).build())
+                .prompt(Prompt.builder().messages(new UserMessage(advisedUserText)).build())
                 .context(advisedUserParams)
                 .build();
     }

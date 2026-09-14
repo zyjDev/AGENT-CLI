@@ -342,12 +342,12 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
                 aiClientSystemPrompts = aiClientSystemPromptDao.queryByPromptName(request.getPromptName());
             } else if (request.getStatus() != null) {
                 // 根据状态查询
-                if (request.getStatus() == 1) {
+                if (request.getStatus().equals(1)) {
                     aiClientSystemPrompts = aiClientSystemPromptDao.queryEnabledPrompts();
                 } else {
                     // 查询所有然后过滤
                     aiClientSystemPrompts = aiClientSystemPromptDao.queryAll().stream()
-                            .filter(prompt -> prompt.getStatus().equals(request.getStatus()))
+                            .filter(prompt -> request.getStatus().equals(prompt.getStatus()))
                             .collect(Collectors.toList());
                 }
             } else {
@@ -358,7 +358,7 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
             // 应用状态过滤（如果有其他条件的话）
             if (request.getStatus() != null && !StringUtils.hasText(request.getPromptId()) && !StringUtils.hasText(request.getPromptName())) {
                 aiClientSystemPrompts = aiClientSystemPrompts.stream()
-                        .filter(prompt -> prompt.getStatus().equals(request.getStatus()))
+                        .filter(prompt -> request.getStatus().equals(prompt.getStatus()))
                         .collect(Collectors.toList());
             }
             

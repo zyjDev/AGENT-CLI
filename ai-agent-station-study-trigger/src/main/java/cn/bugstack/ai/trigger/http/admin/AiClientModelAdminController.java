@@ -346,7 +346,7 @@ public class AiClientModelAdminController implements IAiClientModelAdminService 
             } else if (StringUtils.hasText(request.getModelType())) {
                 aiClientModels = aiClientModelDao.queryByModelType(request.getModelType());
             } else if (request.getStatus() != null) {
-                if (request.getStatus() == 1) {
+                if (request.getStatus().equals(1)) {
                     aiClientModels = aiClientModelDao.queryEnabledModels();
                 } else {
                     aiClientModels = aiClientModelDao.queryAll();

@@ -74,6 +74,7 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
 
     private McpSyncClient createMcpSyncClient(AiClientToolMcpVO aiClientToolMcpVO) {
         String transportType = aiClientToolMcpVO.getTransportType();
+        int requestTimeout = aiClientToolMcpVO.getRequestTimeout() != null ? aiClientToolMcpVO.getRequestTimeout() : 5;
 
         switch (transportType) {
             case "sse" -> {
@@ -99,7 +100,7 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
                         .sseEndpoint(sseEndpoint) // 使用截取或默认的 sseEndpoint
                         .build();
 
-                McpSyncClient mcpSyncClient = McpClient.sync(sseClientTransport).requestTimeout(Duration.ofMinutes(aiClientToolMcpVO.getRequestTimeout())).build();
+                McpSyncClient mcpSyncClient = McpClient.sync(sseClientTransport).requestTimeout(Duration.ofMinutes(requestTimeout)).build();
                 var init_sse = mcpSyncClient.initialize();
 
                 log.info("Tool SSE MCP Initialized {}", init_sse);
@@ -117,7 +118,7 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
                         .build();
 
                 var mcpClient = McpClient.sync(new StdioClientTransport(stdioParams))
-                        .requestTimeout(Duration.ofSeconds(aiClientToolMcpVO.getRequestTimeout())).build();
+                        .requestTimeout(Duration.ofMinutes(requestTimeout)).build();
                 var init_stdio = mcpClient.initialize();
 
                 log.info("Tool Stdio MCP Initialized {}", init_stdio);
