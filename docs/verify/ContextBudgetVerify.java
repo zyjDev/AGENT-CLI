@@ -45,6 +45,9 @@ public class ContextBudgetVerify {
         test11SummaryFailureKeepsOldSummary();
         test12StepCountRegression();
         test13RuleTruncateFallback();
+        test14MemoryNoRepeatedIneffectiveCompaction();
+        test15MemorySkipsWhenNothingCompressible();
+        test16MemoryRestoresPreviousSummaryFromMessage();
 
         System.out.println("\n================ 结果：通过 " + passed + " / 失败 " + failed + " ================");
         if (failed > 0) {
@@ -245,6 +248,130 @@ public class ContextBudgetVerify {
         check("截断后不超过上限 + 标记开销", truncatedTokens <= maxTokens + 20);
         check("未超限时原样返回",
                 ContextBudgetSupport.hardTruncate(counter, "短文本", 100).equals("短文本"));
+    }
+
+    // ==================================================================================
+    // A 套回归：运行期实测暴露的「无效压缩死循环」
+    //
+    // 压缩产出的布局固定是「1 条摘要 + keep 条原始消息」，条数恰为 keep + 1。
+    // 若不显式短路，下一次压缩的 head 会正好只剩那条摘要，剥离后为空，
+    // 摘要器只能原样返回旧摘要 —— 条数与 token 都不变，于是每次 get() 都会
+    // 白调一次摘要模型（真实环境实测：每轮叠加 401 重试 + 8s 超时），且永不收敛。
+    // ==================================================================================
+
+    // ------------------------------------------------------------------ 用例 14
+
+    private static void test14MemoryNoRepeatedIneffectiveCompaction() throws Exception {
+        System.out.println("\n[用例 14] 回归：压缩后布局「1 条摘要 + keep 条」，后续 get() 不得重复调摘要模型");
+        JTokkitTokenCounter counter = newCounter(defaultBudget());
+        ContextBudgetVO budget = memoryBudget(200, 2);
+        RecordingSummarizer summarizer = new RecordingSummarizer();
+        InMemoryChatMemoryRepository repository = new InMemoryChatMemoryRepository();
+        TokenBudgetChatMemory memory = new TokenBudgetChatMemory(repository, counter, summarizer, budget);
+
+        String cid = "sess-verify-14";
+        // 消息必须足够长：要保证「压缩后剩下的 tail 本身仍高于水位」，
+        // 否则第二次 get() 会走「未超水位」的早返回，测不到本次新增的短路分支
+        String longText = LONG_TEXT.repeat(4);
+        List<Message> batch = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            batch.add(new UserMessage("第 " + i + " 条：" + longText));
+        }
+        memory.add(cid, batch);
+
+        List<Message> first = memory.get(cid);
+        int callsAfterFirst = summarizer.memCallCount;
+        int afterFirstSize = first.size();
+        int afterFirstTokens = counter.estimateMessages(first);
+
+        System.out.println("  压缩前：10 条 / " + counter.estimateMessages(batch) + " token");
+        System.out.printf("  首次 get：%d 条 / %d token，摘要调用 %d 次%n",
+                afterFirstSize, afterFirstTokens, callsAfterFirst);
+
+        int size = afterFirstSize;
+        int tokens = afterFirstTokens;
+        for (int i = 0; i < 5; i++) {
+            List<Message> again = memory.get(cid);
+            size = again.size();
+            tokens = counter.estimateMessages(again);
+        }
+        System.out.printf("  再 get 5 次：%d 条 / %d token，摘要调用累计 %d 次%n",
+                size, tokens, summarizer.memCallCount);
+
+        check("首次 get 触发了压缩", callsAfterFirst == 1);
+        check("压缩后为 3 条（1 条摘要 + 保留 2 条）", afterFirstSize == 3);
+        check("压缩后仍高于水位（否则测不到短路分支）",
+                afterFirstTokens > 256 * 0.8d);
+        check("后续 5 次 get 不再重复调用摘要模型（回归：死循环）",
+                summarizer.memCallCount == callsAfterFirst);
+        check("后续 get 不再改动记忆", size == afterFirstSize && tokens == afterFirstTokens);
+    }
+
+    // ------------------------------------------------------------------ 用例 15
+
+    private static void test15MemorySkipsWhenNothingCompressible() throws Exception {
+        System.out.println("\n[用例 15] 消息数 ≤ keepRecentMessages 时直接跳过压缩（不白调摘要模型）");
+        JTokkitTokenCounter counter = newCounter(defaultBudget());
+        ContextBudgetVO budget = memoryBudget(100, 4);
+        RecordingSummarizer summarizer = new RecordingSummarizer();
+        InMemoryChatMemoryRepository repository = new InMemoryChatMemoryRepository();
+        TokenBudgetChatMemory memory = new TokenBudgetChatMemory(repository, counter, summarizer, budget);
+
+        String cid = "sess-verify-15";
+        List<Message> four = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            four.add(new UserMessage("第 " + i + " 条：" + LONG_TEXT));
+        }
+        memory.add(cid, four);
+
+        List<Message> after = memory.get(cid);
+        System.out.printf("  4 条 / %d token（水位 %d），摘要调用 %d 次%n",
+                counter.estimateMessages(four), (int) (256 * 0.8d), summarizer.memCallCount);
+
+        check("已超水位但无可压缩内容 → 不调用摘要模型", summarizer.memCallCount == 0);
+        check("记忆原样返回，不丢消息", after.size() == 4);
+
+        memory.add(cid, List.of(new UserMessage("第 4 条：" + LONG_TEXT),
+                new UserMessage("第 5 条：" + LONG_TEXT)));
+        List<Message> compressed = memory.get(cid);
+        System.out.printf("  追加到 6 条后：压缩为 %d 条，摘要调用 %d 次%n",
+                compressed.size(), summarizer.memCallCount);
+
+        check("出现实质消息后恢复正常压缩", summarizer.memCallCount == 1);
+        check("压缩后为 5 条（1 条摘要 + 保留 4 条）", compressed.size() == 5);
+    }
+
+    // ------------------------------------------------------------------ 用例 16
+
+    private static void test16MemoryRestoresPreviousSummaryFromMessage() throws Exception {
+        System.out.println("\n[用例 16] 摘要缓存缺失时，从队首摘要消息恢复 previousSummary（不丢历史）");
+        JTokkitTokenCounter counter = newCounter(defaultBudget());
+        ContextBudgetVO budget = memoryBudget(200, 2);
+        RecordingSummarizer summarizer = new RecordingSummarizer();
+        InMemoryChatMemoryRepository repository = new InMemoryChatMemoryRepository();
+        TokenBudgetChatMemory memory = new TokenBudgetChatMemory(repository, counter, summarizer, budget);
+
+        String cid = "sess-verify-16";
+        // 直接构造「缓存已丢失」的仓库状态：队首是上一轮摘要，而 summaries 里没有它
+        List<Message> seeded = new ArrayList<>();
+        seeded.add(new UserMessage(TokenBudgetChatMemory.SUMMARY_PREFIX + "上一轮摘要正文"));
+        for (int i = 0; i < 4; i++) {
+            seeded.add(new UserMessage("第 " + i + " 条：" + LONG_TEXT));
+        }
+        repository.saveAll(cid, seeded);
+
+        List<Message> after = memory.get(cid);
+        System.out.println("  摘要器收到的 previousSummary = " + preview(summarizer.lastMemPrev, 40));
+        System.out.printf("  head 条数 = %d，结果 %d 条%n", summarizer.lastMemHeadSize, after.size());
+
+        check("触发了压缩（实质消息 4 条 > keep 2）", summarizer.memCallCount == 1);
+        check("previousSummary 从消息本体恢复，未丢历史",
+                "上一轮摘要正文".equals(summarizer.lastMemPrev));
+        check("旧摘要消息未被当作实质内容重复摘要（head 恰好 2 条）",
+                summarizer.lastMemHeadSize == 2);
+        check("压缩后为 3 条", after.size() == 3);
+        check("新摘要消息仍置于队首",
+                after.get(0).getText().startsWith(TokenBudgetChatMemory.SUMMARY_PREFIX));
     }
 
     // ==================================================================================
@@ -551,6 +678,12 @@ public class ContextBudgetVerify {
     /** 摘要器替身：记录被传入的 head / previousSummary，可切换为「返回 null」模拟降级 */
     private static class RecordingSummarizer implements IContextSummarizer {
 
+        // ---- A 套（记忆）----
+        int memCallCount;
+        String lastMemPrev;
+        int lastMemHeadSize;
+
+        // ---- B 套（执行历史）----
         String lastExecHead;
         String lastExecPrev;
         int lastHeadSegments;
@@ -559,7 +692,10 @@ public class ContextBudgetVerify {
 
         @Override
         public String summarize(String conversationId, String previousSummary, List<Message> head, int maxSummaryTokens) {
-            return "STUB_SUMMARY(head=" + head.size() + ")";
+            memCallCount++;
+            lastMemPrev = previousSummary;
+            lastMemHeadSize = head.size();
+            return "MEM_SUMMARY(head=" + head.size() + ",prev=" + (previousSummary == null ? "null" : "set") + ")";
         }
 
         @Override
@@ -574,6 +710,25 @@ public class ContextBudgetVerify {
             return "SUMMARY[head=" + lastHeadSegments + "]";
         }
     }
+
+    /**
+     * A 套预算：reserveTokens=0、triggerRatio=0.8。
+     * 注意有效预算会被 {@code MIN_EFFECTIVE_BUDGET = 256} 抬到 256，故水位恒为 204.8。
+     */
+    private static ContextBudgetVO memoryBudget(int memoryTokenBudget, int keepRecentMessages) {
+        return ContextBudgetVO.builder()
+                .memoryTokenBudget(memoryTokenBudget)
+                .reserveTokens(0)
+                .memoryTriggerRatio(0.8d)
+                .keepRecentMessages(keepRecentMessages)
+                .maxSummaryTokens(50)
+                .maxMessages(0)
+                .build();
+    }
+
+    /** 单条消息就接近水位量级，用于构造「压缩后仍超水位」的场景 */
+    private static final String LONG_TEXT =
+            "这是一条用来把估算 token 顶过压缩水位的历史消息，内容需要足够长才能触发压缩逻辑。";
 
     private static TestSupport newSupport(ContextBudgetVO budget, ITokenCounter counter, IContextSummarizer summarizer) {
         TestSupport support = new TestSupport();

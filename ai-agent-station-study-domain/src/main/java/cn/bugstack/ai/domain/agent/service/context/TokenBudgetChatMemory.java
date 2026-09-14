@@ -55,6 +55,11 @@ public class TokenBudgetChatMemory implements ChatMemory {
      */
     private final ConcurrentHashMap<String, String> summaries = new ConcurrentHashMap<>();
 
+    /**
+     * 上次因「已无可压缩内容」而跳过压缩时的消息条数，仅用于抑制重复告警
+     */
+    private final ConcurrentHashMap<String, Integer> skipWarnedAt = new ConcurrentHashMap<>();
+
     public TokenBudgetChatMemory(ChatMemoryRepository repository, ITokenCounter tokenCounter,
                                  IContextSummarizer summarizer, ContextBudgetVO budget) {
         this.repository = repository;
@@ -80,6 +85,23 @@ public class TokenBudgetChatMemory implements ChatMemory {
             if (estimated <= effectiveBudget * budget.getMemoryTriggerRatio() && !overCount) {
                 return messages;
             }
+
+            // ⚠️ 关键短路：预算已超，但可能已经「无可压缩的实质内容」。
+            //    压缩产出固定是「1 条摘要 + keep 条原始消息」，条数恰为 keep + 1；
+            //    若此处不短路，下一次压缩的 head 会正好只剩那条摘要，剥离后为空，
+            //    摘要器只能原样返回旧摘要 —— 条数与 token 都不变，于是每次 get() 都会
+            //    白调一次摘要模型（真实环境实测：每轮叠加 401 重试 + 8s 超时），且永远不收敛。
+            if (!hasCompressibleContent(messages)) {
+                Integer warned = skipWarnedAt.put(conversationId, messages.size());
+                if (warned == null || warned != messages.size()) {
+                    log.warn("⚠️ 记忆超出预算但已无可压缩内容（保留窗口 {} 条），跳过压缩：" +
+                                    "conversationId={}, 消息数={}, 估算 {} token, 有效预算 {} token。" +
+                                    "如需继续压缩，请调小 keepRecentMessages 或调大 tokenBudget",
+                            budget.getKeepRecentMessages(), conversationId, messages.size(), estimated, effectiveBudget);
+                }
+                return messages;
+            }
+            skipWarnedAt.remove(conversationId);
 
             log.info("🧮 记忆触发压缩：conversationId={}, 消息数={}, 估算 {} token, 有效预算 {} token",
                     conversationId, messages.size(), estimated, effectiveBudget);
@@ -123,6 +145,7 @@ public class TokenBudgetChatMemory implements ChatMemory {
         try {
             repository.deleteByConversationId(conversationId);
             summaries.remove(conversationId);
+            skipWarnedAt.remove(conversationId);
             locks.remove(conversationId);
         } finally {
             lock.unlock();
@@ -141,8 +164,13 @@ public class TokenBudgetChatMemory implements ChatMemory {
 
         String previousSummary = summaries.get(conversationId);
         // 剥离上一轮摘要消息，避免「摘要的摘要」层层叠加
-        if (previousSummary != null && !head.isEmpty() && isSummaryMessage(head.get(0))) {
-            head.remove(0);
+        if (!head.isEmpty() && isSummaryMessage(head.get(0))) {
+            Message first = head.remove(0);
+            if (previousSummary == null) {
+                // 兜底：摘要缓存缺失时从消息本体恢复旧摘要，避免这段历史被整体丢弃
+                String text = first.getText();
+                previousSummary = text == null ? null : text.substring(SUMMARY_PREFIX.length());
+            }
         }
 
         String summary = summarizer.summarize(conversationId, previousSummary, head, budget.getMaxSummaryTokens());
@@ -161,6 +189,23 @@ public class TokenBudgetChatMemory implements ChatMemory {
         result.add(new UserMessage(SUMMARY_PREFIX + summary));
         result.addAll(tail);
         return result;
+    }
+
+    /**
+     * 是否还有可压缩的「实质消息」。
+     * <p>
+     * 判定口径必须与 {@link #compress} 的 head 完全一致：先排除队首的旧摘要消息，
+     * 剩下的实质消息条数若不超过保留窗口，压缩就没有任何可做的事。
+     *
+     * @param messages 当前全部消息
+     * @return true 表示存在可被压成摘要的历史
+     */
+    private boolean hasCompressibleContent(List<Message> messages) {
+        int substantive = messages.size();
+        if (!messages.isEmpty() && isSummaryMessage(messages.get(0))) {
+            substantive--;
+        }
+        return substantive > budget.getKeepRecentMessages();
     }
 
     private boolean isSummaryMessage(Message message) {
