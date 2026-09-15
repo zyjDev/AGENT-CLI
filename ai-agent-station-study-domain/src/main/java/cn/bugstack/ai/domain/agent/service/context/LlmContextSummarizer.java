@@ -57,6 +57,16 @@ public class LlmContextSummarizer implements IContextSummarizer {
 
     @Override
     public String summarize(String conversationId, String previousSummary, List<Message> head, int maxSummaryTokens) {
+        return summarize(conversationId, previousSummary, head, contextBudget, maxSummaryTokens);
+    }
+
+    @Override
+    public String summarize(String conversationId, String previousSummary, List<Message> head, ContextBudgetVO budget) {
+        return summarize(conversationId, previousSummary, head, budget, null);
+    }
+
+    private String summarize(String conversationId, String previousSummary, List<Message> head,
+                             ContextBudgetVO budget, Integer maxSummaryTokensOverride) {
         if (head == null || head.isEmpty()) {
             return previousSummary;
         }
@@ -74,30 +84,45 @@ public class LlmContextSummarizer implements IContextSummarizer {
         }
 
         return doSummarize("conversation:" + conversationId, previousSummary, sb.toString(),
-                maxSummaryTokens, CONVERSATION_INSTRUCTION);
+                budget, maxSummaryTokensOverride, CONVERSATION_INSTRUCTION);
     }
 
     @Override
     public String summarizeExecution(String sessionId, String previousSummary, String headText, int maxSummaryTokens) {
+        return summarizeExecution(sessionId, previousSummary, headText, contextBudget, maxSummaryTokens);
+    }
+
+    @Override
+    public String summarizeExecution(String sessionId, String previousSummary, String headText, ContextBudgetVO budget) {
+        return summarizeExecution(sessionId, previousSummary, headText, budget, null);
+    }
+
+    private String summarizeExecution(String sessionId, String previousSummary, String headText,
+                                      ContextBudgetVO budget, Integer maxSummaryTokensOverride) {
         if (headText == null || headText.isBlank()) {
             return previousSummary;
         }
         return doSummarize("execution:" + sessionId, previousSummary, headText,
-                maxSummaryTokens, EXECUTION_INSTRUCTION);
+                budget, maxSummaryTokensOverride, EXECUTION_INSTRUCTION);
     }
 
     private String doSummarize(String tag, String previousSummary, String content,
-                               int maxSummaryTokens, String instruction) {
-        if (!"LLM".equalsIgnoreCase(contextBudget.getSummaryMode())) {
+                               ContextBudgetVO budget, Integer maxSummaryTokensOverride, String instruction) {
+        ContextBudgetVO effectiveBudget = budget != null ? budget : contextBudget;
+        int maxSummaryTokens = maxSummaryTokensOverride != null
+                ? maxSummaryTokensOverride
+                : effectiveBudget.getMaxSummaryTokens();
+
+        if (!"LLM".equalsIgnoreCase(effectiveBudget.getSummaryMode())) {
             return ContextBudgetSupport.ruleTruncate(tokenCounter, previousSummary, content,
-                    contextBudget.getTruncateCharsPerStep(), maxSummaryTokens);
+                    effectiveBudget.getTruncateCharsPerStep(), maxSummaryTokens);
         }
 
         try {
-            ChatModel chatModel = resolveSummaryChatModel();
+            ChatModel chatModel = resolveSummaryChatModel(effectiveBudget);
             if (chatModel == null) {
                 return ContextBudgetSupport.ruleTruncate(tokenCounter, previousSummary, content,
-                        contextBudget.getTruncateCharsPerStep(), maxSummaryTokens);
+                        effectiveBudget.getTruncateCharsPerStep(), maxSummaryTokens);
             }
 
             String prompt = instruction
@@ -109,11 +134,11 @@ public class LlmContextSummarizer implements IContextSummarizer {
             ChatClient bareClient = ChatClient.builder(chatModel).build();
             String summary = CompletableFuture
                     .supplyAsync(() -> bareClient.prompt(prompt).call().content(), summaryExecutor)
-                    .get(contextBudget.getSummaryTimeoutMs(), TimeUnit.MILLISECONDS);
+                    .get(effectiveBudget.getSummaryTimeoutMs(), TimeUnit.MILLISECONDS);
 
             if (summary == null || summary.isBlank()) {
                 return ContextBudgetSupport.ruleTruncate(tokenCounter, previousSummary, content,
-                        contextBudget.getTruncateCharsPerStep(), maxSummaryTokens);
+                        effectiveBudget.getTruncateCharsPerStep(), maxSummaryTokens);
             }
 
             String result = summary.trim();
@@ -126,21 +151,22 @@ public class LlmContextSummarizer implements IContextSummarizer {
                     tag, tokenCounter.estimate(content), tokenCounter.estimate(result));
             return result;
         } catch (TimeoutException e) {
-            log.warn("摘要生成超时（{}ms），降级为规则截断：tag={}", contextBudget.getSummaryTimeoutMs(), tag);
+            log.warn("摘要生成超时（{}ms），降级为规则截断：tag={}", effectiveBudget.getSummaryTimeoutMs(), tag);
             return ContextBudgetSupport.ruleTruncate(tokenCounter, previousSummary, content,
-                    contextBudget.getTruncateCharsPerStep(), maxSummaryTokens);
+                    effectiveBudget.getTruncateCharsPerStep(), maxSummaryTokens);
         } catch (Exception e) {
             log.warn("摘要生成失败，降级为规则截断：tag={}, error={}", tag, e.getMessage());
             return ContextBudgetSupport.ruleTruncate(tokenCounter, previousSummary, content,
-                    contextBudget.getTruncateCharsPerStep(), maxSummaryTokens);
+                    effectiveBudget.getTruncateCharsPerStep(), maxSummaryTokens);
         }
     }
 
     /**
      * 解析摘要用的 ChatModel：优先配置的 Bean 名，其次容器中的 ChatModel
      */
-    private ChatModel resolveSummaryChatModel() {
-        String beanName = contextBudget.getSummaryModelBeanName();
+    private ChatModel resolveSummaryChatModel(ContextBudgetVO budget) {
+        ContextBudgetVO effectiveBudget = budget != null ? budget : contextBudget;
+        String beanName = effectiveBudget.getSummaryModelBeanName();
         if (beanName != null && !beanName.isBlank() && applicationContext.containsBean(beanName)) {
             Object bean = applicationContext.getBean(beanName);
             if (bean instanceof ChatModel chatModel) {

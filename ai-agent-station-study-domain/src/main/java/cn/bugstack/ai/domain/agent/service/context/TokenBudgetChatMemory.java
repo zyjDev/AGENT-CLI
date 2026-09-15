@@ -173,7 +173,7 @@ public class TokenBudgetChatMemory implements ChatMemory {
             }
         }
 
-        String summary = summarizer.summarize(conversationId, previousSummary, head, budget.getMaxSummaryTokens());
+        String summary = summarizer.summarize(conversationId, previousSummary, head, budget);
 
         if (summary == null || summary.isBlank()) {
             // 摘要不可用：退化为纯滑动窗口，保证不超预算
