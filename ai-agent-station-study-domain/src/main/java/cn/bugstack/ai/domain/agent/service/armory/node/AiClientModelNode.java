@@ -4,7 +4,7 @@ import cn.bugstack.ai.domain.agent.model.entity.ArmoryCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientModelVO;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import io.modelcontextprotocol.client.McpSyncClient;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,7 +68,9 @@ public class AiClientModelNode extends AbstractArmorySupport {
                     .defaultOptions(
                             OpenAiChatOptions.builder()
                                     .model(modelVO.getModelName())
-                                    .toolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClients).getToolCallbacks())
+                                    // Spring AI 1.1 起 SyncMcpToolCallbackProvider 的构造器全部标记 @Deprecated，
+                                    // 官方替代入口是静态 syncToolCallbacks(List<McpSyncClient>)，语义与 getToolCallbacks() 一致
+                                    .toolCallbacks(SyncMcpToolCallbackProvider.syncToolCallbacks(mcpSyncClients))
                                     .build())
                     .build();
 

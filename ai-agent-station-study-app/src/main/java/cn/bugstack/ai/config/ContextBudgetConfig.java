@@ -38,6 +38,7 @@ public class ContextBudgetConfig {
         ContextBudgetProperties.History history = properties.getHistory();
         ContextBudgetProperties.Summary summary = properties.getSummary();
         ContextBudgetProperties.Calibration calibration = properties.getCalibration();
+        ContextBudgetProperties.Cache cache = properties.getCache();
 
         ContextBudgetVO budget = ContextBudgetVO.builder()
                 .memoryTokenBudget(nvl(memory.getTokenBudget(), 3000))
@@ -57,6 +58,10 @@ public class ContextBudgetConfig {
                 .calibrationAlpha(nvl(calibration.getAlpha(), 0.3d))
                 .calibrationMinSamples(nvl(calibration.getMinSamples(), 2))
                 .calibrationIncludeToolCalls(nvl(calibration.getIncludeToolCalls(), false))
+                // 缓存治理：按会话维度缓存的容量约束，避免这些 Map 无界增长
+                .usageCacheMaxConversations(nvl(cache.getUsageMaxConversations(), 10000))
+                .usageCacheTtlSeconds(nvl(cache.getUsageTtlSeconds(), 3600L))
+                .memoryCacheMaxConversations(nvl(cache.getMemoryMaxConversations(), 5000))
                 .build();
 
         log.info("上下文预算配置加载完成：memoryBudget={} token, historyBudget={} token, summaryMode={}, calibration={}",

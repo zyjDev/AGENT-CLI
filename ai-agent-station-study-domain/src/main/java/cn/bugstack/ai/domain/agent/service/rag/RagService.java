@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 知识库服务
@@ -48,10 +49,19 @@ public class RagService implements IRagService {
                 // 计算文件哈希
                 String fileHash = calculateFileHash(file);
 
+                // ⚠️ 必须先确定 ragId，再写入向量。
+                //    更新链路的删除条件是 `knowledge == tag && ragId == ragId`
+                //    （见 RagUpdateServiceImpl.deleteOldDocuments），而原实现写 chunk 时只带 knowledge、
+                //    不带 ragId —— 导致「初次上传」这批 chunk 永远匹配不到删除条件，后续更新只能不断叠加
+                //    新知识，旧知识永久残留在向量库中（向量检索会同时召回新旧两版内容）。
+                //    ragId 由这里生成并显式传给 createTagOrder（其内部已支持使用调用方传入的值）。
+                String ragId = UUID.randomUUID().toString();
+
                 // 添加知识库标签和元数据
                 documentList.forEach(doc -> {
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("knowledge", tag);
+                    metadata.put("ragId", ragId);
                     metadata.put("version", "1");
                     metadata.put("lastUpdateTime", LocalDateTime.now().toString());
                     metadata.put("fileHash", fileHash);
@@ -64,6 +74,7 @@ public class RagService implements IRagService {
 
                 // 存储到数据库
                 AiRagOrderVO aiRagOrderVO = new AiRagOrderVO();
+                aiRagOrderVO.setRagId(ragId);
                 aiRagOrderVO.setRagName(name);
                 aiRagOrderVO.setKnowledgeTag(tag);
                 aiRagOrderVO.setVersion(1);
@@ -71,11 +82,11 @@ public class RagService implements IRagService {
                 aiRagOrderVO.setUpdateReason("初始上传");
                 repository.createTagOrder(aiRagOrderVO);
 
-                log.info("知识库文件上传成功: name={}, tag={}, fileHash={}, documentCount={}", 
-                        name, tag, fileHash, documentList.size());
+                log.info("知识库文件上传成功: name={}, tag={}, ragId={}, fileHash={}, documentCount={}",
+                        name, tag, ragId, fileHash, documentList.size());
 
             } catch (Exception e) {
-                log.error("知识库文件上传失败: name={}, tag={}, fileName={}", 
+                log.error("知识库文件上传失败: name={}, tag={}, fileName={}",
                         name, tag, file.getOriginalFilename(), e);
                 throw new RuntimeException("知识库文件上传失败", e);
             }

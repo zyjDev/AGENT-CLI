@@ -4,13 +4,14 @@ import cn.bugstack.ai.domain.agent.model.entity.ArmoryCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiClientToolMcpVO;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
+import io.modelcontextprotocol.json.McpJsonDefaults;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -117,7 +118,10 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
                         .env(stdio.getEnv())
                         .build();
 
-                var mcpClient = McpClient.sync(new StdioClientTransport(stdioParams))
+                // MCP SDK 0.18 起 StdioClientTransport 需要显式传入 McpJsonMapper：
+                // 由 McpJsonDefaults.getMapper() 通过 ServiceLoader 解析到 mcp-json-jackson2 提供的
+                // JacksonMcpJsonMapper（其 get() 即 new JacksonMcpJsonMapper(new ObjectMapper())）。
+                var mcpClient = McpClient.sync(new StdioClientTransport(stdioParams, McpJsonDefaults.getMapper()))
                         .requestTimeout(Duration.ofMinutes(requestTimeout)).build();
                 var init_stdio = mcpClient.initialize();
 

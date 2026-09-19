@@ -113,4 +113,17 @@ public interface IRagUpdateRepository {
      */
     TaskStatusResponseDTO queryTaskStatus(String taskId);
 
+    /**
+     * 按 taskId 取回该任务关联的知识库ID列表。
+     * <p>
+     * 为什么必须从库里取、而不是复用内存：`ai_rag_update_task.rag_ids` 以逗号拼接持久化，
+     * 而 {@code AsyncRagUpdateService} 原先把 ragIds 放在内存 Map 里，该 Map 在任务结束的 finally
+     * 中已被清理 —— 于是 {@code retryFailedTask} 重新执行时取不到 ragIds，
+     * 任务被置为 PENDING 后再无人推进，永远卡死。
+     *
+     * @param taskId 任务ID
+     * @return 知识库ID列表；任务不存在或未记录时返回空列表（不返回 null，调用方无需判空）
+     */
+    List<String> queryTaskRagIds(String taskId);
+
 }

@@ -9,7 +9,7 @@ import cn.bugstack.ai.domain.agent.service.context.ContextBudgetSupport;
 import cn.bugstack.ai.domain.agent.service.context.IContextSummarizer;
 import cn.bugstack.ai.domain.agent.service.context.ITokenCounter;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.AbstractMultiThreadStrategyRouter;
+import cn.bugstack.ai.domain.agent.service.support.tree.AbstractMultiThreadStrategyRouter;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;

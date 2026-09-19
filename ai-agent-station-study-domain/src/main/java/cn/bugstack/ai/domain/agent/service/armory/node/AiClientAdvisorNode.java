@@ -9,7 +9,7 @@ import cn.bugstack.ai.domain.agent.model.valobj.ContextBudgetVO;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
 import cn.bugstack.ai.domain.agent.service.context.IContextSummarizer;
 import cn.bugstack.ai.domain.agent.service.context.ITokenCounter;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;

@@ -7,7 +7,7 @@ import cn.bugstack.ai.domain.agent.service.context.JTokkitTokenCounter;
 import cn.bugstack.ai.domain.agent.service.context.TokenBudgetChatMemory;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.AbstractExecuteSupport;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;

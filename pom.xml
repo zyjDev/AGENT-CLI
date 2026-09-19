@@ -98,21 +98,9 @@
                 <artifactId>guava</artifactId>
                 <version>32.1.3-jre</version>
             </dependency>
-            <dependency>
-                <groupId>dom4j</groupId>
-                <artifactId>dom4j</artifactId>
-                <version>1.6.1</version>
-            </dependency>
-            <dependency>
-                <groupId>com.thoughtworks.xstream</groupId>
-                <artifactId>xstream</artifactId>
-                <version>1.4.10</version>
-            </dependency>
-            <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt</artifactId>
-                <version>0.9.1</version>
-            </dependency>
+            <!-- dom4j / xstream / jjwt 的版本管理条目已移除：
+                 三个依赖在全项目的 import 命中数均为 0
+                 （dom4j 1.6.1 与 xstream 1.4.10 历史上都有反序列化 CVE） -->
             <dependency>
                 <groupId>com.auth0</groupId>
                 <artifactId>java-jwt</artifactId>
@@ -131,29 +119,16 @@
                 <version>1.1.0</version>
             </dependency>
 
-            <!-- spring ai 1.0.0 https://central.sonatype.com/artifact/org.springframework.ai/spring-ai-bom -->
+            <!-- spring ai 1.1.8 https://central.sonatype.com/artifact/org.springframework.ai/spring-ai-bom
+                 1.1.x 是兼容 Spring Boot 3.4.x/3.5.x 的最后一条线；2.0.x 要求 Spring Boot 4.x，本项目暂不跟进 -->
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>1.0.0</version>
+                <version>1.1.8</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
 
-            <!-- 扳手工程…56 tokens truncated…wrench-bom</artifactId>-->
-            <dependency>
-                <groupId>cn.bugstack.wrench</groupId>
-                <artifactId>xfg-wrench-bom</artifactId>
-                <version>3.0.0</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-<!--            <dependency>-->
-<!--                <groupId>cn.bugstack.wrench</groupId>-->
-<!--                <artifactId>xfg-wrench-starter-task-job</artifactId>-->
-<!--                <version>3.3.0</version>-->
-<!--            </dependency>-->
 
             <!-- 工程模块 -->
             <dependency>

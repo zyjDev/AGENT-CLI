@@ -47,6 +47,15 @@ public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule>
         return selectList(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1).orderByDesc("create_time"));
     }
 
+    /**
+     * 统计启用的调度任务数（status = 1）。
+     * <p>
+     * 用 selectCount 而不是 queryEnabledTasks().size() —— 后者会把整表数据拉进 JVM 只为取个长度。
+     */
+    default long countEnabledTasks() {
+        return selectCount(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1));
+    }
+
     default List<Long> queryAllInvalidTaskScheduleIds() {
         return selectList(new QueryWrapper<AiAgentTaskSchedule>()
                 .select("id")

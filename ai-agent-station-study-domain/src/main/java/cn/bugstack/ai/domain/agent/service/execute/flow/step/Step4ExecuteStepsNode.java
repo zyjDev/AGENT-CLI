@@ -7,7 +7,7 @@ import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
@@ -30,12 +30,20 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
     @Override
     public String doApply(ExecuteCommandEntity request, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext) {
         log.info("开始执行第四步：按顺序执行规划步骤");
-        
-        try {
-            // 获取配置信息
-            AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = dynamicContext.getAiAgentClientFlowConfigVOMap().get(AiClientTypeEnumVO.EXECUTOR_CLIENT.getCode());
 
-            // 获取规划客户端
+        // 配置缺失属于「部署/配置错误」而非「步骤执行失败」，故放在 try 之外直接外抛，
+        // 避免被下方 catch 吞成一句 "执行步骤失败: ..."，与 Step1/Step2 的失败语义保持一致。
+        Map<String, AiAgentClientFlowConfigVO> flowConfigMap = dynamicContext.getAiAgentClientFlowConfigVOMap();
+        AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = flowConfigMap == null ? null
+                : flowConfigMap.get(AiClientTypeEnumVO.EXECUTOR_CLIENT.getCode());
+        if (aiAgentClientFlowConfigVO == null) {
+            throw new BizException(ResponseCode.UN_ERROR.getCode(), String.format(
+                    "Flow 链路缺少流程配置：agentId=%s 未配置 clientType=%s（请检查 ai_agent_flow_config 是否存在该行且 status=1）",
+                    request.getAiAgentId(), AiClientTypeEnumVO.EXECUTOR_CLIENT.getCode()));
+        }
+
+        try {
+            // 获取执行客户端
             ChatClient executorChatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
             // 从动态上下文获取解析的步骤
@@ -144,6 +152,9 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             // 使用执行器ChatClient来执行具体步骤
             String executionResult = executorChatClient.prompt()
                     .user(buildStepExecutionPrompt(stepContent, dynamicContext))
+                    // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
+                    // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
+                    .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, sessionId))
                     .call()
                     .content();
 

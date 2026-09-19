@@ -7,7 +7,7 @@ import cn.bugstack.ai.domain.agent.service.context.TokenBudgetChatMemory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.ai.chat.client.advisor.PromptChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
@@ -42,7 +42,10 @@ public enum AiClientAdvisorTypeEnumVO {
                     ctx.getContextSummarizer(),
                     budget);
 
-            return PromptChatMemoryAdvisor.builder(chatMemory).build();
+            // Spring AI 1.1.3 起 PromptChatMemoryAdvisor 标记待删除（1.1.6 起 conversationId 变必填），
+            // 迁移到 MessageChatMemoryAdvisor：记忆不再渲染进 system prompt，而是作为消息插入 prompt，
+            // 且不做消息类型过滤 —— TokenBudgetChatMemory 用 UserMessage 承载摘要的方式继续有效。
+            return MessageChatMemoryAdvisor.builder(chatMemory).build();
         }
     },
     

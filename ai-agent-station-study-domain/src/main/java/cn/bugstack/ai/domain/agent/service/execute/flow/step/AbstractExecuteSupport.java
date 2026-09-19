@@ -5,7 +5,7 @@ import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.AbstractMultiThreadStrategyRouter;
+import cn.bugstack.ai.domain.agent.service.support.tree.AbstractMultiThreadStrategyRouter;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;

@@ -5,11 +5,15 @@ import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 /**
  * 步骤1：MCP工具能力分析节点
@@ -29,7 +33,17 @@ public class Step1McpToolsAnalysisNode extends AbstractExecuteSupport {
         log.info("\n--- 步骤1: MCP工具能力分析（仅分析阶段，不执行用户请求） ---");
 
         // 获取配置信息
-        AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = dynamicContext.getAiAgentClientFlowConfigVOMap().get(AiClientTypeEnumVO.TOOL_MCP_CLIENT.getCode());
+        Map<String, AiAgentClientFlowConfigVO> flowConfigMap = dynamicContext.getAiAgentClientFlowConfigVOMap();
+        AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = flowConfigMap == null ? null
+                : flowConfigMap.get(AiClientTypeEnumVO.TOOL_MCP_CLIENT.getCode());
+
+        // 防御：ai_agent_flow_config 缺少该 clientType（或该行 status=0 被 queryEnabledByAgentId 过滤掉）时，
+        // 原实现会在下一行直接 NPE —— 调用方只看到空指针，无法定位是哪个 Agent 少了哪类节点。
+        if (aiAgentClientFlowConfigVO == null) {
+            throw new BizException(ResponseCode.UN_ERROR.getCode(), String.format(
+                    "Flow 链路缺少流程配置：agentId=%s 未配置 clientType=%s（请检查 ai_agent_flow_config 是否存在该行且 status=1）",
+                    requestParameter.getAiAgentId(), AiClientTypeEnumVO.TOOL_MCP_CLIENT.getCode()));
+        }
 
         // 获取MCP工具分析客户端
         ChatClient mcpToolsChatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
@@ -79,6 +93,9 @@ public class Step1McpToolsAnalysisNode extends AbstractExecuteSupport {
 
         String mcpToolsAnalysis = mcpToolsChatClient.prompt()
                 .user(mcpAnalysisPrompt)
+                // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
+                // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
+                .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
                 .call()
                 .content();
         

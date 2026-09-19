@@ -5,11 +5,15 @@ import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 /**
  * 步骤2：执行步骤规划节点
@@ -29,7 +33,16 @@ public class Step2PlanningNode extends AbstractExecuteSupport {
         log.info("\n--- 步骤2: 执行步骤规划 ---");
 
         // 获取配置信息
-        AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = dynamicContext.getAiAgentClientFlowConfigVOMap().get(AiClientTypeEnumVO.PLANNING_CLIENT.getCode());
+        Map<String, AiAgentClientFlowConfigVO> flowConfigMap = dynamicContext.getAiAgentClientFlowConfigVOMap();
+        AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = flowConfigMap == null ? null
+                : flowConfigMap.get(AiClientTypeEnumVO.PLANNING_CLIENT.getCode());
+
+        // 防御：与 Step1 同理，缺配置时给出可定位的异常而非裸 NPE
+        if (aiAgentClientFlowConfigVO == null) {
+            throw new BizException(ResponseCode.UN_ERROR.getCode(), String.format(
+                    "Flow 链路缺少流程配置：agentId=%s 未配置 clientType=%s（请检查 ai_agent_flow_config 是否存在该行且 status=1）",
+                    requestParameter.getAiAgentId(), AiClientTypeEnumVO.PLANNING_CLIENT.getCode()));
+        }
 
         // 获取规划客户端
         ChatClient planningChatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
@@ -48,6 +61,9 @@ public class Step2PlanningNode extends AbstractExecuteSupport {
 
         String planningResult = planningChatClient.prompt()
                 .user(refinedPrompt)
+                // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
+                // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
+                .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
                 .call()
                 .content();
         

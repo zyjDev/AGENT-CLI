@@ -20,18 +20,20 @@ public interface IAsyncRagUpdateService {
     String submitBatchUpdateTask(List<String> ragIds, String updateReason);
 
     /**
-     * 处理更新任务
+     * 处理更新任务。
+     * <p>
+     * 为什么 ragIds 要作为入参、而不是从服务内部的内存 Map 取：
+     * 该 Map 会在任务结束的 finally 中清理，导致 {@code retryFailedTask} 重新执行时取不到 ragIds，
+     * 任务被置为 PENDING 后再无人推进、永远卡死。改为显式传参后，重试路径从库
+     * （{@code IRagUpdateRepository#queryTaskRagIds}）取回 ragIds 再调用即可。
+     * <p>
+     * 注意：本方法靠 {@code @Async} 异步执行，而 {@code @Async} 依赖 Spring 代理 ——
+     * 类内 {@code this.xxx(...)} 自调用会绕过代理使注解失效，必须经自身代理引用调用。
+     *
      * @param taskId 任务ID
+     * @param ragIds 该任务关联的知识库ID列表
      */
-    void processUpdateTask(String taskId);
-
-    /**
-     * 更新任务进度
-     * @param taskId 任务ID
-     * @param processed 已处理数量
-     * @param failed 失败数量
-     */
-    void updateTaskProgress(String taskId, int processed, int failed);
+    void processUpdateTask(String taskId, List<String> ragIds);
 
     /**
      * 查询任务状态

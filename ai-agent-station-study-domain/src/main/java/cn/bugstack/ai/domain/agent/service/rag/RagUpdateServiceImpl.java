@@ -1,11 +1,10 @@
 package cn.bugstack.ai.domain.agent.service.rag;
 
 import cn.bugstack.ai.api.dto.AiClientRagOrderResponseDTO;
-import cn.bugstack.ai.api.dto.TaskStatusResponseDTO;
-import cn.bugstack.ai.api.dto.VersionHistoryDTO;
 import cn.bugstack.ai.domain.agent.adapter.repository.IRagUpdateRepository;
 import cn.bugstack.ai.domain.agent.service.IRagUpdateService;
-import cn.bugstack.ai.domain.agent.service.IRagVersionService;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
@@ -15,18 +14,21 @@ import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.util.StringUtils;
 
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 知识库更新服务实现
  * @author bugstack.cn
  * @description 知识库更新服务实现
+ * <p>
+ * 2026-09-19 收敛：删除了 4 个零调用的旧版方法（{@code incrementalUpdateRag} /
+ * {@code asyncBatchUpdateRag} / {@code queryUpdateTaskStatus} / {@code rollbackRagVersion}）
+ * 及其私有辅助方法 {@code executeBatchUpdateTask}。
+ * 它们已被 {@code AsyncRagUpdateService}（批量更新 + 任务状态）与
+ * {@code RollbackService}（版本回滚）取代，本类只保留 4 个真实在用的方法。
  */
 @Slf4j
 @Service
@@ -34,9 +36,6 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
 
     @Resource
     private IRagUpdateRepository ragUpdateRepository;
-
-    @Resource
-    private IRagVersionService ragVersionService;
 
     @Resource
     private TokenTextSplitter tokenTextSplitter;
@@ -62,18 +61,21 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateRagDocuments(String ragId, List<MultipartFile> files, String updateReason) {
+        // ⚠️ 前置校验放在 try 之外：
+        //    1) 参数错误不该被下面的 catch 包装成笼统的「更新知识库文档失败」，否则调用方看不到真实原因；
+        //    2) 此时尚未做任何写入，也不必走事务回滚。
+        //    原实现用 IllegalArgumentException，会被 catch 包成 RuntimeException，语义丢失。
+        if (files == null || files.isEmpty()) {
+            throw new BizException(ResponseCode.ILLEGAL_PARAMETER.getCode(),
+                    "更新知识库必须至少上传一个文件: ragId=" + ragId);
+        }
         try {
             // 1. 查询知识库配置
             AiClientRagOrderResponseDTO order = ragUpdateRepository.queryRagOrderById(ragId);
-            
+
             if (order == null) {
                 log.error("知识库配置不存在: {}", ragId);
                 return false;
-            }
-
-            if (files == null || files.isEmpty()) {
-                log.error("更新知识库必须至少上传一个文件: ragId={}", ragId);
-                throw new IllegalArgumentException("更新知识库必须至少上传一个文件");
             }
 
             // 2. 保存当前版本到历史
@@ -109,151 +111,12 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             
             return false;
             
+        } catch (BizException e) {
+            // 业务异常保持原样外抛，避免 code/message 被下面的 catch 覆盖成笼统的「更新知识库文档失败」
+            throw e;
         } catch (Exception e) {
             log.error("更新知识库文档失败: ragId={}", ragId, e);
             throw new RuntimeException("更新知识库文档失败", e);
-        }
-    }
-
-    @Override
-    public boolean incrementalUpdateRag(LocalDateTime updateTime) {
-        try {
-            // 1. 查询待更新文档
-            List<AiClientRagOrderResponseDTO> updatedOrders = queryUpdatedRagOrders(updateTime);
-            
-            if (updatedOrders.isEmpty()) {
-                log.info("没有需要更新的知识库");
-                return true;
-            }
-            
-            log.info("开始增量更新，待更新数量: {}", updatedOrders.size());
-            
-            // 2. 遍历更新
-            for (AiClientRagOrderResponseDTO order : updatedOrders) {
-                log.info("增量更新知识库: ragId={}", order.getRagId());
-            }
-            
-            return true;
-            
-        } catch (Exception e) {
-            log.error("增量更新失败", e);
-            return false;
-        }
-    }
-
-    @Override
-    public String asyncBatchUpdateRag(List<String> ragIds, String updateReason) {
-        String taskId = "task_" + System.currentTimeMillis();
-        
-        // 创建任务记录
-        ragUpdateRepository.createUpdateTask(taskId, ragIds, updateReason);
-        
-        // 异步执行任务
-        CompletableFuture.runAsync(() -> executeBatchUpdateTask(taskId, ragIds, updateReason));
-        
-        log.info("提交异步批量更新任务: taskId={}, ragIds={}", taskId, ragIds);
-        return taskId;
-    }
-
-    @Override
-    public TaskStatusResponseDTO queryUpdateTaskStatus(String taskId) {
-        return ragUpdateRepository.queryTaskStatus(taskId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean rollbackRagVersion(String ragId, Integer targetVersion) {
-        try {
-            // 1. 查询目标版本历史
-            VersionHistoryDTO versionHistory = ragUpdateRepository.getVersionHistory(ragId, targetVersion);
-            if (versionHistory == null) {
-                log.error("目标版本不存在: ragId={}, version={}", ragId, targetVersion);
-                return false;
-            }
-            if (!StringUtils.hasText(versionHistory.getMetadataSnapshot())) {
-                log.error("目标版本没有可用文档快照，无法回滚: ragId={}, version={}", ragId, targetVersion);
-                return false;
-            }
-
-            // 2. 查询当前配置
-            AiClientRagOrderResponseDTO currentOrder = ragUpdateRepository.queryRagOrderById(ragId);
-            if (currentOrder == null) {
-                log.error("知识库配置不存在: {}", ragId);
-                return false;
-            }
-
-            // 3. 保存当前版本到历史
-            ragUpdateRepository.saveVersionHistory(
-                ragId,
-                currentOrder.getVersion(),
-                currentOrder.getFileHash(),
-                "回滚到版本 " + targetVersion,
-                0
-            );
-
-            // 4. 更新配置
-            boolean updateResult = ragUpdateRepository.updateRagOrder(
-                ragId,
-                versionHistory.getFileHash(),
-                "回滚到版本 " + targetVersion,
-                targetVersion
-            );
-
-            if (updateResult) {
-                log.info("回滚成功: ragId={}, targetVersion={}", ragId, targetVersion);
-                return true;
-            }
-
-            return false;
-
-        } catch (Exception e) {
-            log.error("回滚失败: ragId={}, targetVersion={}", ragId, targetVersion, e);
-            throw new RuntimeException("回滚失败", e);
-        }
-    }
-
-    /**
-     * 执行批量更新任务
-     */
-    private void executeBatchUpdateTask(String taskId, List<String> ragIds, String updateReason) {
-        try {
-            // 更新任务状态为处理中
-            ragUpdateRepository.updateTaskStatus(taskId, "PROCESSING", 0, 0, 0, null);
-            
-            int processed = 0;
-            int failed = 0;
-            
-            for (String ragId : ragIds) {
-                try {
-                    log.info("处理知识库: ragId={}", ragId);
-                    boolean success = updateRagDocuments(ragId, null, updateReason);
-                    if (success) {
-                        processed++;
-                    } else {
-                        failed++;
-                    }
-
-                    // 更新进度
-                    int progress = (processed + failed) * 100 / ragIds.size();
-                    ragUpdateRepository.updateTaskStatus(taskId, "PROCESSING", progress, processed, failed, null);
-                    
-                } catch (Exception e) {
-                    log.error("处理知识库失败: ragId={}", ragId, e);
-                    failed++;
-                    ragUpdateRepository.updateTaskStatus(taskId, "PROCESSING", (processed + failed) * 100 / ragIds.size(), processed, failed, null);
-                }
-            }
-            
-            // 更新任务状态为完成
-            String finalStatus = failed == 0 ? "COMPLETED" : "FAILED";
-            ragUpdateRepository.updateTaskStatus(taskId, finalStatus, 100, processed, failed,
-                    failed == 0 ? null : "存在 " + failed + " 个知识库更新失败");
-
-            log.info("批量更新任务结束: taskId={}, status={}, processed={}, failed={}", taskId, finalStatus, processed, failed);
-            
-        } catch (Exception e) {
-            log.error("批量更新任务失败: taskId={}", taskId, e);
-            ragUpdateRepository.updateTaskStatus(taskId, "FAILED", 0, 0, 0, e.getMessage());
         }
     }
 
@@ -292,13 +155,13 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
     /**
      * 保存新文档
      */
-    private int saveNewDocuments(String ragId, String knowledgeTag, java.util.List<MultipartFile> files, String fileHash, String updateReason) {
+    private int saveNewDocuments(String ragId, String knowledgeTag, List<MultipartFile> files, String fileHash, String updateReason) {
         int totalDocuments = 0;
 
         for (MultipartFile file : files) {
             try {
                 TikaDocumentReader documentReader = new TikaDocumentReader(file.getResource());
-                java.util.List<Document> documentList = tokenTextSplitter.apply(documentReader.get());
+                List<Document> documentList = tokenTextSplitter.apply(documentReader.get());
 
                 documentList.forEach(doc -> {
                     doc.getMetadata().put("knowledge", knowledgeTag);

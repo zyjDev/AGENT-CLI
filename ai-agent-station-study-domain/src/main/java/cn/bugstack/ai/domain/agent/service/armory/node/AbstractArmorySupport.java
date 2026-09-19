@@ -3,7 +3,7 @@ package cn.bugstack.ai.domain.agent.service.armory.node;
 import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
 import cn.bugstack.ai.domain.agent.model.entity.ArmoryCommandEntity;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import cn.bugstack.wrench.design.framework.tree.AbstractMultiThreadStrategyRouter;
+import cn.bugstack.ai.domain.agent.service.support.tree.AbstractMultiThreadStrategyRouter;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

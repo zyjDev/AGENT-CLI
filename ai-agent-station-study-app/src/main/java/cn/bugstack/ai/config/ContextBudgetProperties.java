@@ -36,6 +36,11 @@ public class ContextBudgetProperties {
      */
     private Calibration calibration = new Calibration();
 
+    /**
+     * 缓存治理：按会话维度缓存的容量约束
+     */
+    private Cache cache = new Cache();
+
     @Data
     public static class Memory {
         /** 记忆允许占用的 token 上限 */
@@ -84,6 +89,16 @@ public class ContextBudgetProperties {
         private Integer minSamples = 2;
         /** 工具调用链路的 usage 会低估，默认不参与校准 */
         private Boolean includeToolCalls = false;
+    }
+
+    @Data
+    public static class Cache {
+        /** 真实用量登记的会话数上限，超出按最近最少使用淘汰 */
+        private Integer usageMaxConversations = 10000;
+        /** 真实用量登记的过期时间（秒），自最后一次访问起算 */
+        private Long usageTtlSeconds = 3600L;
+        /** 记忆摘要 / 压缩告警抑制缓存的会话数上限 */
+        private Integer memoryMaxConversations = 5000;
     }
 
 }

@@ -8,7 +8,6 @@ import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStra
 import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
 import cn.bugstack.ai.infrastructure.dao.IAiAgentFlowConfigDao;
 import cn.bugstack.ai.types.common.Constants;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,7 +17,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;

@@ -11,16 +11,16 @@ import cn.bugstack.ai.domain.agent.model.valobj.AiAgentVO;
 import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IArmoryService;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import cn.bugstack.ai.types.common.Constants;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import com.alibaba.fastjson.JSON;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,10 +30,17 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/agent")
-@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS})
 public class AiAgentController implements IAiAgentService {
 
-    private static final long SSE_TIMEOUT_MILLIS = 30 * 60 * 1000L;
+    /**
+     * SSE 超时（毫秒）。
+     * <p>
+     * 原实现硬编码 30 分钟，过长：客户端断连或执行卡住时，连接与工作线程要挂满 30 分钟才释放。
+     * 改为可配置，默认 10 分钟 —— 远大于 maxStep 次模型调用的正常耗时，同时不至于长时间占用资源。
+     * 注意异常分支的 emitter 也必须带上同一超时值（无参构造 = 永不超时）。
+     */
+    @Value("${xfg.ai.sse-timeout-millis:600000}")
+    private long sseTimeoutMillis;
 
     // 注入策略调度器
     @Resource
@@ -61,7 +68,7 @@ public class AiAgentController implements IAiAgentService {
             response.setHeader("Connection", "keep-alive");
 
             // 1. 创建流式输出对象
-            ResponseBodyEmitter emitter = new ResponseBodyEmitter(SSE_TIMEOUT_MILLIS);
+            ResponseBodyEmitter emitter = new ResponseBodyEmitter(sseTimeoutMillis);
 
             // 2. 构建执行命令实体
             ExecuteCommandEntity executeCommandEntity = ExecuteCommandEntity.builder()
@@ -79,7 +86,9 @@ public class AiAgentController implements IAiAgentService {
 
         } catch (Exception e) {
             log.error("AutoAgent请求处理异常：{}", e.getMessage(), e);
-            ResponseBodyEmitter errorEmitter = new ResponseBodyEmitter();
+            // 必须带上超时：无参构造的 ResponseBodyEmitter 永不超时，
+            // 一旦客户端不再读取，这条错误连接会一直挂着
+            ResponseBodyEmitter errorEmitter = new ResponseBodyEmitter(sseTimeoutMillis);
             try {
                 errorEmitter.send("请求处理异常：" + e.getMessage());
                 errorEmitter.complete();

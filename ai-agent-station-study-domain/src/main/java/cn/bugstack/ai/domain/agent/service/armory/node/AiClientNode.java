@@ -8,7 +8,7 @@ import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStra
 import cn.bugstack.ai.domain.agent.service.context.ITokenCounter;
 import cn.bugstack.ai.domain.agent.service.context.TokenUsageRegistry;
 import cn.bugstack.ai.domain.agent.service.context.advisor.TokenUsageAdvisor;
-import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import io.modelcontextprotocol.client.McpSyncClient;
 import jakarta.annotation.Resource;
@@ -96,7 +96,9 @@ public class AiClientNode extends AbstractArmorySupport {
             // 5. 构建对话客户端
             ChatClient chatClient = ChatClient.builder(chatModel)
                     .defaultSystem(defaultSystem.toString())
-                    .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClients.toArray(new McpSyncClient[]{})))
+                    // Spring AI 1.1 起 SyncMcpToolCallbackProvider 的构造器全部标记 @Deprecated，
+                    // 改用官方 builder（同样产出 ToolCallbackProvider，defaultToolCallbacks 直接接收）
+                    .defaultToolCallbacks(SyncMcpToolCallbackProvider.builder().mcpClients(mcpSyncClients).build())
                     .defaultAdvisors(advisorArray)
                     .build();
 

@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -119,6 +121,19 @@ public class RagUpdateRepository implements IRagUpdateRepository {
 
     @Override
     public Integer getLatestVersion(String ragId) {
+        // 当前版本以 ai_client_rag_order.version 为准。
+        // 版本历史表存的是「被替换掉的旧版本」：首次更新时写入 version=1 的历史行，
+        // 而 order.version 此时已是 2 —— 原实现只取历史表最大值，会比真实版本少 1，
+        // 与 /list、/{ragId} 返回的 order.version 自相矛盾。
+        LambdaQueryWrapper<AiClientRagOrder> orderWrapper = new LambdaQueryWrapper<>();
+        orderWrapper.eq(AiClientRagOrder::getRagId, ragId)
+                    .last("LIMIT 1");
+        AiClientRagOrder order = aiClientRagOrderDao.selectOne(orderWrapper);
+        if (order != null && order.getVersion() != null) {
+            return order.getVersion();
+        }
+
+        // 配置行缺失时退回历史表最大值，避免直接返回 0
         LambdaQueryWrapper<AiRagVersionHistory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AiRagVersionHistory::getRagId, ragId)
                .orderByDesc(AiRagVersionHistory::getVersion)
@@ -202,6 +217,23 @@ public class RagUpdateRepository implements IRagUpdateRepository {
                 .endTime(task.getUpdateTime())
                 .errorMessage(task.getErrorMessage())
                 .build();
+    }
+
+    @Override
+    public List<String> queryTaskRagIds(String taskId) {
+        LambdaQueryWrapper<AiRagUpdateTask> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiRagUpdateTask::getTaskId, taskId);
+
+        AiRagUpdateTask task = aiRagUpdateTaskDao.selectOne(wrapper);
+        if (task == null || task.getRagIds() == null || task.getRagIds().isBlank()) {
+            return Collections.emptyList();
+        }
+
+        // createUpdateTask 用 String.join(",", ragIds) 存进去的，这里按同样规则还原
+        return Arrays.stream(task.getRagIds().split(","))
+                .map(String::trim)
+                .filter(ragId -> !ragId.isEmpty())
+                .collect(Collectors.toList());
     }
 
     /**

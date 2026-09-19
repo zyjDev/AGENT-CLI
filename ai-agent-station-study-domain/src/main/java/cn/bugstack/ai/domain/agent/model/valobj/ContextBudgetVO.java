@@ -130,6 +130,28 @@ public class ContextBudgetVO {
     @Builder.Default
     private boolean calibrationIncludeToolCalls = false;
 
+    // ==================== 缓存治理 ====================
+    // 以下三项都是「按会话维度缓存」的容量约束。会话数会随使用持续增长，
+    // 若不设上限，这些 Map 就是内存泄漏源（原实现均为无界 ConcurrentHashMap）。
+
+    /**
+     * 真实用量登记的会话数上限，超出按最近最少使用淘汰
+     */
+    @Builder.Default
+    private int usageCacheMaxConversations = 10000;
+
+    /**
+     * 真实用量登记的过期时间（秒），自最后一次访问起算
+     */
+    @Builder.Default
+    private long usageCacheTtlSeconds = 3600L;
+
+    /**
+     * 记忆摘要 / 压缩告警抑制缓存的会话数上限
+     */
+    @Builder.Default
+    private int memoryCacheMaxConversations = 5000;
+
     /**
      * 用 DB ext_param 覆盖 yml 默认值。
      * <p>
@@ -164,6 +186,10 @@ public class ContextBudgetVO {
                 .calibrationAlpha(this.calibrationAlpha)
                 .calibrationMinSamples(this.calibrationMinSamples)
                 .calibrationIncludeToolCalls(this.calibrationIncludeToolCalls)
+                // 缓存治理参数同样只走全局，不支持按 client 覆盖
+                .usageCacheMaxConversations(this.usageCacheMaxConversations)
+                .usageCacheTtlSeconds(this.usageCacheTtlSeconds)
+                .memoryCacheMaxConversations(this.memoryCacheMaxConversations)
                 .build();
     }
 

@@ -6,6 +6,7 @@ import org.springframework.ai.chat.client.advisor.api.AdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -18,6 +19,7 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionTextParser;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +54,28 @@ public class RagAnswerAdvisor implements BaseAdvisor {
         String advisedUserText = userText + System.lineSeparator()
                 + new PromptTemplate(this.userTextAdvise).render(advisedUserParams);
 
+        // 保留 prompt 中已有的全部消息（system prompt + ChatMemoryAdvisor 注入的历史），
+        // 只把「最后一条用户消息」替换成注入了 RAG 上下文的版本。
+        // ⚠️ 原实现是 Prompt.builder().messages(new UserMessage(advisedUserText)) ——
+        //    messages(x) 属于**整体替换**而非追加，会把记忆消息与 defaultSystem 一并丢弃；
+        //    又因本 advisor 的 order(=0) 大于 DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER
+        //    (HIGHEST_PRECEDENCE + 1000)，它排在记忆注入之后执行，正好把记忆覆盖掉。
+        List<Message> instructions = new ArrayList<>(chatClientRequest.prompt().getInstructions());
+        int lastUserIndex = -1;
+        for (int i = instructions.size() - 1; i >= 0; i--) {
+            if (instructions.get(i) instanceof UserMessage) {
+                lastUserIndex = i;
+                break;
+            }
+        }
+        if (lastUserIndex >= 0) {
+            instructions.set(lastUserIndex, new UserMessage(advisedUserText));
+        } else {
+            instructions.add(new UserMessage(advisedUserText));
+        }
+
         return ChatClientRequest.builder()
-                .prompt(Prompt.builder().messages(new UserMessage(advisedUserText)).build())
+                .prompt(Prompt.builder().messages(instructions).build())
                 .context(advisedUserParams)
                 .build();
     }

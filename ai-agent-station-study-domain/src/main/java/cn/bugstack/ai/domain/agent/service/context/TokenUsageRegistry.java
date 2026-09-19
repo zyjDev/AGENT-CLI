@@ -2,12 +2,14 @@ package cn.bugstack.ai.domain.agent.service.context;
 
 import cn.bugstack.ai.domain.agent.model.valobj.ContextBudgetVO;
 import cn.bugstack.ai.domain.agent.model.valobj.TokenUsageSnapshotVO;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 
 /**
  * 真实 token 用量登记
@@ -24,14 +26,29 @@ public class TokenUsageRegistry {
 
     /**
      * conversationId -> 最近一次真实用量快照
+     * <p>
+     * ⚠️ 原实现是无界 {@code ConcurrentHashMap}：会话数增长即内存无界增长，永不淘汰。
+     * 本类存的只是「最近一次用量」的旁路观测数据，丢失不影响对话正确性，
+     * 因此改为带「上限 + 空闲过期」的 Guava Cache：超出上限按最近最少使用淘汰，
+     * 超过 TTL 未访问自动过期。
      */
-    private final Map<String, TokenUsageSnapshotVO> lastUsage = new ConcurrentHashMap<>();
+    private Cache<String, TokenUsageSnapshotVO> lastUsage;
 
     @Resource
     private ITokenCounter tokenCounter;
 
     @Resource
     private ContextBudgetVO contextBudget;
+
+    @PostConstruct
+    void initUsageCache() {
+        this.lastUsage = CacheBuilder.newBuilder()
+                .maximumSize(contextBudget.getUsageCacheMaxConversations())
+                .expireAfterAccess(Duration.ofSeconds(contextBudget.getUsageCacheTtlSeconds()))
+                .build();
+        log.info("token 用量登记缓存初始化完成：maxConversations={}, ttlSeconds={}",
+                contextBudget.getUsageCacheMaxConversations(), contextBudget.getUsageCacheTtlSeconds());
+    }
 
     /**
      * 登记一次真实用量
@@ -72,7 +89,7 @@ public class TokenUsageRegistry {
      * 取某会话最近一次真实用量快照
      */
     public TokenUsageSnapshotVO get(String conversationId) {
-        return conversationId == null ? null : lastUsage.get(conversationId);
+        return conversationId == null ? null : lastUsage.getIfPresent(conversationId);
     }
 
     /**
@@ -80,8 +97,15 @@ public class TokenUsageRegistry {
      */
     public void clear(String conversationId) {
         if (conversationId != null) {
-            lastUsage.remove(conversationId);
+            lastUsage.invalidate(conversationId);
         }
+    }
+
+    /**
+     * 当前登记的会话数，仅用于观测
+     */
+    public long size() {
+        return lastUsage.size();
     }
 
 }

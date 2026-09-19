@@ -103,7 +103,8 @@ public class TokenUsageAdvisor implements BaseAdvisor {
     }
 
     /**
-     * 必须大于 PromptChatMemoryAdvisor 的 order（DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER = HIGHEST_PRECEDENCE + 1000）。
+     * 必须大于记忆顾问的 order（{@code Advisor.DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER} = HIGHEST_PRECEDENCE + 1000，
+     * MessageChatMemoryAdvisor / PromptChatMemoryAdvisor 共用该常量）。
      * <p>
      * Advisor 是「环绕」语义：order 越大越靠近模型，before 越晚执行、after 越早执行。
      * 取 +2000 可保证本类的 after() 先于 ChatMemory.add() 执行，用量先落账。

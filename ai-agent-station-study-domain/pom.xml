@@ -26,10 +26,8 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt</artifactId>
-        </dependency>
+        <!-- jjwt（io.jsonwebtoken）已移除：全项目 import 命中数为 0，
+             实际使用的 JWT 库是 com.auth0:java-jwt -->
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
@@ -45,10 +43,17 @@
             <artifactId>jtokkit</artifactId>
         </dependency>
 
-        <!-- 扳手工程，通用设计模式框架 -->
+        <!-- jakarta.annotation-api：提供 @Resource 等注解。
+             原先项目混用了两种注解来源：31 处 jakarta.annotation.Resource（正常传递获得）
+             与 17 处 javax.annotation.Resource（Spring Boot 2 时代的旧包名），后者一直靠
+             xfg-wrench-starter-design-framework 的 shaded fat jar 隐式提供（该 jar 内嵌
+             javax/annotation/** 共 15 个 class）。移除该 starter 后这 17 处编译失败，
+             故统一迁移到 jakarta.annotation.Resource（Spring Boot 3 规范）并显式声明本依赖。
+             全项目共 48 处 @Resource（domain 32 / trigger 13 / infrastructure 2 / app 1）。
+             版本由 spring-boot-starter-parent 统一管理，无需显式指定。 -->
         <dependency>
-            <groupId>cn.bugstack.wrench</groupId>
-            <artifactId>xfg-wrench-starter-design-framework</artifactId>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
 
         <!-- spring ai 框架 begin -->
@@ -95,11 +100,11 @@
             <artifactId>ai-agent-station-study-api</artifactId>
         </dependency>
         
-        <!-- MyBatis-Plus -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-        </dependency>
+        <!-- MyBatis-Plus 依赖已移除（2026-09-19）：
+             全模块 grep `import com.baomidou` 命中数为 0 —— 领域层从未直接使用 ORM。
+             PO / DAO / Mapper 全部在 infrastructure 模块，那里自己声明了本依赖。
+             移除后领域层不再直接依赖持久化实现，符合「领域层与技术无关」的 DDD 约束。
+             注：@Transactional 需要的 spring-tx 由 spring-ai-* / api 模块传递提供。 -->
     </dependencies>
 
     <build>
