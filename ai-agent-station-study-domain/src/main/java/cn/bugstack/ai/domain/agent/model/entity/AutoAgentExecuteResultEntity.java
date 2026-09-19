@@ -54,20 +54,6 @@ public class AutoAgentExecuteResultEntity {
     private String sessionId;
 
     /**
-     * 创建分析阶段结果
-     */
-    public static AutoAgentExecuteResultEntity createAnalysisResult(Integer step, String content, String sessionId) {
-        return AutoAgentExecuteResultEntity.builder()
-                .type("analysis")
-                .step(step)
-                .content(content)
-                .completed(false)
-                .timestamp(System.currentTimeMillis())
-                .sessionId(sessionId)
-                .build();
-    }
-
-    /**
      * 创建分析阶段细分结果
      */
     public static AutoAgentExecuteResultEntity createAnalysisSubResult(Integer step, String subType, String content, String sessionId) {
@@ -161,20 +147,6 @@ public class AutoAgentExecuteResultEntity {
     public static AutoAgentExecuteResultEntity createSummaryResult(String content, String sessionId) {
         return AutoAgentExecuteResultEntity.builder()
                 .type("summary")
-                .step(null)
-                .content(content)
-                .completed(true)
-                .timestamp(System.currentTimeMillis())
-                .sessionId(sessionId)
-                .build();
-    }
-
-    /**
-     * 创建错误结果
-     */
-    public static AutoAgentExecuteResultEntity createErrorResult(String content, String sessionId) {
-        return AutoAgentExecuteResultEntity.builder()
-                .type("error")
                 .step(null)
                 .content(content)
                 .completed(true)
