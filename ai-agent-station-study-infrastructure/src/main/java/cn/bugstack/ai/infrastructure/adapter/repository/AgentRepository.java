@@ -141,8 +141,9 @@ public class AgentRepository implements IAgentRepository {
                                 .modelName(model.getModelName())
                                 .apiId(model.getApiId())
                                 .modelType(model.getModelType())
-                                // 原先此处有 .typeName(model.getTypeName())：typeName 是 @TableField(exist = false)
-                                // 字段，MP 不生成 SELECT 列，取值恒为 null；库中亦无 type_name 列。已移除该无效赋值。
+                                // 此处曾装配 .typeName(model.getTypeName())：该字段非数据库列
+                                // （库中无 type_name 列、MP 不生成 SELECT 列、取值恒为 null），
+                                // 属无效赋值，已随该死字段一并移除。
                                 .status(model.getStatus())
                                 .build();
 
@@ -389,8 +390,8 @@ public class AgentRepository implements IAgentRepository {
                 AiClientVO clientVO = AiClientVO.builder()
                         .clientId(aiClient.getClientId())
                         .clientName(aiClient.getClientName())
-                        // 原为 .clientDesc(aiClient.getClientDesc())：clientDesc 是 @TableField(exist = false)
-                        // 字段，读取恒为 null；真实列是 description，此处对齐真实列
+                        // 此处曾装配 .clientDesc(aiClient.getClientDesc())：该字段非数据库列
+                        // （读取恒为 null），真实列是 description，已对齐真实列；无效字段亦已删除。
                         .description(aiClient.getDescription())
                         .status(aiClient.getStatus())
                         .modelId(modelId)

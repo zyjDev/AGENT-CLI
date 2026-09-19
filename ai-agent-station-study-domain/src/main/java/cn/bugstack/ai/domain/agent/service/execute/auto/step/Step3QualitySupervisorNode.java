@@ -28,7 +28,7 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
         log.info("\n🔍 阶段3: 质量监督检查");
         
         // 从动态上下文中获取执行结果
-        String executionResult = dynamicContext.getValue("executionResult");
+        String executionResult = dynamicContext.getExecutionResult();
         if (executionResult == null || executionResult.trim().isEmpty()) {
             log.warn("⚠️ 执行结果为空，跳过质量监督");
             return "质量监督跳过";
@@ -59,8 +59,9 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
         }
         parseSupervisionResult(dynamicContext, supervisionResult, requestParameter.getSessionId());
         
-        // 将监督结果保存到动态上下文中
-        dynamicContext.setValue("supervisionResult", supervisionResult);
+        // 说明：此处原先还有 setValue("supervisionResult", supervisionResult) 写入动态上下文，
+        // 但全项目无任何读取点 —— 后续分支判断用的是下面的局部变量 supervisionResult。
+        // 属「写了没人读」的死写入，已移除。
         
         // 根据监督结果决定是否需要重新执行
         if (supervisionResult.contains("是否通过: FAIL")) {
@@ -82,7 +83,7 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
                 【执行阶段】%s
                 【监督阶段】%s
                 """, dynamicContext.getStep(), 
-                dynamicContext.getValue("analysisResult"), 
+                dynamicContext.getAnalysisResult(), 
                 executionResult, 
                 supervisionResult);
         

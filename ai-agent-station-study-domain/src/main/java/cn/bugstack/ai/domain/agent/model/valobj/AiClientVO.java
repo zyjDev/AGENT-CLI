@@ -32,22 +32,10 @@ public class AiClientVO {
     private String clientName;
 
     /**
-     * 客户端描述
-     * <p>
-     * 【已废弃，请勿使用】全项目**无任何读取点**，此前唯一的赋值点
-     * `AgentRepository:391` 也从恒为 null 的 `AiClient.clientDesc` 取值。
-     * 客户端描述请使用 {@link #description}。
-     * <p>
-     * 另注：本 VO 只服务于 Armory 装配（注册 ChatClient Bean），**不经过任何 Controller 返回前端**；
-     * 前端消费的是 `AiClientResponseDTO`。
-     *
-     * @deprecated 用 {@link #description} 代替
-     */
-    @Deprecated
-    private String clientDesc;
-
-    /**
      * 描述
+     * <p>
+     * 注：本 VO 只服务于 Armory 装配（注册 ChatClient Bean），**不经过任何 Controller 返回前端**；
+     * 前端消费的是 `AiClientResponseDTO`。
      */
     private String description;
 

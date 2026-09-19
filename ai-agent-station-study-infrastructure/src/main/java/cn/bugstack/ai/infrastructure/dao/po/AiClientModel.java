@@ -51,21 +51,6 @@ public class AiClientModel {
     private String modelType;
 
     /**
-     * 模型类型名称
-     * <p>
-     * 【已废弃，请勿使用】本字段不是数据库列（`ai_client_model` 表只有 `model_type`），
-     * 且 MP 不会为 `exist = false` 的字段生成 SELECT 列，因此**读取值恒为 null**；
-     * 项目中也没有 `modelType` → 中文名称 的映射表。
-     * 若确实需要展示名称，请基于 {@link #modelType} 自行映射。
-     *
-     * @deprecated 无任何数据来源，保留仅为兼容 `docs/MyBatis-Plus-迁移-交接文档.md`
-     * 中「已知非数据库字段」的记录
-     */
-    @Deprecated
-    @TableField(exist = false)
-    private String typeName;
-
-    /**
      * 模型用途
      */
     private String modelUsage;

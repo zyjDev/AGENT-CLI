@@ -39,19 +39,6 @@ public class AiClientModelVO {
     private String modelType;
 
     /**
-     * 模型类型名称
-     * <p>
-     * 【已废弃，请勿使用】全项目**无任何读取点**，此前唯一的赋值点
-     * `AgentRepository:144`、`:457` 也从恒为 null 的 `AiClientModel.typeName` 取值
-     * （该 PO 字段标了 `@TableField(exist = false)`，库中无 `type_name` 列）。
-     * 若需要展示名称，请基于 {@link #modelType} 自行映射。
-     *
-     * @deprecated 无任何数据来源
-     */
-    @Deprecated
-    private String typeName;
-
-    /**
      * 状态：0-禁用，1-启用
      */
     private Integer status;

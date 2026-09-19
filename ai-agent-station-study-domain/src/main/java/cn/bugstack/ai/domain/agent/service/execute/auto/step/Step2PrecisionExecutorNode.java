@@ -27,7 +27,7 @@ public class Step2PrecisionExecutorNode extends AbstractExecuteSupport{
         log.info("\n⚡ 阶段2: 精准任务执行");
         
         // 从动态上下文中获取分析结果
-        String analysisResult = dynamicContext.getValue("analysisResult");
+        String analysisResult = dynamicContext.getAnalysisResult();
         if (analysisResult == null || analysisResult.trim().isEmpty()) {
             log.warn("⚠️ 分析结果为空，使用默认执行策略");
             analysisResult = "执行当前任务步骤";
@@ -59,7 +59,7 @@ public class Step2PrecisionExecutorNode extends AbstractExecuteSupport{
         parseExecutionResult(dynamicContext, executionResult, requestParameter.getSessionId());
         
         // 将执行结果保存到动态上下文中，供下一步使用
-        dynamicContext.setValue("executionResult", executionResult);
+        dynamicContext.setExecutionResult(executionResult);
 
         // 说明：此处原先还会把「执行记录」append 进 executionHistory，
         // 但 Step3 随后又会 append 一份包含分析+执行+监督的「完整记录」，

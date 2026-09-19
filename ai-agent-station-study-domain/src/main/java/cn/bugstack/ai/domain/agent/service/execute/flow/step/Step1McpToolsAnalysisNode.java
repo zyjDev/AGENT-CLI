@@ -102,7 +102,7 @@ public class Step1McpToolsAnalysisNode extends AbstractExecuteSupport {
         log.info("MCP工具分析结果（仅分析，未执行实际操作）: {}", mcpToolsAnalysis);
         
         // 保存分析结果到上下文
-        dynamicContext.setValue("mcpToolsAnalysis", mcpToolsAnalysis);
+        dynamicContext.setMcpToolsAnalysis(mcpToolsAnalysis);
         
         // 发送SSE结果
         AutoAgentExecuteResultEntity result = AutoAgentExecuteResultEntity.createAnalysisSubResult(

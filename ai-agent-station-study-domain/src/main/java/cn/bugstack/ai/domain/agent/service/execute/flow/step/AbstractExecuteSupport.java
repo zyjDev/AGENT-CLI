@@ -58,7 +58,7 @@ public abstract class AbstractExecuteSupport extends AbstractMultiThreadStrategy
     protected void sendSseResult(DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext, 
                                 AutoAgentExecuteResultEntity result) {
         try {
-            ResponseBodyEmitter emitter = dynamicContext.getValue("emitter");
+            ResponseBodyEmitter emitter = dynamicContext.getEmitter();
             if (emitter != null) {
                 // 发送SSE格式的数据
                 String sseData = "data: " + JSON.toJSONString(result) + "\n\n";

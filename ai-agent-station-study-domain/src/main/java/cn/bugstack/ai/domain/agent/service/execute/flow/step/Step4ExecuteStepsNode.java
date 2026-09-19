@@ -47,7 +47,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             ChatClient executorChatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
             // 从动态上下文获取解析的步骤
-            Map<String, String> stepsMap = dynamicContext.getValue("stepsMap");
+            Map<String, String> stepsMap = dynamicContext.getStepsMap();
             
             if (stepsMap == null || stepsMap.isEmpty()) {
                 return "步骤映射为空，无法执行";
@@ -144,10 +144,9 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
         log.info("步骤内容: {}", stepContent.substring(0, Math.min(200, stepContent.length())) + "...");
 
         try {
-            // 更新执行上下文
-            dynamicContext.setValue("currentStep", stepNumber);
-            dynamicContext.setValue("currentStepKey", stepKey);
-            dynamicContext.setValue("currentStepContent", stepContent);
+            // 说明：此处原先会把 currentStep / currentStepKey / currentStepContent 写入动态上下文，
+            // 但全项目无任何读取点 —— 下方构建提示词用的是方法参数 stepContent。
+            // 属「写了没人读」的死写入，已移除。
 
             // 使用执行器ChatClient来执行具体步骤
             String executionResult = executorChatClient.prompt()
@@ -166,8 +165,8 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             }
             log.info("步骤 {} 执行结果: {}", stepNumber, executionResult.substring(0, Math.min(150, executionResult.length())) + "...");
 
-            // 保存执行结果
-            dynamicContext.setValue("step" + stepNumber + "Result", executionResult);
+            // 说明：此处原先还会 setValue("step{n}Result", ...)，但全项目无读取点
+            //（最终总结用的是 executionHistory 字段），属死写入，已移除。
             
             // 发送步骤执行结果的SSE
             AutoAgentExecuteResultEntity stepResult = AutoAgentExecuteResultEntity.createExecutionResult(
@@ -182,7 +181,7 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
 
         } catch (Exception e) {
             log.error("执行步骤 {} 时发生错误: {}", stepNumber, e.getMessage());
-            dynamicContext.setValue("step" + stepNumber + "Error", e.getMessage());
+            // 说明：原先此处 setValue("step{n}Error", ...) 无任何读取点，属死写入，已移除。
 
             // 记录错误但继续执行下一步
             handleStepExecutionError(stepNumber, stepKey, e, dynamicContext, sessionId);
@@ -197,21 +196,15 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
     private void handleStepExecutionError(Integer stepNumber, String stepKey, Exception e, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext, String sessionId) {
         log.warn("步骤 {} 执行失败，尝试恢复策略", stepNumber);
 
-        // 记录错误统计
-        Map<String, Integer> errorStats = dynamicContext.getValue("stepErrorStats");
-        if (errorStats == null) {
-            errorStats = new HashMap<>();
-            dynamicContext.setValue("stepErrorStats", errorStats);
-        }
-        errorStats.put("step" + stepNumber, errorStats.getOrDefault("step" + stepNumber, 0) + 1);
+        // 说明：原先此处维护 stepErrorStats（写入动态上下文并自增计数），
+        // 但自增后的 Map 从未被任何代码消费 —— 属「读了但结果直接丢弃」的死逻辑，已整体移除。
 
         // 如果是网络错误，可以尝试重试
         if (e.getMessage() != null && (e.getMessage().contains("timeout") || e.getMessage().contains("connection"))) {
             log.info("检测到网络错误，将在后续重试机制中处理");
         }
 
-        // 标记步骤为部分完成状态
-        dynamicContext.setValue("step" + stepNumber + "Status", "FAILED_WITH_ERROR");
+        // 说明：原先此处 setValue("step{n}Status", "FAILED_WITH_ERROR") 无任何读取点，属死写入，已移除。
         
         // 发送错误结果的SSE
         try {

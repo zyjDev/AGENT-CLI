@@ -48,7 +48,7 @@ public class Step2PlanningNode extends AbstractExecuteSupport {
         ChatClient planningChatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
         String userRequest = dynamicContext.getCurrentTask();
-        String mcpToolsAnalysis = dynamicContext.getValue("mcpToolsAnalysis");
+        String mcpToolsAnalysis = dynamicContext.getMcpToolsAnalysis();
         
         String planningPrompt = buildStructuredPlanningPrompt(userRequest, mcpToolsAnalysis);
         
@@ -70,7 +70,7 @@ public class Step2PlanningNode extends AbstractExecuteSupport {
         log.info("执行步骤规划结果: {}", planningResult);
         
         // 保存规划结果到上下文
-        dynamicContext.setValue("planningResult", planningResult);
+        dynamicContext.setPlanningResult(planningResult);
         
         // 发送SSE结果
         AutoAgentExecuteResultEntity result = AutoAgentExecuteResultEntity.createAnalysisSubResult(

@@ -9,8 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -62,15 +62,20 @@ public class DefaultAutoAgentExecuteStrategyFactory {
 
         private Map<String, AiAgentClientFlowConfigVO> aiAgentClientFlowConfigVOMap;
 
-        private Map<String, Object> dataObjects = new HashMap<>();
+        // ── 以下为跨节点传递的运行时数据 ──────────────────────────────
+        // 原实现放在 Map<String, Object> dataObjects 中，以裸字符串 key 存取：
+        //   setValue("analysisResult", x) / getValue("analysisResult")
+        // 问题：key 拼错编译期无感、取值靠调用方强转（ClassCastException 要跑起来才发现）。
+        // 现改为强类型字段，访问器由 Lombok @Data 生成，编译器与 IDE 均可校验。
 
-        public <T> void setValue(String key, T value) {
-            dataObjects.put(key, value);
-        }
+        /** SSE 发射器（原 key: "emitter"） */
+        private ResponseBodyEmitter emitter;
 
-        public <T> T getValue(String key) {
-            return (T) dataObjects.get(key);
-        }
+        /** Step1 分析结果（原 key: "analysisResult"），Step2 / Step3 读取 */
+        private String analysisResult;
+
+        /** Step2 执行结果（原 key: "executionResult"），Step3 读取 */
+        private String executionResult;
     }
 
 }

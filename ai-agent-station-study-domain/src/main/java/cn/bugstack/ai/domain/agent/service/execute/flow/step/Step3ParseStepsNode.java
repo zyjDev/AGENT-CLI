@@ -30,7 +30,7 @@ public class Step3ParseStepsNode extends AbstractExecuteSupport {
     protected String doApply(ExecuteCommandEntity requestParameter, DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext) throws Exception {
         log.info("\n--- 步骤3: 规划步骤解析 ---");
         
-        String planningResult = dynamicContext.getValue("planningResult");
+        String planningResult = dynamicContext.getPlanningResult();
         
         if (planningResult == null || planningResult.trim().isEmpty()) {
             log.warn("规划结果为空，无法解析步骤");
@@ -42,7 +42,7 @@ public class Step3ParseStepsNode extends AbstractExecuteSupport {
         log.info("成功解析 {} 个执行步骤", stepsMap.size());
         
         // 保存解析结果到上下文
-        dynamicContext.setValue("stepsMap", stepsMap);
+        dynamicContext.setStepsMap(stepsMap);
         
         // 构建解析结果摘要
         StringBuilder parseResult = new StringBuilder();

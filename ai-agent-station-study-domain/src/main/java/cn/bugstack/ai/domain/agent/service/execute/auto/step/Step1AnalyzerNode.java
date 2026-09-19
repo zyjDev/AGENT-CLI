@@ -62,7 +62,7 @@ public class Step1AnalyzerNode extends AbstractExecuteSupport {
         parseAnalysisResult(dynamicContext, analysisResult, requestParameter.getSessionId());
         
         // 将分析结果保存到动态上下文中，供下一步使用
-        dynamicContext.setValue("analysisResult", analysisResult);
+        dynamicContext.setAnalysisResult(analysisResult);
 
         // 检查是否已完成
         if (analysisResult.contains("任务状态: COMPLETED") ||

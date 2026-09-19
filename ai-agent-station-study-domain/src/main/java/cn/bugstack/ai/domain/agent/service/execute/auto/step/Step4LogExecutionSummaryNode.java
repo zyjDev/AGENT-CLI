@@ -101,9 +101,6 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
             }
             logFinalReport(dynamicContext, summaryResult, requestParameter.getSessionId());
             
-            // 将总结结果保存到动态上下文中
-            dynamicContext.setValue("finalSummary", summaryResult);
-            
         } catch (Exception e) {
             log.error("生成最终总结报告时出现异常: {}", e.getMessage(), e);
         }

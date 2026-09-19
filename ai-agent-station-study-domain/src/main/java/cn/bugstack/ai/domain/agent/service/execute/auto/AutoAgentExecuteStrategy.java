@@ -37,7 +37,7 @@ public class AutoAgentExecuteStrategy implements IExecuteStrategy {
         dynamicContext.setHistorySummary(null);
         dynamicContext.setExecutedSteps(0);
         dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
-        dynamicContext.setValue("emitter", emitter);
+        dynamicContext.setEmitter(emitter);
         
         String apply = executeHandler.apply(executeCommandEntity, dynamicContext);
         log.info("测试结果:{}", apply);

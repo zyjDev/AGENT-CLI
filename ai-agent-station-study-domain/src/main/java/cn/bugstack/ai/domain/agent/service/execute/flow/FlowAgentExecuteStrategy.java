@@ -31,8 +31,9 @@ public class FlowAgentExecuteStrategy implements IExecuteStrategy {
         dynamicContext.setMaxStep(executeCommandEntity.getMaxStep() != null ? executeCommandEntity.getMaxStep() : 4);
         dynamicContext.setExecutionHistory(new StringBuilder());
         dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
-        dynamicContext.setValue("emitter", emitter);
-        dynamicContext.setValue("sessionId", executeCommandEntity.getSessionId());
+        dynamicContext.setEmitter(emitter);
+        // 说明：此处原先还有 setValue("sessionId", executeCommandEntity.getSessionId())，
+        // 但全项目无任何读取点（各节点均直接使用 request.getSessionId()），属死写入，已移除。
         
         String apply = executeHandler.apply(executeCommandEntity, dynamicContext);
         log.info("流程执行结果:{}", apply);
