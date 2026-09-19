@@ -102,13 +102,14 @@
 <!--            <artifactId>xfg-wrench-starter-task-job</artifactId>-->
 <!--        </dependency>-->
 
-        <!-- 工程模块；启动依赖 trigger（trigger 已传递依赖 domain + infrastructure，
-             故 app 无需再显式声明 infrastructure）。
-             依据：实测 app 模块对 infrastructure 的 import 只有 AiAgentAutoConfiguration 里
-             2 个从未使用的死 import（IAiAgentDao / IAiAgentFlowConfigDao），已一并删除。 -->
+        <!-- 工程模块；启动依赖 trigger->domain, infrastructure-->
         <dependency>
             <groupId>cn.bugstack.ai</groupId>
             <artifactId>ai-agent-station-study-trigger</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.bugstack.ai</groupId>
+            <artifactId>ai-agent-station-study-infrastructure</artifactId>
         </dependency>
     </dependencies>
 
