@@ -55,3 +55,48 @@ docs/dev-ops/
 ### SQL 文件（包含敏感信息） ###
 *.sql
 /docs/RAG-Knowledge-Base-Update-Requirements.md
+
+### 编辑器临时/备份文件 ###
+# draw.io 等编辑器生成的 .$ 前缀备份文件，无引用价值
+*.bkp
+docs/.$*
+
+### 验证过程的中间产物（含本机绝对路径，可重新生成）###
+# 由 docs/verify/README.md 记录的三步流程产出，路径含本机盘符，不应入库
+docs/verify/cp-full.txt
+docs/verify/cp-infra.txt
+docs/verify/java-args.txt
+docs/verify/javac-args.txt
+docs/verify/out/
+
+### Markdown 文档（仅保留 README.md，其余不入库）###
+# 说明：项目内除 README.md 外的所有 Markdown 均不入库（含 docs/ 报告、
+# .workbuddy-ai/memory/ 记忆、AGENTS.md 等）。已跟踪的需用
+# `git rm --cached` 移出索引后本规则才生效。
+*.md
+!README.md
+
+### 架构图与渲染产物（本地保留，不入库）###
+# drawio 源文件与 HTML 渲染版属设计过程产物；仓库只放代码 / 必要文档 / SQL
+*.drawio
+docs/architecture-overview.html
+
+### 冒烟测试留档（可重新生成，不入库）###
+# 每次 smoke-test.sh 运行产出的 01-agents.json / 02-armory.json / 03-round1.sse / 04-round2.sse
+docs/refactor/runs/
+
+### 课程 v1.0 版本快照（本地保留，不入库）###
+docs/tag-v1.0/
+
+### 前端本地调试数据（不入库）###
+# mcp.json 的模板见同目录 mcp.json.example
+ai-agent-station-front/docs/mcp.json
+ai-agent-station-front/docs/query.json
+ai-agent-station-front/docs/save.json
+
+### 依赖目录（不入库，可由 package-lock.json 重建）###
+# 无斜杠前缀的模式匹配任意层级，因此这两条同时覆盖根目录与各子模块。
+# 必须带 .* 通配：精确路径 node_modules/ 匹配不到改名后的备份目录，
+# 2026-09-20 曾因 node_modules.broken-* 未被忽略而暴露 43027 个未跟踪文件。
+node_modules/
+node_modules.*/
