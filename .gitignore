@@ -50,10 +50,30 @@ ai-agent-station-study-app/src/main/resources/application-prod.yml
 *.log
 logs/
 ai-agent-station-study-app/src/test/
-docs/dev-ops/
+### Docker 环境配置（含凭据的编排与脚本不入库）###
+# 2026-09-20 事故：原先整目录忽略 docs/dev-ops/，导致 pgvector/sql/init.sql、
+# redis/redis.conf、mysql/my.cnf 三个中间件配置丢失后**无法从 git 恢复**
+# （Docker 把不存在的挂载源自动创建成了空目录，掩盖了文件已丢失的事实）。
+# 现改为逐级例外，只让中间件配置文件入库 —— 它们属于「环境即代码」。
+# 注意：git 不允许对「父目录已被排除」的文件用 ! 重新包含，因此必须逐级写。
+docs/dev-ops/*
+!docs/dev-ops/pgvector/
+!docs/dev-ops/redis/
+!docs/dev-ops/mysql/
+docs/dev-ops/pgvector/*
+!docs/dev-ops/pgvector/sql/
+docs/dev-ops/pgvector/sql/*
+!docs/dev-ops/pgvector/sql/init.sql
+docs/dev-ops/redis/*
+!docs/dev-ops/redis/redis.conf
+docs/dev-ops/mysql/*
+!docs/dev-ops/mysql/my.cnf
 
 ### SQL 文件（包含敏感信息） ###
 *.sql
+# 例外：Docker 中间件初始化脚本必须入库，丢失后无法重建环境（2026-09-20 事故）
+# 该例外必须写在 *.sql 之后 —— git 规则后写的覆盖先写的
+!docs/dev-ops/pgvector/sql/init.sql
 /docs/RAG-Knowledge-Base-Update-Requirements.md
 
 ### 编辑器临时/备份文件 ###
