@@ -103,6 +103,52 @@ public class AiClientAdvisorVO {
     public static class RagAnswer {
         private int topK = 4;
         private String filterExpression;
+
+        // ===== 精排相关（全部用包装类型：null 表示未配置，回落默认值）=====
+        /**
+         * 召回池大小。null 或 &lt;= topK 表示不精排（直接取 topK 条）
+         */
+        private Integer recallK;
+        /**
+         * 是否开启精排。null 视为 false
+         */
+        private Boolean rerankEnabled;
+        /**
+         * 精排使用的 ChatModel Bean 名（如 ai_client_model_3001）。为空则退回默认
+         */
+        private String rerankModelBeanName;
+        /**
+         * 精排调用超时（毫秒）。默认 25000
+         * <p>
+         * 为什么不是 3000：精排是一次「20 候选 × 上千字」的 listwise 调用，即使关掉推理
+         * 实测也要 6~11s。超时给太短等于每次都走降级分支，精排形同虚设。
+         */
+        private Integer rerankTimeoutMs;
+        /**
+         * 送进精排 prompt 的每个候选片段最大字符数。默认 1200
+         * <p>
+         * 为什么不能太小：语料 chunk 中位长度在 850~3500 字符之间，截断到 400 会把答案
+         * 本身切掉，精排退化成「凭开头猜主题」。实测同一批候选用 400 字符时排序质量明显更差。
+         */
+        private Integer rerankDocChars;
+        /**
+         * 精排模型的推理强度（OpenAI 标准参数 reasoning_effort）。
+         * <p>
+         * <b>实测必须配 "none"</b>：项目默认模型 mimo-v2.5 是推理模型，20 候选的 listwise
+         * prompt 会让它先产出 800+ 推理 token —— 实测单次 29.8s、finish_reason=length、
+         * content 为空（输出预算全被思考吃光），精排必然超时降级。关掉推理后降到约 7~10s
+         * 且能正常返回 JSON 分数。null 表示沿用模型默认（即保留推理）。
+         */
+        private String rerankReasoningEffort;
+
+        /**
+         * 是否真正启用精排：显式打开 + 配了模型 + 池子比目标条数大，三者同时满足。
+         */
+        public boolean rerankActive() {
+            return Boolean.TRUE.equals(rerankEnabled)
+                    && rerankModelBeanName != null && !rerankModelBeanName.isBlank()
+                    && recallK != null && recallK > topK;
+        }
     }
 
 }

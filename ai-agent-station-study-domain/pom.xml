@@ -86,6 +86,17 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-client-webflux</artifactId>
         </dependency>
+
+        <!-- spring-ai-rag：RAG 后置处理扩展点 DocumentPostProcessor 所在模块。
+             1.1.8 里它不在任何 starter 的传递依赖里，必须显式引入（本地仓库原先没有这个 jar）。
+             该 jar 只依赖 spring-ai-client-chat + spring-ai-vector-store，两者项目已有 →
+             零新增传递依赖。附带还能拿到 QueryTransformer / MultiQueryExpander /
+             RewriteQueryTransformer / ContextualQueryAugmenter 等官方 RAG 构件。
+             版本由根 pom 的 spring-ai BOM 统一管理，无需写 version。 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-rag</artifactId>
+        </dependency>
         <!-- spring ai 框架 end -->
 
         <!-- 系统模块 -->

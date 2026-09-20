@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.vectorstore.VectorStore;
 
 /**
@@ -42,5 +43,14 @@ public class AdvisorCreateContextVO {
      * 全局默认预算；DB ext_param 可逐项覆盖
      */
     private ContextBudgetVO defaultBudget;
+
+    /**
+     * 精排用的 ChatModel（RagAnswer 顾问的可选增强）。
+     * <p>
+     * 由 {@code AiClientAdvisorNode} 按 ext_param 里的 {@code rerankModelBeanName}
+     * 从容器取（模型节点先于 advisor 节点执行，Bean 已注册）；取不到时传 null，
+     * 顾问侧自动降级为「不精排」，不影响装配。
+     */
+    private ChatModel rerankChatModel;
 
 }

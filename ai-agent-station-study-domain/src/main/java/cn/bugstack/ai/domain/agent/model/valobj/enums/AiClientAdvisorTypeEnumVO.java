@@ -11,8 +11,10 @@ import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.rag.postretrieval.document.DocumentPostProcessor;
 import org.springframework.ai.vectorstore.SearchRequest;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.element.RagAnswerAdvisor;
+import cn.bugstack.ai.domain.agent.service.rag.rerank.LlmDocumentPostProcessor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,11 +54,34 @@ public enum AiClientAdvisorTypeEnumVO {
     RAG_ANSWER("RagAnswer", "知识库") {
         @Override
         public Advisor createAdvisor(AiClientAdvisorVO aiClientAdvisorVO, AdvisorCreateContextVO ctx) {
-            AiClientAdvisorVO.RagAnswer ragAnswer = aiClientAdvisorVO.getRagAnswer();
+            // ⚠️ ext_param 为空时 getRagAnswer() 返回 null，原实现直接 .getTopK() 会 NPE ——
+            //    而这一步在 Armory 装配期执行，一旦抛异常整个应用启动即挂（存量脏数据就会触发）。
+            AiClientAdvisorVO.RagAnswer cfg = aiClientAdvisorVO.getRagAnswer() == null
+                    ? new AiClientAdvisorVO.RagAnswer()
+                    : aiClientAdvisorVO.getRagAnswer();
+
+            // 精排器只在「开关打开 + 配了模型 + 池子比目标条数大」时才构造。
+            // 拿不到模型（Bean 名写错 / 模型节点未装配）一律降级为不精排，不在装配期报错。
+            DocumentPostProcessor postProcessor = null;
+            if (cfg.rerankActive() && ctx.getRerankChatModel() != null) {
+                postProcessor = new LlmDocumentPostProcessor(
+                        ctx.getRerankChatModel(),
+                        cfg.getTopK(),
+                        // 默认 25s：精排是一次 20 候选的 listwise 调用。实测 mimo-v2.5 关推理后，
+                        // 候选片段截断到 1200 字符时单次约 11s，给 3s 等于每次都降级（踩过）。
+                        cfg.getRerankTimeoutMs() == null ? 25000 : cfg.getRerankTimeoutMs(),
+                        // 默认 1200：语料 chunk 中位长度在 850~3500 字符之间，截断太狠会把答案本身
+                        // 切掉 —— 精排就变成「凭开头猜主题」，实测 400 字符时排序质量明显更差。
+                        cfg.getRerankDocChars() == null ? 1200 : cfg.getRerankDocChars());
+            }
+            // 没精排时 recallK 回落成 topK → 只召回一次、不做重排，与改造前行为完全等价
+            int recallK = postProcessor == null ? cfg.getTopK() : cfg.getRecallK();
+
             return new RagAnswerAdvisor(ctx.getVectorStore(), SearchRequest.builder()
-                    .topK(ragAnswer.getTopK())
-                    .filterExpression(ragAnswer.getFilterExpression())
-                    .build());
+                    .topK(cfg.getTopK())
+                    .filterExpression(cfg.getFilterExpression())
+                    .build(),
+                    cfg.getTopK(), recallK, postProcessor);
         }
     }
     
