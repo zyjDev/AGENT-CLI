@@ -1,0 +1,53 @@
+// ============================================================================
+// RAG 评测题库模板（JSONL 格式）
+// ----------------------------------------------------------------------------
+// 格式约定：
+//   * 一行一条题，UTF-8 编码，**不能换行**（字符串里的换行要写成 \n）
+//   * 空行、以及以 // 开头的行会被跳过 —— 所以可以像本文件这样写注释
+//   * 下面 4 条是从现有评测集摘出的**真实样例**（已通过 GoldenCheck 校验），
+//     直接改 id / query / mustHit 就能变成你自己的题
+//
+// 字段清单：
+//   id             必填。唯一字符串，建议 <语料前缀>-<桶字母><序号>，如 F-E01 / S-M07
+//   bucket         必填。四选一：easy | multi_hop | no_answer | false_premise
+//   knowledge      必填。对应向量库里 metadata->>'knowledge' 的值（决定检索时过滤哪批语料）
+//   query          必填。问题原文，就是你实际会问用户端那句话
+//   variants       选填。同义问法数组；harness 加 --variants 时只用第 0 条。没有就给 []
+//   mustHit        必填（no_answer 桶除外）。命中判据，数组，元素见下
+//   mustNotAppear  仅 no_answer 桶。这些串**不允许**出现在该语料的任何 chunk 里，
+//                  用来证明「真的没答案」而不是「检索没找到」
+//   goldenAnswer   必填。标准答案。检索层指标不用它，生成层（Faithfulness 等）要用
+//   expect         必填。期望行为：answer（正常回答）/ refuse（拒答）/ correct_premise（纠正前提）
+//   wrongClaim     仅 false_premise 桶。用户的错误认知原文，用来检查模型有没有被带偏
+//   generatedBy    model | human —— 诚实标注来源，方便事后算「模型造题的乐观偏差」
+//   note           给自己看的备注（泄漏告警、跨了几篇文档、为什么这么问）
+//
+// mustHit 元素格式：{"source": "<文件名>", "fingerprint": "<逐字子串>"}
+//   ★ fingerprint 必须是某个 chunk 正文里的**逐字子串**（GoldenCheck 会真的去快照里找，
+//     找不到就 [FAIL]）。所以正确流程是：先 chunk-search.py 搜关键词 → 从打印出的
+//     上下文里**原样复制**一句话当指纹 → 再写题。不要凭记忆敲。
+//   ★ source 是给人和 GoldenCheck 看的定位提示，可以不填（""），填了就必须对得上。
+//   ★ 多跳题要 2 个指纹，且最好落在**不同文件**里 —— 否则测不出「跨文档检索」。
+// ============================================================================
+
+// ---------- ① easy：简单题（单篇文档、一段话就能答） --------------------------
+// 目标 50 条。一个指纹就够。答案应该「一段话里明说」，不需要推理。
+{"id":"F-E01","bucket":"easy","knowledge":"eval-fictional-v1","query":"一个订单从头到尾最多会被尝试执行几次？","variants":["重投最多几次啊"],"mustHit":[{"source":"01-dispatch-retry.md","fingerprint":"| 7 | 次 | 含首次执行，即最多再重投 6 次 |"}],"mustNotAppear":null,"goldenAnswer":"7 次。注意这个值含首次执行，所以最多再重投 6 次。","expect":"answer","wrongClaim":null,"generatedBy":"model","note":"原问法含 maxAttempts，3-gram 重叠 0.55，已改写"}
+
+// ---------- ② multi_hop：推理跳步题（必须跨 2 篇文档才能答全） ----------------
+// 目标 30 条。**至少 2 个指纹，且落在不同 source 上**。
+// 这类题是 MRR 之外最该看「全中率」的桶：少一个指纹就是答不全。
+// 注意：多跳题的 MRR 天然偏低（MRR 只奖励第一个命中），别只看 MRR 判它好坏。
+{"id":"F-M01","bucket":"multi_hop","knowledge":"eval-fictional-v1","query":"排查订单失败时，为什么只翻调度侧日志会漏掉真正的根因？","variants":[],"mustHit":[{"source":"03-gateway-quota.md","fingerprint":"如果网关配额长期偏紧，会**间接**耗尽调度侧的重投次数"},{"source":"06-ops-runbook.md","fingerprint":"订单失败的日志里**看不到** HVR-3102"}],"mustNotAppear":null,"goldenAnswer":"因为网关配额偏紧会间接耗尽调度侧的重投次数，订单最终表现为「重投次数用尽」；而 HVR-3102 只出现在网关侧，订单失败日志里看不到。必须主动去网关侧查 HVR-3102 计数，才能区分是配额问题还是调度问题。","expect":"answer","wrongClaim":null,"generatedBy":"model","note":"跨两篇文档"}
+
+// ---------- ③ no_answer：语料里真的没有答案 ----------------------------------
+// 目标 10 条。**必须没有 mustHit**（该桶不参与检索层指标），
+// 但**强烈建议填 mustNotAppear** —— 它把「模型该拒答」和「检索没召回到」区分开。
+// expect 固定为 refuse。评测点不是召回，而是「模型会不会硬编」。
+{"id":"F-N01","bucket":"no_answer","knowledge":"eval-fictional-v1","query":"Hoverail 平台是用什么编程语言和框架实现的？","variants":["Hoverail 的技术栈是什么"],"mustHit":[],"mustNotAppear":["Golang","Python","Spring Boot","技术栈"],"goldenAnswer":"语料中没有该信息。正确行为是明确说「知识库里没有相关说明」，不要凭常识编造技术栈。","expect":"refuse","wrongClaim":null,"generatedBy":"model","note":"语料完全未提及实现语言/框架"}
+
+// ---------- ④ false_premise：问题里埋了错误前提 ------------------------------
+// 目标 10 条。查的是「模型会不会顺着用户的错误说法往下答」。
+// wrongClaim 写清那个错误认知，goldenAnswer 要给出**正确结论 + 依据**。
+// mustHit 指向「能证伪该前提」的那句话。
+{"id":"F-F01","bucket":"false_premise","knowledge":"eval-fictional-v1","query":"上次对账专题会不是决定把差异容忍度放宽到 0.05% 了吗？那现在线上就是 0.05% 吧？","variants":[],"mustHit":[{"source":"08-meeting-2026-10-03.md","fingerprint":"本次会议讨论的 0.05% 只是提议，未采纳"}],"mustNotAppear":null,"goldenAnswer":"不对。0.05% 只是会上的提议，结论是「容忍度不放宽」，现网仍然是 0.03%。误报问题通过调整告警条件解决，不动容忍度。","expect":"correct_premise","wrongClaim":"0.05% 已被采纳为线上值","generatedBy":"model","note":"语料里明确写了该提议未采纳"}

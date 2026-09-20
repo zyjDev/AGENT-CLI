@@ -103,6 +103,20 @@ docs/verify/java-args.txt
 docs/verify/javac-args.txt
 docs/verify/out/
 
+### RAG 评测脚手架（工具入库，产物不入库）###
+# 目录约定（2026-09-20 整理）：
+#   docs/rag-eval/src/    → 入库：评测工具源码（*.java 编译运行、*.py 离线分析）
+#   docs/rag-eval/golden/ → 入库：题库（100 条标注集 + 模板），是评测的「尺子」
+#   docs/rag-eval/_local/ → 忽略：其余全部产物，统一收在一个包下管理
+#       _local/corpus/  127 个 Spring AI 文档语料 txt（2.0M，可由 fetch-spring-ai-docs.py 重建）
+#       _local/runs/    评测明细 json/jsonl + chunk 快照（4.3M，是结论的证据，本地保留）
+#       _local/out/     编译产物 *.class（一条 javac 可重建）
+#       _local/args/    classpath / 编译参数 txt（含本机绝对路径，同 docs/verify 的处理）
+#       _local/report/  评测报告 md（本来就被上面的 *.md 规则忽略）
+# 注意：_local 下的文件虽不入库，但评测脚本会读它 —— 删掉 _local/runs 会让
+# analyze-by-k.py / GoldenCheck 找不到 chunk 快照。要清理请只删 _local/out。
+docs/rag-eval/_local/
+
 ### Markdown 文档（仅保留 README.md，其余不入库）###
 # 说明：项目内除 README.md 外的所有 Markdown 均不入库（含 docs/ 报告、
 # .workbuddy-ai/memory/ 记忆、AGENTS.md 等）。已跟踪的需用
