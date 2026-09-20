@@ -12,13 +12,6 @@ interface AgentValue {
   };
 }
 
-interface AgentFormData {
-  agentName: AgentValue;
-  description: AgentValue;
-  channel: string;
-  strategy: string;
-}
-
 // 渠道选项
 const channelOptions = [
   { label: 'Agent', value: 'agent' },

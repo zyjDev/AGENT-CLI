@@ -9,7 +9,8 @@ import './index.less';
 
 export const NodePanel: FC<NodePanelRenderProps> = (props) => {
   const { onSelect, position, onClose, panelProps } = props;
-  const { enableNodePlaceholder } = panelProps;
+  // panelProps 在插件类型里是可选的，直接解构 undefined 会在运行时抛错
+  const { enableNodePlaceholder } = panelProps ?? {};
 
   return (
     <Popover

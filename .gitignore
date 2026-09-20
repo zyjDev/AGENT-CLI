@@ -128,6 +128,11 @@ ai-agent-station-front/docs/mcp.json
 ai-agent-station-front/docs/query.json
 ai-agent-station-front/docs/save.json
 
+### 前端构建产物（不入库，可由源码重建）###
+# 上面的 /dist/ 属于 NetBeans 段，带前导斜杠只锚定仓库根，
+# 覆盖不到 ai-agent-station-front/dist；无斜杠写法才匹配任意层级。
+dist/
+
 ### 依赖目录（不入库，可由 package-lock.json 重建）###
 # 无斜杠前缀的模式匹配任意层级，因此这两条同时覆盖根目录与各子模块。
 # 必须带 .* 通配：精确路径 node_modules/ 匹配不到改名后的备份目录，

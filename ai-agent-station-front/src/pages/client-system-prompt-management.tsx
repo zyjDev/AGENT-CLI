@@ -135,9 +135,6 @@ export const ClientSystemPromptManagement: React.FC = () => {
   const [currentRecord, setCurrentRecord] = useState<AiClientSystemPromptResponseDTO | null>(null);
   const [formData, setFormData] = useState<AiClientSystemPromptRequestDTO>({});
 
-  // 获取用户信息
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-
   // 处理退出登录
   const handleLogout = () => {
     localStorage.removeItem('token');

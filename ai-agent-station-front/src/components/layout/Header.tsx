@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, Dropdown, Avatar, Badge, Space, Typography, Input } from '@douyinfe/semi-ui';
-import { IconSearch, IconBell, IconSetting, IconExit, IconMenu, IconMoon, IconSun } from '@douyinfe/semi-icons';
+import { Button, Dropdown, Avatar, Badge, Typography, Input } from '@douyinfe/semi-ui';
+import { IconSearch, IconBell, IconSetting, IconExit, IconMenu, IconSun } from '@douyinfe/semi-icons';
 import styled from 'styled-components';
 import { theme } from '../../styles/theme';
 

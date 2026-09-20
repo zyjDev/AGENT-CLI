@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layout-editor';
 import { Toast, Spin } from '@douyinfe/semi-ui';
 import { useLocation } from 'react-router-dom';

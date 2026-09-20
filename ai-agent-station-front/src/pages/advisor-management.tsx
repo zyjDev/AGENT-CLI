@@ -13,7 +13,6 @@ import {
   Card,
   Select,
   Modal,
-  Form,
   TextArea
 } from '@douyinfe/semi-ui';
 import { 
@@ -147,9 +146,6 @@ export const AdvisorManagement: React.FC = () => {
     extParam: '',
     status: 1
   });
-
-  // 获取用户信息
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
   // 生成随机8位数字字符串
   const generateAdvisorId = (): string => {

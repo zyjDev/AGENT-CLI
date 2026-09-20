@@ -1,4 +1,3 @@
-import React from 'react';
 import { Field } from '@flowgram.ai/free-layout-editor';
 import { TextArea } from '@douyinfe/semi-ui';
 

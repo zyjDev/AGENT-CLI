@@ -121,9 +121,6 @@ export const ClientManagement: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentEditClient, setCurrentEditClient] = useState<AiClientResponseDTO | null>(null);
 
-  // 获取用户信息
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-
   // 处理退出登录
   const handleLogout = () => {
     localStorage.removeItem('token');

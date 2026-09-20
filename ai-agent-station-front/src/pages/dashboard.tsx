@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Button, Card, Typography, Space, Toast, Row, Col, Progress } from '@douyinfe/semi-ui';
+import { Layout, Button, Typography, Space, Toast, Row, Col } from '@douyinfe/semi-ui';
 import { IconApps, IconActivity, IconUser, IconBranch } from '@douyinfe/semi-icons';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
