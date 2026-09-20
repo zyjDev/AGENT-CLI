@@ -65,6 +65,8 @@ docs/dev-ops/*
 # 导致 start-ui-user.bat 打开 http://localhost:8080/index.html 时 404。
 # 整个子树都要入库，故只需重新包含目录本身（* 不跨 /，子孙不再被匹配）。
 !docs/dev-ops/nginx/
+# 环境自检脚本本身必须入库 —— 它不含凭据，且丢了就失去这层保护
+!docs/dev-ops/preflight-check.sh
 docs/dev-ops/pgvector/*
 !docs/dev-ops/pgvector/sql/
 docs/dev-ops/pgvector/sql/*
