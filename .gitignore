@@ -60,6 +60,11 @@ docs/dev-ops/*
 !docs/dev-ops/pgvector/
 !docs/dev-ops/redis/
 !docs/dev-ops/mysql/
+# nginx/html 是「用户端演示页」（start-ui-user.bat 在此目录起 8080 静态服务），
+# 属于可运行环境的一部分。2026-09-20 它在 66c838a 中被误删且从未入库，
+# 导致 start-ui-user.bat 打开 http://localhost:8080/index.html 时 404。
+# 整个子树都要入库，故只需重新包含目录本身（* 不跨 /，子孙不再被匹配）。
+!docs/dev-ops/nginx/
 docs/dev-ops/pgvector/*
 !docs/dev-ops/pgvector/sql/
 docs/dev-ops/pgvector/sql/*
@@ -80,6 +85,13 @@ docs/dev-ops/mysql/*
 # draw.io 等编辑器生成的 .$ 前缀备份文件，无引用价值
 *.bkp
 docs/.$*
+
+### JRebel 热部署临时产物 ###
+# jrebel-classpath-<随机端口>.jar 由 IDEA 的 JRebel 插件在项目根目录生成，
+# 后缀数字每次运行都变，属可再生的临时文件。删除前需先停掉 JRebel 会话。
+jrebel-classpath-*.jar
+rebel.xml
+*.rebel
 
 ### 验证过程的中间产物（含本机绝对路径，可重新生成）###
 # 由 docs/verify/README.md 记录的三步流程产出，路径含本机盘符，不应入库
