@@ -380,7 +380,7 @@ export const ClientToolMcpManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('获取MCP客户端工具列表失败:', error);
-      Toast.error('获取MCP客户端工具列表失败，请检查网络连接');
+      Toast.error(`获取MCP客户端工具列表失败：${error instanceof Error ? error.message : '未知错误'}`);
       setDataSource([]);
       setTotal(0);
     } finally {

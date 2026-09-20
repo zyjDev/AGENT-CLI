@@ -2,16 +2,10 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, DashboardPage, AgentConfigPage, AgentListPage, ClientManagement, AiClientApiManagement, AdvisorManagement, RagOrderManagement, ClientModelManagement, ClientSystemPromptManagement, ClientToolMcpManagement } from './pages';
+import { isAuthenticated, installAuthFetchInterceptor } from './utils/auth';
 
-// 统一的认证检查函数
-const isAuthenticated = (): boolean => {
-  const token = localStorage.getItem('token');
-  const userInfo = localStorage.getItem('userInfo');
-  const isLoggedIn = localStorage.getItem('isLoggedIn');
-  
-  // 检查所有必要的认证信息是否存在
-  return !!(token && userInfo && isLoggedIn);
-};
+// 全局 401 拦截：登录态失效时给出准确提示并跳登录页，而不是让各页面报「请检查网络连接」
+installAuthFetchInterceptor();
 
 // 路由保护组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
