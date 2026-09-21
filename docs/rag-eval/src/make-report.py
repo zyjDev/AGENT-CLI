@@ -41,8 +41,11 @@ BUCKET_CN = {
     'allBuckets': '全部样本',
 }
 
-# 中英混排语料下 1 token ≈ 1.5 字符（保守）；只用于给数量级，报告里必须标注是估算
-CHARS_PER_TOKEN = 1.5
+# 本语料（英文 Spring AI 文档）实测值，见 src/TokenCount.java。
+# ⚠️ 2026-09-21 订正：原先取 1.5（中英混排口径），把 token 放大了 2.2 倍。
+#    这里只是「快速估算」；要精确数字请用 TokenCount（jtokkit cl100k_base）。
+#    改这个值必须同步 analyze-by-k.py 的同名常量，否则两份报告对不上。
+CHARS_PER_TOKEN = 3.28
 
 
 def load_chunk_lens():
@@ -256,7 +259,7 @@ def main():
     # ---------- 表 6：上下文成本 ----------
     w('### 表 6 · 上下文成本（只算检索片段，不含 system prompt / 用户问题 / 记忆）')
     w('')
-    w('| 组 | 最终条数 | 上下文均值(字符) | 约合 token（按 1.5 字符/token 估算） |')
+    w(f'| 组 | 最终条数 | 上下文均值(字符) | 约合 token（按 {CHARS_PER_TOKEN} 字符/token 估算） |')
     w('| --- | --- | --- | --- |')
     for tag, desc, topk, reck, d in loaded:
         s = d['summary']['retrievalOverall']
