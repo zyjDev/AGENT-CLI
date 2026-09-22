@@ -53,4 +53,13 @@ public class AdvisorCreateContextVO {
      */
     private ChatModel rerankChatModel;
 
+    /**
+     * 多查询改写用的 ChatModel（RagAnswer 顾问的可选增强）。
+     * <p>
+     * 取用方式与 {@link #rerankChatModel} 一致：由 {@code AiClientAdvisorNode} 按 ext_param 里的
+     * {@code multiQueryModelBeanName} 从容器取（模型节点先于 advisor 节点执行，Bean 已注册）；
+     * 取不到时传 null，顾问侧自动降级为「单查询」，不影响装配。
+     */
+    private ChatModel expandChatModel;
+
 }

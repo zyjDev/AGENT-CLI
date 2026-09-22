@@ -7,11 +7,14 @@ import cn.bugstack.ai.domain.agent.service.context.TokenBudgetChatMemory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.rag.postretrieval.document.DocumentPostProcessor;
+import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
+import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
 import org.springframework.ai.vectorstore.SearchRequest;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.element.RagAnswerAdvisor;
 import cn.bugstack.ai.domain.agent.service.rag.rerank.LlmDocumentPostProcessor;
@@ -77,11 +80,26 @@ public enum AiClientAdvisorTypeEnumVO {
             // 没精排时 recallK 回落成 topK → 只召回一次、不做重排，与改造前行为完全等价
             int recallK = postProcessor == null ? cfg.getTopK() : cfg.getRecallK();
 
+            // 多查询改写器：只在「开关打开 + 配了模型」时才构造。
+            // 拿不到模型（Bean 名写错 / 模型节点未装配）一律降级为单查询，不在装配期报错。
+            QueryExpander queryExpander = null;
+            if (cfg.multiQueryActive() && ctx.getExpandChatModel() != null) {
+                queryExpander = MultiQueryExpander.builder()
+                        // 独立 ChatClient：不挂任何 advisor。若复用主链路的 ChatClient，
+                        // 改写调用会反过来触发记忆注入、甚至再次进入本 advisor（递归）。
+                        .chatClientBuilder(ChatClient.builder(ctx.getExpandChatModel()))
+                        .numberOfQueries(cfg.resolveMultiQueryCount())
+                        // 原始查询一定保留：变体是「补充角度」，原始表述才是意图最准的那条。
+                        // 另外 numberOfQueries 指的是**变体数**（不含原始查询），故最终查询数 = N + 1。
+                        .includeOriginal(true)
+                        .build();
+            }
+
             return new RagAnswerAdvisor(ctx.getVectorStore(), SearchRequest.builder()
                     .topK(cfg.getTopK())
                     .filterExpression(cfg.getFilterExpression())
                     .build(),
-                    cfg.getTopK(), recallK, postProcessor);
+                    cfg.getTopK(), recallK, postProcessor, queryExpander);
         }
     }
     

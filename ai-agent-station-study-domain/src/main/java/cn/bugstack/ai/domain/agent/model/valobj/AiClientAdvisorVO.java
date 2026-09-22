@@ -141,6 +141,21 @@ public class AiClientAdvisorVO {
          */
         private String rerankReasoningEffort;
 
+        // ===== 多查询改写（可选增强）=====
+
+        /**
+         * 是否开启多查询改写。null 视为 false
+         */
+        private Boolean multiQueryEnabled;
+        /**
+         * 生成的查询变体数量（不含原始查询）。未配置时默认 3
+         */
+        private Integer multiQueryCount;
+        /**
+         * 改写用的 ChatModel Bean 名（如 ai_client_model_3001）。为空则视为未开启
+         */
+        private String multiQueryModelBeanName;
+
         /**
          * 是否真正启用精排：显式打开 + 配了模型 + 池子比目标条数大，三者同时满足。
          */
@@ -148,6 +163,22 @@ public class AiClientAdvisorVO {
             return Boolean.TRUE.equals(rerankEnabled)
                     && rerankModelBeanName != null && !rerankModelBeanName.isBlank()
                     && recallK != null && recallK > topK;
+        }
+
+        /**
+         * 是否真正启用多查询改写：显式打开 + 配了模型。
+         * <p>
+         * 与精排的启用条件不同 —— 多查询作用在<b>召回阶段</b>，不要求 {@code recallK > topK}。
+         * 即使不开精排，它也能把「多个角度的召回结果」合并去重后取 topK，直接改善送进 prompt 的片段。
+         */
+        public boolean multiQueryActive() {
+            return Boolean.TRUE.equals(multiQueryEnabled)
+                    && multiQueryModelBeanName != null && !multiQueryModelBeanName.isBlank();
+        }
+
+        /** 实际使用的变体数量（未配置或非法时回落 3） */
+        public int resolveMultiQueryCount() {
+            return multiQueryCount == null || multiQueryCount <= 0 ? 3 : multiQueryCount;
         }
     }
 

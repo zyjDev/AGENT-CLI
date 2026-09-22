@@ -94,6 +94,7 @@ public class AiClientAdvisorNode extends AbstractArmorySupport {
                 .contextSummarizer(contextSummarizer)
                 .defaultBudget(contextBudget)
                 .rerankChatModel(resolveRerankChatModel(aiClientAdvisorVO, dynamicContext))
+                .expandChatModel(resolveExpandChatModel(aiClientAdvisorVO, dynamicContext))
                 .build();
         return advisorTypeEnum.createAdvisor(aiClientAdvisorVO, createContext);
     }
@@ -141,16 +142,77 @@ public class AiClientAdvisorNode extends AbstractArmorySupport {
     }
 
     /**
-     * 按「模型元信息 + API Bean」构建精排专用的 ChatModel。
+     * 解析多查询改写用的 ChatModel。
+     * <p>
+     * 与 {@link #resolveRerankChatModel} 完全同构：单独构建实例（不带 toolCallbacks、独立采样参数），
+     * 解析失败一律返回 null → 顾问侧降级为「单查询」。装配期绝不抛异常，否则整个应用启动会失败。
+     */
+    @SuppressWarnings("unchecked")
+    private ChatModel resolveExpandChatModel(AiClientAdvisorVO aiClientAdvisorVO,
+                                             DefaultArmoryStrategyFactory.DynamicContext dynamicContext) {
+        AiClientAdvisorVO.RagAnswer cfg = aiClientAdvisorVO.getRagAnswer();
+        if (cfg == null || !cfg.multiQueryActive()) {
+            return null;
+        }
+        String beanName = cfg.getMultiQueryModelBeanName();
+        try {
+            ChatModel dedicated = buildDedicatedExpandModel(cfg, dynamicContext);
+            if (dedicated != null) {
+                log.info("多查询改写模型已构建（独立实例）：beanName={}, temperature=0.3, reasoningEffort=none",
+                        beanName);
+                return dedicated;
+            }
+            log.warn("未能在装配上下文中定位多查询改写模型元信息，退回共享模型 Bean：{}", beanName);
+            return this.<ChatModel>getBean(beanName);
+        } catch (Exception e) {
+            log.warn("多查询改写模型 Bean 解析失败，该知识库顾问降级为单查询。advisorId={}, beanName={}, err={}",
+                    aiClientAdvisorVO.getAdvisorId(), beanName, e.toString());
+            return null;
+        }
+    }
+
+    /** 精排专用模型：判定任务，temperature=0 保证同一份候选稳定重排 */
+    private ChatModel buildDedicatedRerankModel(AiClientAdvisorVO.RagAnswer cfg,
+                                                DefaultArmoryStrategyFactory.DynamicContext dynamicContext) {
+        return buildDedicatedChatModel(cfg.getRerankModelBeanName(),
+                0.0,
+                cfg.getRerankReasoningEffort(),
+                dynamicContext);
+    }
+
+    /**
+     * 多查询改写专用模型。
+     * <p>
+     * temperature 给 0.3 而不是 0：改写要产出「不同角度」的变体，完全确定性会让变体趋同、
+     * 失去扩召回的意义；但也不能高，否则变体会偏离原问题意图。
+     * <p>
+     * <b>reasoningEffort 强制 "none"</b>：默认模型 mimo-v2.5 是推理模型，开着推理时输出预算会被
+     * 思考 token 吃光（精排已踩过同一个坑：29.8s、finish_reason=length、content 为空 →
+     * 拿不到变体 → 静默降级，看起来「跑了但没效果」）。
+     */
+    private ChatModel buildDedicatedExpandModel(AiClientAdvisorVO.RagAnswer cfg,
+                                                DefaultArmoryStrategyFactory.DynamicContext dynamicContext) {
+        return buildDedicatedChatModel(cfg.getMultiQueryModelBeanName(),
+                0.3,
+                "none",
+                dynamicContext);
+    }
+
+    /**
+     * 按「模型元信息 + API Bean」构建一个专用 ChatModel 实例。
      * <p>
      * 模型数据由 {@code AiClientLoadDataStrategy} 在整条装配链开始前一次性写入 DynamicContext，
      * 所以这里直接读得到，不需要额外查库。
      *
+     * @param beanName        模型 Bean 名（如 ai_client_model_3001）
+     * @param temperature     采样温度
+     * @param reasoningEffort 推理强度；null / 空白表示沿用模型默认
      * @return 构建好的模型；模型元信息或 API Bean 缺失时返回 null（由调用方走兜底）
      */
-    private ChatModel buildDedicatedRerankModel(AiClientAdvisorVO.RagAnswer cfg,
-                                               DefaultArmoryStrategyFactory.DynamicContext dynamicContext) {
-        String beanName = cfg.getRerankModelBeanName();
+    private ChatModel buildDedicatedChatModel(String beanName,
+                                              double temperature,
+                                              String reasoningEffort,
+                                              DefaultArmoryStrategyFactory.DynamicContext dynamicContext) {
         Object raw = dynamicContext.getValue(AiAgentEnumVO.AI_CLIENT_MODEL.getDataName());
         if (!(raw instanceof List<?> modelList)) {
             return null;
@@ -168,11 +230,9 @@ public class AiClientAdvisorNode extends AbstractArmorySupport {
             }
             OpenAiChatOptions.Builder options = OpenAiChatOptions.builder()
                     .model(modelVO.getModelName())
-                    // 精排是判定任务不是创作任务：temperature=0 让同一份候选的排序可复现，
-                    // 否则评测的 before/after 差异里会混进采样噪声。
-                    .temperature(0.0);
-            if (cfg.getRerankReasoningEffort() != null && !cfg.getRerankReasoningEffort().isBlank()) {
-                options.reasoningEffort(cfg.getRerankReasoningEffort().trim());
+                    .temperature(temperature);
+            if (reasoningEffort != null && !reasoningEffort.isBlank()) {
+                options.reasoningEffort(reasoningEffort.trim());
             }
             return OpenAiChatModel.builder()
                     .openAiApi(openAiApi)
