@@ -58,7 +58,9 @@ public class RagService implements IRagService {
                 String ragId = UUID.randomUUID().toString();
 
                 // 添加知识库标签和元数据
-                documentList.forEach(doc -> {
+                int chunkTotal = documentList.size();
+                for (int i = 0; i < chunkTotal; i++) {
+                    Document doc = documentList.get(i);
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("knowledge", tag);
                     metadata.put("ragId", ragId);
@@ -66,8 +68,13 @@ public class RagService implements IRagService {
                     metadata.put("lastUpdateTime", LocalDateTime.now().toString());
                     metadata.put("fileHash", fileHash);
                     metadata.put("updateReason", "初始上传");
+                    // chunk 在文档内的序号（从 0 开始）。
+                    // 重叠解决的是「答案被切在边界上」；序号解决的是「答案分散在相邻块」——
+                    // 有了序号，检索侧才能做「邻居扩展」（命中第 N 块时把 N±1 一起带回）。
+                    metadata.put("chunkIndex", i);
+                    metadata.put("chunkTotal", chunkTotal);
                     doc.getMetadata().putAll(metadata);
-                });
+                }
 
                 // 存储知识库文件
                 vectorStore.accept(documentList);

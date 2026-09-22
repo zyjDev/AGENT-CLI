@@ -163,13 +163,18 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
                 TikaDocumentReader documentReader = new TikaDocumentReader(file.getResource());
                 List<Document> documentList = tokenTextSplitter.apply(documentReader.get());
 
-                documentList.forEach(doc -> {
+                int chunkTotal = documentList.size();
+                for (int i = 0; i < chunkTotal; i++) {
+                    Document doc = documentList.get(i);
                     doc.getMetadata().put("knowledge", knowledgeTag);
                     doc.getMetadata().put("ragId", ragId);
                     doc.getMetadata().put("lastUpdateTime", LocalDateTime.now().toString());
                     doc.getMetadata().put("fileHash", fileHash);
                     doc.getMetadata().put("updateReason", updateReason);
-                });
+                    // 与 RagService.storeRagFile 保持同一套 metadata 契约（为检索侧「邻居扩展」预留）
+                    doc.getMetadata().put("chunkIndex", i);
+                    doc.getMetadata().put("chunkTotal", chunkTotal);
+                }
 
                 vectorStore.accept(documentList);
                 totalDocuments += documentList.size();
