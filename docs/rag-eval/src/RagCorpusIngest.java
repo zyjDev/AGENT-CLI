@@ -1,3 +1,4 @@
+import cn.bugstack.ai.domain.agent.service.rag.splitter.OverlapTokenTextSplitter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
@@ -38,7 +39,14 @@ import java.util.stream.Stream;
  *
  * 关键纪律：本程序**复刻** AiAgentConfig#pgVectorStore 的构建参数
  *   （表名 vector_store_openai、embedding 走 DashScope text-embedding-v3 / 512 维、
- *     TokenTextSplitter 用默认构造），任何一处不一致都会让评测结论对不上生产行为。
+ *     切分器用 OverlapTokenTextSplitter(100)），任何一处不一致都会让评测结论对不上生产行为。
+ * <p>
+ * ⚠️ <b>切分器必须与 AiAgentConfig#tokenTextSplitter 完全一致</b>。
+ * 2026-09-22 生产把 {@code TokenTextSplitter}（无重叠）换成了
+ * {@code OverlapTokenTextSplitter(100)}（句边界优先 + 100 token 重叠），
+ * 本文件原先写的 {@code new TokenTextSplitter()} 就<b>不再等价</b>了 ——
+ * 不改的话，评测语料的块边界与生产不一致，所有基于它的评测结论（MRR / 召回率）都失效。
+ * 该类在 domain 模块，classpath 已含 {@code ai-agent-station-study-domain/target/classes}。
  *
  * 用法：
  *   count
@@ -255,7 +263,10 @@ public class RagCorpusIngest {
         System.out.println();
 
         PgVectorStore store = buildVectorStore(jdbc);
-        TokenTextSplitter splitter = new TokenTextSplitter(); // 与 AiAgentConfig#tokenTextSplitter 等价
+        // 与 AiAgentConfig#tokenTextSplitter 严格一致：OverlapTokenTextSplitter(100)
+        // ⚠️ 不能退回 new TokenTextSplitter()：那样切出来的块没有重叠、且切点不在句边界，
+        //    与生产的向量表不是同一套切法 → 评测结论（MRR / 召回率）不可信。
+        TokenTextSplitter splitter = new OverlapTokenTextSplitter(100);
 
         int removed = deleteByKnowledge(jdbc, knowledge);
         System.out.println("清理同标签旧数据：" + removed + " 行\n");
