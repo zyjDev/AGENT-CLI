@@ -3,6 +3,7 @@ package cn.bugstack.ai.domain.agent.service.execute.flow.step.factory;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.RootNode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.ExecutionBudget;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +12,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -69,6 +72,18 @@ public class DefaultFlowAgentExecuteStrategyFactory {
 
         /** Step3 解析出的步骤映射（原 key: "stepsMap"），Step4 读取 */
         private Map<String, String> stepsMap;
+
+        /**
+         * 全局执行预算（治理新增）。
+         * 各节点从这里取「剩余时间」裁剪自己的硬超时，预算耗尽后停止调用模型、直接降级收敛。
+         */
+        private ExecutionBudget budget;
+
+        /** 累计降级次数，供 Step4 总结时如实告知用户「有哪些环节是兜底产出」 */
+        private int degradedNodes;
+
+        /** 已降级的节点名 */
+        private List<String> degradedNodeNames = new ArrayList<>();
     }
 
 }

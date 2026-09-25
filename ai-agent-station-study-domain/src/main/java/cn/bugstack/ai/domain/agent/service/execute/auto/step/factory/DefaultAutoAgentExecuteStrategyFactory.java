@@ -3,6 +3,7 @@ package cn.bugstack.ai.domain.agent.service.execute.auto.step.factory;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.RootNode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.ExecutionBudget;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +12,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -76,6 +79,19 @@ public class DefaultAutoAgentExecuteStrategyFactory {
 
         /** Step2 执行结果（原 key: "executionResult"），Step3 读取 */
         private String executionResult;
+
+        /**
+         * 全局执行预算（治理新增）。
+         * 循环轮次比较多（Analyzer → Executor → Supervisor → 回到 Analyzer），
+         * 没有它时「每轮都在超时边界上合法，总量却早就超过 SSE 窗口」。
+         */
+        private ExecutionBudget budget;
+
+        /** 累计降级次数，供 Step4 总结时如实告知用户「本次有多少环节是兜底产出」 */
+        private int degradedNodes;
+
+        /** 已降级的节点名，供最终报告展示 */
+        private List<String> degradedNodeNames = new ArrayList<>();
     }
 
 }

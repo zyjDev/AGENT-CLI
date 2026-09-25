@@ -3,8 +3,11 @@ package cn.bugstack.ai.domain.agent.service.execute.auto.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -82,21 +85,35 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
             // 获取对话客户端 - 使用任务分析客户端进行总结
             ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
             
-            String summaryResult = chatClient
-                    .prompt(summaryPrompt)
-                    .advisors(a -> {
+            String summaryResult = nodeGuardEngine.execute(NodeTask.<String>builder()
+                    .nodeKey(NodeGuardPolicyVO.NodeKeys.AUTO_STEP4_SUMMARY)
+                    .displayName("阶段4 执行总结")
+                    .budget(dynamicContext.getBudget())
+                    .emitter(dynamicContext.getEmitter())
+                    .sessionId(requestParameter.getSessionId())
+                    .step(dynamicContext.getStep())
+                    // 总结是整个链路最该被放弃的环节：前面已经拿到执行结果，
+                    // 为了「再总结一次」把用户已能看到的答案拖到超时，不划算。SKIP 后走本地兜底报告。
+                    .degradeMode(NodeDegradeMode.SKIP)
+                    .retryable(true)
+                    .callable(() -> chatClient
+                            .prompt(summaryPrompt)
+                            .advisors(a -> {
                                 a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId() + "-summary")
                                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 50);
                                 if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                     a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                                 }
                             })
-                    .call().content();
+                            .call().content())
+                    .build()).getValue();
 
             // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致 logFinalReport 内 NPE。
             // 本方法整体已被 catch 兜底、总结属于可降级环节，故此处跳过而非抛出（完成标识由策略层兜底发送）。
             if (summaryResult == null) {
-                log.warn("⚠️ 总结阶段未返回结果（模型调用失败或超时），跳过最终总结，sessionId={}", requestParameter.getSessionId());
+                log.warn("⚠️ 总结阶段未返回结果（模型调用失败或超时），改用本地兜底报告，sessionId={}",
+                        requestParameter.getSessionId());
+                logFallbackReport(dynamicContext, requestParameter.getSessionId());
                 return;
             }
             logFinalReport(dynamicContext, summaryResult, requestParameter.getSessionId());
@@ -194,6 +211,40 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
         sendCompleteResult(dynamicContext, sessionId);
     }
     
+    /**
+     * 本地兜底总结报告（不调用模型）
+     * <p>
+     * 总结节点被调用失败/超时后会走到这里。之所以不能简单「什么都不发」：
+     * 用户此时已经拿到了分析、执行、监督各阶段的 SSE 内容，如果最后没有总结事件，
+     * 前端既不知道结束也没法展示结论。这里用纯本地规则把已有信息拼成一份报告：
+     * 包含已完成步数、执行历史正文（已按 token 预算压缩过）以及降级清单。
+     */
+    private void logFallbackReport(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext, String sessionId) {
+        StringBuilder report = new StringBuilder();
+        report.append("## 执行总结（本地兜底）\n\n");
+        report.append("> ⚠️ 总结模型环节超时/不可用，以下为系统根据已执行的中间结果整理的报告。\n\n");
+        report.append(String.format("- **已完成步数**：%d 步\n", dynamicContext.getExecutedSteps()));
+        report.append(String.format("- **链路状态**：%s\n", dynamicContext.isCompleted() ? "已完成" : "未完成"));
+        if (dynamicContext.getBudget() != null) {
+            report.append(String.format("- **总耗时**：%dms\n", dynamicContext.getBudget().elapsedMillis()));
+        }
+        if (dynamicContext.getDegradedNodes() > 0) {
+            report.append(String.format("- **降级环节**：%d 处（%s）\n",
+                    dynamicContext.getDegradedNodes(),
+                    String.join("、", dynamicContext.getDegradedNodeNames())));
+        }
+        report.append("\n### 执行过程\n\n");
+        report.append(composeHistory(dynamicContext));
+
+        logFallbackReportContent(dynamicContext, report.toString(), sessionId);
+    }
+
+    private void logFallbackReportContent(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext,
+                                          String report, String sessionId) {
+        AutoAgentExecuteResultEntity result = AutoAgentExecuteResultEntity.createSummaryResult(report, sessionId);
+        sendSseResult(dynamicContext, result);
+    }
+
     /**
      * 发送总结结果到流式输出
      */

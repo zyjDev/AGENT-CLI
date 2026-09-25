@@ -3,8 +3,12 @@ package cn.bugstack.ai.domain.agent.service.execute.flow.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
@@ -91,14 +95,34 @@ public class Step1McpToolsAnalysisNode extends AbstractExecuteSupport {
                 dynamicContext.getCurrentTask()
         );
 
-        String mcpToolsAnalysis = mcpToolsChatClient.prompt()
-                .user(mcpAnalysisPrompt)
-                // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
-                // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
-                .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
-                .call()
-                .content();
-        
+        // 受治理的模型调用：硬超时 45s（被全局剩余预算二次裁剪）、瞬时故障退避重试、
+        // 全部失败后降级为「无工具上下文」——本节点只做能力分析，丢了不产生错误结论，
+        // 后续 Step2 会带着这个降级事实继续规划（清空工具依赖即可）。
+        NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                .nodeKey(NodeGuardPolicyVO.NodeKeys.FLOW_STEP1_TOOL_ANALYSIS)
+                .displayName("Step1 MCP工具分析")
+                .budget(dynamicContext.getBudget())
+                .emitter(dynamicContext.getEmitter())
+                .sessionId(requestParameter.getSessionId())
+                .step(dynamicContext.getStep())
+                .degradeMode(NodeDegradeMode.FALLBACK)
+                .retryable(true)
+                .fallback(() -> """
+                        ## MCP 工具能力分析不可用（已降级）
+                        该节点超时或不可用，本次链路按「不依赖外部工具」继续。
+                        请在后续规划中仅使用模型自身能力完成任务。""")
+                .callable(() -> mcpToolsChatClient.prompt()
+                        .user(mcpAnalysisPrompt)
+                        // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
+                        // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
+                        .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
+                        .call()
+                        .content())
+                .build());
+
+        String mcpToolsAnalysis = guarded.getValue();
+        rememberDegrade(dynamicContext, "Step1 MCP工具分析", guarded);
+
         log.info("MCP工具分析结果（仅分析，未执行实际操作）: {}", mcpToolsAnalysis);
         
         // 保存分析结果到上下文

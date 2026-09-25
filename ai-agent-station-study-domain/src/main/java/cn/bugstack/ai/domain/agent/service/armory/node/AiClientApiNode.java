@@ -9,7 +9,10 @@ import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
@@ -26,6 +29,14 @@ public class AiClientApiNode extends AbstractArmorySupport {
     @Resource
     private AiClientToolMcpNode aiClientToolMcpNode;
 
+    /**
+     * 模型网关 HTTP 客户端（app 层 AiHttpClientConfig 注入的连接/读超时）。
+     * required=false：存在时才接管请求工厂；缺省时保持原有行为，不让装配阶段因缺 Bean 直接启动失败。
+     */
+    @Autowired(required = false)
+    @Qualifier("aiModelRestClientBuilder")
+    private RestClient.Builder aiModelRestClientBuilder;
+
     @Override
     protected String doApply(ArmoryCommandEntity requestParameter, DefaultArmoryStrategyFactory.DynamicContext dynamicContext) throws Exception {
         log.info("Ai Agent 构建节点，API 接口请求{}", JSON.toJSONString(requestParameter));
@@ -39,12 +50,19 @@ public class AiClientApiNode extends AbstractArmorySupport {
 
         for (AiClientApiVO aiClientApiVO : aiClientApiList) {
             // 构建 OpenAiApi
-            OpenAiApi openAiApi = OpenAiApi.builder()
+            OpenAiApi.Builder apiBuilder = OpenAiApi.builder()
                     .baseUrl(aiClientApiVO.getBaseUrl())
                     .apiKey(aiClientApiVO.getApiKey())
                     .completionsPath(aiClientApiVO.getCompletionsPath())
-                    .embeddingsPath(aiClientApiVO.getEmbeddingsPath())
-                    .build();
+                    .embeddingsPath(aiClientApiVO.getEmbeddingsPath());
+
+            // 注入带连接/读超时的 RestClient：节点层的 Future.get(timeout) 只能让调用方放弃等待，
+            // 真正释放被卡住的线程要靠这一层的 socket 超时，两者缺一不可。
+            if (aiModelRestClientBuilder != null) {
+                apiBuilder.restClientBuilder(aiModelRestClientBuilder);
+            }
+
+            OpenAiApi openAiApi = apiBuilder.build();
 
             // 注册 OpenAiApi Bean 对象
             registerBean(beanName(aiClientApiVO.getApiId()), OpenAiApi.class, openAiApi);

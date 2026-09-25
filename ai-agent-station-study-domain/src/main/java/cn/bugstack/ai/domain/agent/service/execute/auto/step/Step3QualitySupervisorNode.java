@@ -3,8 +3,12 @@ package cn.bugstack.ai.domain.agent.service.execute.auto.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
@@ -41,16 +45,37 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
         // 获取对话客户端
         ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
-        String supervisionResult = chatClient
-                .prompt(supervisionPrompt)
-                .advisors(a -> {
+        // 受治理的模型调用。本节点的降级策略是全链路最能体现「为什么要分档」的一处：
+        // 监督失败若不做兜底，下面那段分支逻辑会因为 supervisionResult 为空而走到
+        // 「重新执行」分支 → 链路回到 Step1 再来一轮 → 时间只增不减，最终被 SSE 超时掐断。
+        // 兜底按「通过」处理，让链路及时收敛到总结，用户拿到已执行的部分。
+        NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                .nodeKey(NodeGuardPolicyVO.NodeKeys.AUTO_STEP3_SUPERVISOR)
+                .displayName("阶段3 质量监督")
+                .budget(dynamicContext.getBudget())
+                .emitter(dynamicContext.getEmitter())
+                .sessionId(requestParameter.getSessionId())
+                .step(dynamicContext.getStep())
+                .degradeMode(NodeDegradeMode.FALLBACK)
+                .retryable(true)
+                .fallback(() -> """
+                        质量评分: 7/10
+                        是否通过: PASS
+                        降级说明：质量监督环节不可用/超时，已按「通过」处理以避免链路无限重试。""")
+                .callable(() -> chatClient
+                        .prompt(supervisionPrompt)
+                        .advisors(a -> {
                             a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId())
                                     .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 1024);
                             if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                 a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                             }
                         })
-                .call().content();
+                        .call().content())
+                .build());
+
+        String supervisionResult = guarded.getValue();
+        rememberDegrade(dynamicContext, "阶段3 质量监督", guarded);
 
         // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致后续 .contains() 抛 NPE
         if (supervisionResult == null) {

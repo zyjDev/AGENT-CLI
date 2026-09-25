@@ -3,8 +3,12 @@ package cn.bugstack.ai.domain.agent.service.execute.flow.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
@@ -59,13 +63,28 @@ public class Step2PlanningNode extends AbstractExecuteSupport {
                 "3. 每个步骤明确指定使用的MCP工具\n" +
                 "4. 避免使用不存在或无效的工具";
 
-        String planningResult = planningChatClient.prompt()
-                .user(refinedPrompt)
-                // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
-                // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
-                .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
-                .call()
-                .content();
+        // 受治理的模型调用 —— 本节点是 Step3/Step4 的唯一输入，降级策略选 FAIL_FAST：
+        // 兜底生成一个「看起来合理」的规划比明确失败更危险，下游会照着不靠谱的步骤去调工具。
+        NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                .nodeKey(NodeGuardPolicyVO.NodeKeys.FLOW_STEP2_PLANNING)
+                .displayName("Step2 执行步骤规划")
+                .budget(dynamicContext.getBudget())
+                .emitter(dynamicContext.getEmitter())
+                .sessionId(requestParameter.getSessionId())
+                .step(dynamicContext.getStep())
+                .degradeMode(NodeDegradeMode.FAIL_FAST)
+                .retryable(true)
+                .callable(() -> planningChatClient.prompt()
+                        .user(refinedPrompt)
+                        // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
+                        // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
+                        .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
+                        .call()
+                        .content())
+                .build());
+
+        String planningResult = guarded.getValue();
+        rememberDegrade(dynamicContext, "Step2 执行步骤规划", guarded);
         
         log.info("执行步骤规划结果: {}", planningResult);
         

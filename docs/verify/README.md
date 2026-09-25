@@ -1,7 +1,11 @@
-# docs/verify —— 不打包也能验证的独立程序
+# docs/verify —— 独立验证程序
 
-本目录放**不需要打包、不需要重启服务**就能跑的验证程序。
-用于「改了代码但用户要求不打包」的场景：既守住约束，又不把改动留在未验证状态。
+本目录放两类验证程序：
+
+1. **不打包也能跑**（`DaoCountSqlVerify`）—— 用于「改了代码但要求不打包」的场景：
+   既守住约束，又不把改动留在未验证状态。
+2. **打包后冒烟**（`SplitterSmokeVerify`）—— 用 fat jar 的真实 classpath 运行，
+   验证**交付物本身**。用于「包没重打、新实现从未在运行时跑过」的场景。
 
 ---
 
@@ -87,3 +91,70 @@ java @docs/verify/java-args.txt
 ```
 
 任一项 FAIL 会 `System.exit(1)`，便于接进 CI。
+
+---
+
+## SplitterSmokeVerify —— 打包后的运行时冒烟
+
+### 与上面那个的区别
+
+`DaoCountSqlVerify` 是「**不打包**也能验证」；本程序相反 —— 它**必须先用 fat jar 打包**，
+再用 **fat jar 的真实 classpath** 运行，验证的是**交付物本身**，而不是 `target/classes`。
+用于「改了代码、包没重打、新实现从未在运行时跑过」的场景。
+
+### 验证四件事
+
+| # | 内容 |
+|---|---|
+| 1 | `AiAgentConfig#tokenTextSplitter()` 这个**真实 Bean 工厂方法**返回的是 `OverlapTokenTextSplitter` |
+| 2 | AsciiDoc 表格原子化：表格（**内部夹空行**）不被切断 —— 每块内 `\|====` 计数必须为偶数 |
+| 3 | 相邻块之间存在重叠 |
+| 4 | 切分后实义字符零丢失 |
+
+### 运行步骤
+
+```bash
+# ① 打包（Git Bash 下必须直调 classworlds，见 NOTES「七」）
+cd "E:/Study_Project/ai-agent-station-study" && java \
+  -classpath "D:/Maven/apache-maven-3.9.14/boot/plexus-classworlds-2.9.0.jar" \
+  -Dclassworlds.conf="D:/Maven/apache-maven-3.9.14/bin/m2.conf" \
+  -Dmaven.home="D:/Maven/apache-maven-3.9.14" \
+  -Dmaven.multiModuleProjectDirectory="E:/Study_Project/ai-agent-station-study" \
+  org.codehaus.plexus.classworlds.launcher.Launcher clean package -DskipTests
+
+# ② 跑探针（自动解包 fat jar、组装 classpath、编译、运行）
+python docs/verify/run-splitter-smoke.py
+```
+
+### 已踩过的坑
+
+1. **argfile 里反斜杠被当转义符**：`C:\Users\...` → `C:Users...` → javac 报「找不到文件」。
+   **路径统一转正斜杠。**
+2. **argfile 里 `BOOT-INF/lib/*` 通配符不生效** → javac 报找不到 `org.springframework.ai.document.Document`。
+   **必须显式列出每个 jar**（本项目 207 个）。
+3. **第 4 项断言容易写错**：有重叠时各块顺序拼接含重复片段 → `joined.contains(原文)` **必然假失败**。
+   正确判据：**原文实义串是各块拼接的子序列**。
+4. Java 控制台中文乱码 → 加 `-Dstdout.encoding=UTF-8`。
+5. fat jar 里业务模块是**嵌套 jar**，`javap -cp fat.jar` 读不到，需先 `unzip -p` 提取。
+
+### 期望输出
+
+```
+[PASS] Bean 是新实现 OverlapTokenTextSplitter
+[PASS] Bean 是 TokenTextSplitter 的子类（注入点无需改动）
+[PASS] 表格未被切断（每块 |==== 计数为偶数）
+[PASS] 相邻块存在重叠
+[PASS] 切分后实义字符零丢失（原文为各块拼接的子序列）
+
+=== PASS=5 FAIL=0 ===
+```
+
+### 补充：证明 Spring 真的装配了它
+
+启动应用后用 jcmd 看堆里有没有实例（比「日志没报错」有力）：
+
+```bash
+jps -l | grep ai-agent-station-study-app.jar     # 拿 PID
+jcmd <PID> GC.class_histogram | grep -i OverlapTokenTextSplitter
+# 期望：1  cn.bugstack.ai.domain.agent.service.rag.splitter.OverlapTokenTextSplitter
+```

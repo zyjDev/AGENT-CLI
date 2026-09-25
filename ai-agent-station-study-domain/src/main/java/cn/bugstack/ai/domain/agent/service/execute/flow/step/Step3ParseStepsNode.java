@@ -4,6 +4,8 @@ import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.service.execute.flow.step.factory.DefaultFlowAgentExecuteStrategyFactory;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
+import cn.bugstack.ai.types.enums.ResponseCode;
+import cn.bugstack.ai.types.exception.BizException;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,7 +40,15 @@ public class Step3ParseStepsNode extends AbstractExecuteSupport {
         }
         
         Map<String, String> stepsMap = parseExecutionSteps(planningResult);
-        
+
+        // 原实现：解析失败时返回空 Map 并继续往下走 → Step4 只会说一句「步骤映射为空，无法执行」，
+        // 用户完全不知道是规划文本的问题。这里明确失败，且信息里带上能定位的原文片段。
+        if (stepsMap.isEmpty()) {
+            String snippet = planningResult.length() > 300 ? planningResult.substring(0, 300) + "..." : planningResult;
+            throw new BizException(ResponseCode.UN_ERROR.getCode(),
+                    String.format("规划结果解析出 0 个步骤，请检查规划节点的输出格式（应为「### 第N步：」结构）。原文片段：%s", snippet));
+        }
+
         log.info("成功解析 {} 个执行步骤", stepsMap.size());
         
         // 保存解析结果到上下文

@@ -4,8 +4,14 @@ import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.service.IExecuteStrategy;
+import cn.bugstack.ai.domain.agent.service.execute.guard.ExecutionBudget;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardEngine;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -32,6 +38,16 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
     @Resource
     protected ApplicationContext applicationContext;
 
+    /**
+     * 节点治理：Fixed 链路虽然只有一层循环，但同样是裸 {@code .call()}，一样会被慢接口拖死，
+     * 需要和 Auto / Flow 一样受统一治理。
+     */
+    @Resource
+    private NodeGuardEngine nodeGuardEngine;
+
+    @Resource
+    private NodeGuardPolicyVO nodeGuardPolicy;
+
     // 定义会话ID参数
     public static final String CHAT_MEMORY_CONVERSATION_ID_KEY = "chat_memory_conversation_id";
     // 定义模型对话轮数
@@ -45,21 +61,38 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
         // 2. 循环执行客户端
         String content = "";
 
+        // 这一层也需要全局预算：客户端是串行执行的，N 个客户端各跑一次，
+        // 没有 deadline 时最坏情况就是 N × 节点超时。
+        ExecutionBudget budget = ExecutionBudget.start(nodeGuardPolicy.getTotalBudgetMs());
+
         for (AiAgentClientFlowConfigVO config : aiAgentClientList) {
             ChatClient chatClient = getChatClientByClientId(config.getClientId());
+            final String previous = content;
 
-            content = chatClient.prompt(requestParameter.getMessage() + "，" + content)
-                    .system(s -> s.param("current_date", LocalDate.now().toString()))
-                    .advisors(a -> {
+            NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                    .nodeKey(NodeGuardPolicyVO.NodeKeys.FIXED_CLIENT_CALL)
+                    .displayName("客户端调用 " + config.getClientId())
+                    .budget(budget)
+                    .emitter(emitter)
+                    .sessionId(requestParameter.getSessionId())
+                    // 任一客户端失败都不该让整条链路空手而归：保留上一轮的 content 作为兜底
+                    .degradeMode(NodeDegradeMode.FALLBACK)
+                    .retryable(true)
+                    .fallback(() -> previous)
+                    .callable(() -> chatClient.prompt(requestParameter.getMessage() + "，" + previous)
+                            .system(s -> s.param("current_date", LocalDate.now().toString()))
+                            .advisors(a -> {
                                 a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId());
                                 a.param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 100);
                                 if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                     a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                                 }
                             })
-                    .call().content();
+                            .call().content())
+                    .build());
 
-            log.info("智能体对话进行，客户端ID {}", requestParameter.getAiAgentId());
+            content = guarded.getValue();
+            log.info("智能体对话进行，客户端ID {}，结果 {}", requestParameter.getAiAgentId(), guarded.getOutcome());
         }
 
         log.info("智能体对话请求，结果 {} {}", requestParameter.getAiAgentId(), content);

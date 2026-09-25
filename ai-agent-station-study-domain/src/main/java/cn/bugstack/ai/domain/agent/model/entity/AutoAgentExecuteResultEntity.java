@@ -197,4 +197,25 @@ public class AutoAgentExecuteResultEntity {
                 .build();
     }
 
+    /**
+     * 创建执行过程（治理）事件：节点开始/重试/超时/降级/预算耗尽
+     *
+     * @param step      链路步数
+     * @param subType   事件阶段，见 NodeTraceNotifier.PHASE_*
+     * @param content   事件详情
+     * @param sessionId 会话ID
+     */
+    public static AutoAgentExecuteResultEntity createProgressSubResult(Integer step, String subType,
+                                                                       String content, String sessionId) {
+        return AutoAgentExecuteResultEntity.builder()
+                .type("progress")
+                .subType(subType)
+                .step(step)
+                .content(content)
+                .completed(false)
+                .timestamp(System.currentTimeMillis())
+                .sessionId(sessionId)
+                .build();
+    }
+
 }

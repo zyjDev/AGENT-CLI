@@ -2,8 +2,10 @@ package cn.bugstack.ai.domain.agent.service.execute.auto;
 
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.service.IExecuteStrategy;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.ExecutionBudget;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
@@ -23,6 +25,14 @@ public class AutoAgentExecuteStrategy implements IExecuteStrategy {
     @Resource
     private DefaultAutoAgentExecuteStrategyFactory defaultAutoAgentExecuteStrategyFactory;
 
+    /**
+     * 节点治理策略：链路入口创建全局预算。
+     * Auto 链路会多轮循环（Analyzer → Executor → Supervisor → 回到 Analyzer），
+     * 没有全局预算时总耗时完全不可控。
+     */
+    @Resource
+    private NodeGuardPolicyVO nodeGuardPolicy;
+
     @Override
     public void execute(ExecuteCommandEntity executeCommandEntity, ResponseBodyEmitter emitter) throws Exception {
         StrategyHandler<ExecuteCommandEntity, DefaultAutoAgentExecuteStrategyFactory.DynamicContext, String> executeHandler
@@ -38,9 +48,11 @@ public class AutoAgentExecuteStrategy implements IExecuteStrategy {
         dynamicContext.setExecutedSteps(0);
         dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
         dynamicContext.setEmitter(emitter);
+        // 全局 deadline：多轮循环共享这一份预算，预算耗尽时收敛到总结节点
+        dynamicContext.setBudget(ExecutionBudget.start(nodeGuardPolicy.getTotalBudgetMs()));
         
         String apply = executeHandler.apply(executeCommandEntity, dynamicContext);
-        log.info("测试结果:{}", apply);
+        log.info("测试结果:{}，用时 {}ms", apply, dynamicContext.getBudget().elapsedMillis());
         
         // 发送完成标识
         try {

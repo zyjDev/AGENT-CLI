@@ -3,8 +3,13 @@ package cn.bugstack.ai.domain.agent.service.execute.auto.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTraceNotifier;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
@@ -26,6 +31,17 @@ public class Step1AnalyzerNode extends AbstractExecuteSupport {
     protected String doApply(ExecuteCommandEntity requestParameter, DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext) throws Exception {
         log.info("\n🎯 === 执行第 {} 步 ===", dynamicContext.getStep());
 
+        // 全局预算耗尽：本节点是循环入口，这里收敛到总结，避免逐节点超时把整链拖穿 SSE 窗口。
+        // 收敛不是失败 —— 已完成的部分仍然会被总结，用户拿到的是「做了多少、卡在哪」而不是连接被掐断。
+        if (dynamicContext.getBudget() != null && dynamicContext.getBudget().exhausted()) {
+            log.warn("⏳ 全局执行预算耗尽，收敛到总结节点：{}", dynamicContext.getBudget());
+            NodeTraceNotifier.send(dynamicContext.getEmitter(), requestParameter.getSessionId(),
+                    dynamicContext.getStep(), "全局预算", NodeTraceNotifier.PHASE_BUDGET,
+                    "已用完全局预算（" + dynamicContext.getBudget().elapsedMillis() + "ms），停止后续模型调用");
+            dynamicContext.setCompleted(true);
+            return router(requestParameter, dynamicContext);
+        }
+
         // 获取配置信息
         AiAgentClientFlowConfigVO aiAgentClientFlowConfigVO = dynamicContext.getAiAgentClientFlowConfigVOMap().get(AiClientTypeEnumVO.TASK_ANALYZER_CLIENT.getCode());
 
@@ -43,16 +59,32 @@ public class Step1AnalyzerNode extends AbstractExecuteSupport {
 
         ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
-        String analysisResult = chatClient
-                .prompt(analysisPrompt)
-                .advisors(a -> {
+        // 受治理的模型调用：硬超时 30s，且被「全局剩余预算」二次裁剪。
+        // 本节点只是给 Step2 提供策略输入，失败后降级为「无分析结果」而不是中断链路。
+        NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                .nodeKey(NodeGuardPolicyVO.NodeKeys.AUTO_STEP1_ANALYZER)
+                .displayName("阶段1 任务分析")
+                .budget(dynamicContext.getBudget())
+                .emitter(dynamicContext.getEmitter())
+                .sessionId(requestParameter.getSessionId())
+                .step(dynamicContext.getStep())
+                .degradeMode(NodeDegradeMode.FALLBACK)
+                .retryable(true)
+                .fallback(() -> "[降级] 任务分析未返回结果，按「直接执行当前任务」处理")
+                .callable(() -> chatClient
+                        .prompt(analysisPrompt)
+                        .advisors(a -> {
                             a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId());
                             a.param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 1024);
                             if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                 a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                             }
                         })
-                .call().content();
+                        .call().content())
+                .build());
+
+        String analysisResult = guarded.getValue();
+        rememberDegrade(dynamicContext, "阶段1 任务分析", guarded);
 
         // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致后续 .contains() 抛 NPE
         if (analysisResult == null) {

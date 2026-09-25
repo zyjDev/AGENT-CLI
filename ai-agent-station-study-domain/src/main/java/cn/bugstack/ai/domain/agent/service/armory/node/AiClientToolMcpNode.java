@@ -73,9 +73,24 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
         return AiAgentEnumVO.AI_CLIENT_TOOL_MCP.getDataName();
     }
 
+    /**
+     * MCP 单次请求超时上限（分钟）。
+     * <p>
+     * 背景：ai_client_tool_mcp.request_timeout 的单位是分钟，缺省也按分钟兜底，
+     * 意味着一个工具可以合法地卡住整条链路好几分钟 —— 而耗 Capacity 的正是 Step4 这类会调工具的节点。
+     * 这里保留原有字段语义（避免改配置语义导致存量数据失效），但加上硬上限：
+     * 超过上限的配置会被钳到上限值，并且明确打日志。
+     */
+    private static final int MAX_MCP_REQUEST_TIMEOUT_MINUTES = 2;
+
     private McpSyncClient createMcpSyncClient(AiClientToolMcpVO aiClientToolMcpVO) {
         String transportType = aiClientToolMcpVO.getTransportType();
-        int requestTimeout = aiClientToolMcpVO.getRequestTimeout() != null ? aiClientToolMcpVO.getRequestTimeout() : 5;
+        int configured = aiClientToolMcpVO.getRequestTimeout() != null ? aiClientToolMcpVO.getRequestTimeout() : 5;
+        int requestTimeout = Math.min(configured, MAX_MCP_REQUEST_TIMEOUT_MINUTES);
+        if (requestTimeout != configured) {
+            log.warn("⚠️ MCP 请求超时配置 {}分钟 超过上限，已钳制为 {} 分钟：toolMcpId={}",
+                    configured, requestTimeout, aiClientToolMcpVO.getToolMcpId());
+        }
 
         switch (transportType) {
             case "sse" -> {

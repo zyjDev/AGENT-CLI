@@ -3,8 +3,12 @@ package cn.bugstack.ai.domain.agent.service.execute.auto.step;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiClientTypeEnumVO;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeDegradeMode;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeTask;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
 import cn.bugstack.ai.domain.agent.service.support.tree.StrategyHandler;
@@ -40,16 +44,33 @@ public class Step2PrecisionExecutorNode extends AbstractExecuteSupport{
         // 获取对话客户端
         ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
 
-        String executionResult = chatClient
-                .prompt(executionPrompt)
-                .advisors(a -> {
+        String executionResult;
+        // 受治理的模型调用：硬超时 60s（本节点会驱动工具执行，比纯生成节点给得宽）。
+        // degradeMode=FAIL_FAST：执行结果是 Step3 监督和 Step4 总结的唯一依据，
+        // 拿到「执行失败的兜底文本」当结论去总结，比直接告诉用户执行失败更糟糕。
+        NodeGuardResult<String> guarded = nodeGuardEngine.execute(NodeTask.<String>builder()
+                .nodeKey(NodeGuardPolicyVO.NodeKeys.AUTO_STEP2_EXECUTOR)
+                .displayName("阶段2 精准执行")
+                .budget(dynamicContext.getBudget())
+                .emitter(dynamicContext.getEmitter())
+                .sessionId(requestParameter.getSessionId())
+                .step(dynamicContext.getStep())
+                .degradeMode(NodeDegradeMode.FAIL_FAST)
+                .retryable(false)
+                .callable(() -> chatClient
+                        .prompt(executionPrompt)
+                        .advisors(a -> {
                             a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId())
                                     .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 1024);
                             if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                 a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
                             }
                         })
-                .call().content();
+                        .call().content())
+                .build());
+
+        rememberDegrade(dynamicContext, "阶段2 精准执行", guarded);
+        executionResult = guarded.getValue();
 
         // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致后续解析抛 NPE
         if (executionResult == null) {

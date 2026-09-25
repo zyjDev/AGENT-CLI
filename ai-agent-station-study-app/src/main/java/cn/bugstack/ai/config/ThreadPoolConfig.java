@@ -37,14 +37,17 @@ public class ThreadPoolConfig {
                 handler = new ThreadPoolExecutor.AbortPolicy();
                 break;
         }
-        // 创建线程池
-        return new ThreadPoolExecutor(properties.getCorePoolSize(),
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(properties.getCorePoolSize(),
                 properties.getMaxPoolSize(),
                 properties.getKeepAliveTime(),
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(properties.getBlockQueueSize()),
                 Executors.defaultThreadFactory(),
                 handler);
+        // 允许核心线程也被回收：慢节点场景下线程数会长时间顶在 core 上，
+        // 平时流量低时这些线程白白占着资源，配 allowCoreThreadTimeOut 可以让它们随 keepAlive 退出。
+        executor.allowCoreThreadTimeOut(true);
+        return executor;
     }
 
 }

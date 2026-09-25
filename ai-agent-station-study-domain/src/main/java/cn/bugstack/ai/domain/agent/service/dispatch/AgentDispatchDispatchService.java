@@ -1,12 +1,14 @@
 package cn.bugstack.ai.domain.agent.service.dispatch;
 
 import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
+import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentVO;
 import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IExecuteStrategy;
 import cn.bugstack.ai.domain.agent.service.metrics.AgentRequestMetrics;
 import cn.bugstack.ai.types.exception.BizException;
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
@@ -63,6 +65,17 @@ public class AgentDispatchDispatchService implements IAgentDispatchService {
             throw new BizException("不存在的执行策略类型 strategy:" + strategy);
         }
 
+        // 背压：队列快满时提前失败。
+        // 慢接口的典型发展路径是「节点变慢 → 业务线程被占满 → 任务堆积到队列 → 新请求排队几十秒才启动 →
+        // 用户觉得更慢 → 疯狂重试 → 彻底雪崩」。与其让用户排队到超时，不如当场拒绝并给出明确原因。
+        int remainingCapacity = threadPoolExecutor.getQueue().remainingCapacity();
+        int queueSize = threadPoolExecutor.getQueue().size() + remainingCapacity;
+        if (queueSize > 0 && remainingCapacity <= queueSize * 0.1) {
+            agentRequestMetrics.recordFailure();
+            log.warn("执行线程池积压，拒绝本次请求：queue={}, remaining={}", queueSize, remainingCapacity);
+            throw new BizException("系统繁忙（执行队列已积压 " + queueSize + " 个任务），请稍后重试");
+        }
+
         // 3. 异步执行AutoAgent
         try {
             threadPoolExecutor.execute(() -> {
@@ -72,8 +85,12 @@ public class AgentDispatchDispatchService implements IAgentDispatchService {
                 } catch (Exception e) {
                     agentRequestMetrics.recordFailure();
                     log.error("AutoAgent执行异常：{}", e.getMessage(), e);
+                    // 规范化 error 事件：原来是裸文本（"执行异常：xxx"），前端按 SSE data + JSON 解析会失败。
+                    // 统一走 createErrorResult，让「节点超时快速失败」这类异常也能被前端正常展示。
                     try {
-                        emitter.send("执行异常：" + e.getMessage());
+                        AutoAgentExecuteResultEntity errorResult = AutoAgentExecuteResultEntity
+                                .createErrorResult("执行异常：" + e.getMessage(), requestParameter.getSessionId());
+                        emitter.send("data: " + JSON.toJSONString(errorResult) + "\n\n");
                     } catch (Exception ex) {
                         log.error("发送异常信息失败：{}", ex.getMessage(), ex);
                     }

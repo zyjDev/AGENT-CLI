@@ -4,6 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -88,6 +93,103 @@ public class AgentRequestMetrics {
      */
     public void recordFailure() {
         current().failures.incrementAndGet();
+    }
+
+    // ── 以下为节点级埋点（治理新增） ─────────────────────────────────
+    //
+    // 原实现只有整条链路的成败计数，「到底是哪个节点慢」完全靠翻日志。
+    // 这里按 nodeKey 记：调用次数 / 成功次数 / 超时次数 / 失败次数 / 预算耗尽次数 / 累计耗时 / 最大耗时，
+    // 足以算出 P50 之外的粗粒度均值与最大值，用来定位瓶颈节点与调超时。
+    // 注意：仍是内存态、进程重启清零，与上面的整体计数口径一致（多实例需接 Micrometer）。
+
+    private final ConcurrentMap<String, NodeCounter> nodeCounters = new ConcurrentHashMap<>();
+
+    /**
+     * 单个节点的累计计数器
+     */
+    public static final class NodeCounter {
+        private final AtomicLong invokes = new AtomicLong();
+        private final AtomicLong successes = new AtomicLong();
+        private final AtomicLong timeouts = new AtomicLong();
+        private final AtomicLong failures = new AtomicLong();
+        private final AtomicLong budgetHits = new AtomicLong();
+        private final AtomicLong totalCostMs = new AtomicLong();
+        private final AtomicLong maxCostMs = new AtomicLong();
+
+        public long invokes() {
+            return invokes.get();
+        }
+
+        public long successes() {
+            return successes.get();
+        }
+
+        public long timeouts() {
+            return timeouts.get();
+        }
+
+        public long failures() {
+            return failures.get();
+        }
+
+        public long budgetHits() {
+            return budgetHits.get();
+        }
+
+        public long totalCostMs() {
+            return totalCostMs.get();
+        }
+
+        public long maxCostMs() {
+            return maxCostMs.get();
+        }
+
+        /** 平均耗时；没样本时返回 0L */
+        public long avgCostMs() {
+            long count = successes.get() + failures.get();
+            return count == 0 ? 0L : totalCostMs.get() / count;
+        }
+
+        /** 超时率（百分比，1 位小数） */
+        public double timeoutRate() {
+            long total = invokes.get();
+            return total == 0 ? 0d : Math.round(timeouts.get() * 1000.0 / total) / 10.0;
+        }
+    }
+
+    public void recordNodeSuccess(String nodeKey, long costMs) {
+        NodeCounter counter = counterOf(nodeKey);
+        counter.invokes.incrementAndGet();
+        counter.successes.incrementAndGet();
+        counter.totalCostMs.addAndGet(costMs);
+        counter.maxCostMs.updateAndGet(prev -> Math.max(prev, costMs));
+    }
+
+    public void recordNodeFailure(String nodeKey, long costMs) {
+        NodeCounter counter = counterOf(nodeKey);
+        counter.invokes.incrementAndGet();
+        counter.failures.incrementAndGet();
+        counter.totalCostMs.addAndGet(costMs);
+        counter.maxCostMs.updateAndGet(prev -> Math.max(prev, costMs));
+    }
+
+    public void recordNodeTimeout(String nodeKey) {
+        counterOf(nodeKey).timeouts.incrementAndGet();
+    }
+
+    public void recordNodeBudgetExhausted(String nodeKey) {
+        counterOf(nodeKey).budgetHits.incrementAndGet();
+    }
+
+    private NodeCounter counterOf(String nodeKey) {
+        return nodeCounters.computeIfAbsent(nodeKey == null ? "unknown" : nodeKey, key -> new NodeCounter());
+    }
+
+    /**
+     * 节点级统计快照（供管理端/日志排查使用）
+     */
+    public Map<String, NodeCounter> nodeSnapshot() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(nodeCounters));
     }
 
     /**

@@ -4,11 +4,14 @@ import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
 import cn.bugstack.ai.domain.agent.model.entity.AutoAgentExecuteResultEntity;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.ContextBudgetVO;
+import cn.bugstack.ai.domain.agent.model.valobj.NodeGuardPolicyVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.service.context.ContextBudgetSupport;
 import cn.bugstack.ai.domain.agent.service.context.IContextSummarizer;
 import cn.bugstack.ai.domain.agent.service.context.ITokenCounter;
 import cn.bugstack.ai.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardEngine;
+import cn.bugstack.ai.domain.agent.service.execute.guard.NodeGuardResult;
 import cn.bugstack.ai.domain.agent.service.support.tree.AbstractMultiThreadStrategyRouter;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
@@ -19,6 +22,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -50,6 +54,15 @@ public abstract class AbstractExecuteSupport extends AbstractMultiThreadStrategy
 
     @Resource
     protected ContextBudgetVO contextBudget;
+
+    /**
+     * 节点治理引擎：统一的超时 / 重试 / 降级 / 心跳执行入口
+     */
+    @Resource
+    protected NodeGuardEngine nodeGuardEngine;
+
+    @Resource
+    protected NodeGuardPolicyVO nodeGuardPolicy;
 
     public static final String CHAT_MEMORY_CONVERSATION_ID_KEY = "chat_memory_conversation_id";
     public static final String CHAT_MEMORY_RETRIEVE_SIZE_KEY = "chat_memory_response_size";
@@ -84,6 +97,22 @@ public abstract class AbstractExecuteSupport extends AbstractMultiThreadStrategy
         } catch (IOException e) {
             log.error("发送SSE结果失败：{}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 记录一次降级：把「哪些环节是兜底产出」如实记下来，Step4 总结会告知用户，
+     * 避免降级内容被当成模型的真实结论。
+     */
+    protected void rememberDegrade(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext,
+                                   String nodeName, NodeGuardResult<?> result) {
+        if (result == null || !result.degraded()) {
+            return;
+        }
+        if (dynamicContext.getDegradedNodeNames() == null) {
+            dynamicContext.setDegradedNodeNames(new ArrayList<>());
+        }
+        dynamicContext.setDegradedNodes(dynamicContext.getDegradedNodes() + 1);
+        dynamicContext.getDegradedNodeNames().add(nodeName + "（" + result.getOutcome().name() + "）");
     }
 
     // ==================================================================================

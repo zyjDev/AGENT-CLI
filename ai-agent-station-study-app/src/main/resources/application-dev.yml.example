@@ -42,12 +42,44 @@ spring:
         idle-timeout: 30000
         connection-timeout: 30000
   ai:
+    # SSE 连接超时（毫秒）。需大于下面的 total-budget-ms，否则链路还没走完总结就被 emitter 掐断
+    sse-timeout-millis: 600000
     openai:
       base-url: https://token-plan-cn.xiaomimimo.com
       api-key: your_api_key_here
     agent:
       auto-config:
         enabled: true
+    # 多节点链路的节点治理：超时 / 重试 / 降级 / 全局预算
+    node-guard:
+      enabled: true
+      # 全局 deadline：整条链路的总预算，每个节点的硬超时都会被它二次裁剪
+      total-budget-ms: 240000
+      # 未单独配置的节点取这个值
+      default-node-timeout-ms: 30000
+      # 逐节点硬超时：需要按 workload 区分（纯生成 < 带工具调用 < 长文本规划）
+      node-timeout-ms:
+        flow.step1.tool-analysis: 45000
+        flow.step2.planning: 60000
+        flow.step3.parse-steps: 5000
+        flow.step4.execute-steps: 90000
+        auto.step1.analyzer: 30000
+        auto.step2.executor: 60000
+        auto.step3.supervisor: 30000
+        auto.step4.summary: 45000
+        fixed.client-call: 30000
+      # 重试：仅对幂等的传输层瞬时故障生效（最大重试次数，不含首次）
+      max-retries: 2
+      retry-backoff-base-ms: 500
+      # SSE 心跳间隔：防止慢节点期间连接被网关按 idle 掐断；<=0 关闭
+      heartbeat-interval-ms: 15000
+      # Step4 逐步执行之间的节流；配 0 完全关闭
+      step-interval-ms: 300
+      model-http:
+        # 底层 HTTP 超时 —— 真正断开 socket 的一刀，必须与上面的节点超时配套
+        connect-timeout-ms: 10000
+        # 需 >= 最长的那个节点超时，否则正常长调用会被底层先掐断
+        read-timeout-ms: 120000
 
 # 小傅哥扳手通用组件配置
 xfg:
