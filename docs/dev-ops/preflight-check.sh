@@ -7,8 +7,9 @@
 #      redis/redis.conf、mysql/my.cnf 丢失后**无法从 git 恢复**。
 #      更坑的是 Docker Desktop 挂载「不存在的宿主机文件」时会**自动创建同名空目录**占位，
 #      所以容器报的是 "not a directory"，掩盖了「文件早已丢失」的事实。
-#   2) 同一原因导致用户端演示页 docs/dev-ops/nginx/html/index.html 丢失，
-#      start-ui-user.bat 打开 http://localhost:8080/index.html 直接 404。
+#   2) 同一原因导致用户端演示页 docs/dev-ops/nginx/html/index.html 丢失，打开即 404。
+#      （2026-09-26 用户端/管理端合并重构后，该静态演示页与 start-ui-user.bat 已删除，
+#        前端统一为 zhishu-ui，故本节改为校验 zhishu-ui 的关键文件与目录。）
 #
 # 本脚本的作用：在起容器 / 起前端之前，先把「所有被引用的文件是否真的存在且非空」查一遍，
 # 让问题在**启动前**以明确文案暴露，而不是等到容器启动失败或浏览器 404。
@@ -90,23 +91,25 @@ done
 
 # ------------------------------------------------------------------------------
 echo
-echo "【3/4】用户端演示页（start-ui-user.bat 在 8080 起静态服务）"
+echo "【3/4】前端工程 zhishu-ui（用户端 + 管理端合并后的唯一前端）"
 # ------------------------------------------------------------------------------
-DEMO="docs/dev-ops/nginx/html"
-check_file "$DEMO/index.html" "演示页入口"
-if [ -f "$DEMO/index.html" ]; then
-    # 校验 index.html 里引用的本地资源是否都在（漏一个页面就会白屏/报错）
-    while read -r asset; do
-        [ -n "$asset" ] || continue
-        if [ -f "$DEMO/$asset" ]; then
-            ok "静态资源 $asset"
-        else
-            bad "静态资源缺失：$asset"
-            FAIL=$((FAIL + 1))
-        fi
-    done < <(grep -oE '(src|href)="(js|css)/[^"]+"' "$DEMO/index.html" \
-                 | sed -E 's/.*"(.*)"/\1/' | sort -u)
-fi
+# 2026-09-26：原「用户端演示页」docs/dev-ops/nginx/html 与 start-ui-user.bat 已删除，
+# 前端统一为 zhishu-ui（Vite + Vue3）。起服务前先确认入口与关键目录没被误删 ——
+# 少一个目录的表现是「白屏 / 路由 404」，而不是明确的构建报错。
+FE="zhishu-ui"
+check_file "$FE/package.json"         "前端依赖清单"
+check_file "$FE/index.html"           "前端入口 HTML"
+check_file "$FE/vite.config.ts"       "Vite 配置（/api 代理到 8099）"
+check_file "$FE/src/main.ts"          "前端入口脚本"
+check_file "$FE/src/router/routes.ts" "路由表（登录 / 用户端 / 管理端）"
+for d in "$FE/src/views/user" "$FE/src/views/admin" "$FE/src/views/sys" "$FE/src/layouts"; do
+    if [ -d "$d" ]; then
+        ok "前端目录 $d"
+    else
+        bad "前端目录缺失（$d）"
+        FAIL=$((FAIL + 1))
+    fi
+done
 
 # ------------------------------------------------------------------------------
 echo
