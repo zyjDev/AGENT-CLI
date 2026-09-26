@@ -24,7 +24,9 @@ const theme = {
 </script>
 
 <template>
-  <ConfigProvider :locale="zhCN" :theme="theme">
+  <!-- autoInsertSpaceInButton 关掉：antd 会给「只读 / 重置 / 应用」这类两字按钮插入空格，
+       与原型（普通按钮）不一致 -->
+  <ConfigProvider :locale="zhCN" :theme="theme" :auto-insert-space-in-button="false">
     <RouterView />
   </ConfigProvider>
 </template>

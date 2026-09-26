@@ -41,16 +41,38 @@ public class AdminJwtTokenService {
     }
 
     public boolean validateToken(String token) {
+        return verifyAndDecode(token) != null;
+    }
+
+    /**
+     * 校验并解出 token 内容（subject = userId，claim username）。
+     * <p>
+     * 数据按用户隔离后，拦截器需要拿到 userId 才能落地 {@link UserContext}，
+     * 而原先只有 boolean 的 {@link #validateToken(String)} 拿不到 subject，故补这个方法。
+     *
+     * @param token 原始 token（不带 Bearer 前缀）
+     * @return 校验通过返回解码结果，否则 null
+     */
+    public DecodedJWT verifyAndDecode(String token) {
         if (!StringUtils.hasText(token)) {
-            return false;
+            return null;
         }
         try {
             JWTVerifier verifier = JWT.require(algorithm).build();
             DecodedJWT jwt = verifier.verify(token);
-            return StringUtils.hasText(jwt.getSubject());
+            if (!StringUtils.hasText(jwt.getSubject())) {
+                return null;
+            }
+            return jwt;
         } catch (JWTVerificationException e) {
             log.debug("Invalid admin token: {}", e.getMessage());
-            return false;
+            return null;
         }
+    }
+
+    /** 从已解码的 token 里取用户名（claim），缺失时返回空串 */
+    public String usernameOf(DecodedJWT jwt) {
+        String username = jwt.getClaim("username").asString();
+        return username == null ? "" : username;
     }
 }

@@ -12,7 +12,7 @@
  * - 原始节点/边由调用方用 Map 保管，保存时以 raw 为基底做增量合并，未识别的字段不会丢。
  */
 import type { DrawConfigJson, DrawEdge, DrawNode, DrawNodeType } from '@/types/draw'
-import { catalogOf, defaultInputsValues } from './catalog'
+import { AGENT_NAME_PLACEHOLDER, catalogOf, defaultInputsValues, REF_KEY_BY_TYPE } from './catalog'
 import { NODE_TYPE_NAME } from './node'
 
 export interface CanvasNode {
@@ -73,7 +73,7 @@ export function fromDrawConfigJson(config: DrawConfigJson): AdaptedGraph {
     const properties: ZhishuNodeProperties = {
       nodeType: node.type,
       title: node.data?.title || catalog.label,
-      hint: catalog.hint,
+      hint: referenceHintOf(node.type, node.data?.inputsValues),
     }
     return {
       id: node.id,
@@ -156,6 +156,20 @@ export function toDrawConfigJson(graph: CanvasGraphData, rawNodes: Map<string, D
     .filter((edge): edge is DrawEdge => edge !== null)
 
   return { nodes, edges }
+}
+
+/**
+ * 节点卡片副标题：优先展示引用到的资源名（原型的副标题就是这个），
+ * 还没选引用时退回该类型的说明文案。仅用于展示，不参与持久化。
+ */
+export function referenceHintOf(type: DrawNodeType, inputsValues: Record<string, unknown> | undefined): string {
+  const key = REF_KEY_BY_TYPE[type]
+  if (key) {
+    const value = readRefValue(inputsValues, key)
+    // 占位名（未命名智能体）不算「已选引用」，否则新节点副标题会挂着一个占位词
+    if (value && value !== AGENT_NAME_PLACEHOLDER) return value
+  }
+  return catalogOf(type).hint
 }
 
 /** 从一个业务类型的 inputsValues 中读取「引用值」 */

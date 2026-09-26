@@ -3,6 +3,7 @@ package cn.bugstack.ai.trigger.http.admin;
 import cn.bugstack.ai.api.IAdminUserAdminService;
 import cn.bugstack.ai.api.dto.AdminUserLoginRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
+import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserResponseDTO;
 import cn.bugstack.ai.api.response.Response;
@@ -40,6 +41,89 @@ public class AdminUserAdminController implements IAdminUserAdminService {
 
     @Resource
     private AdminJwtTokenService adminJwtTokenService;
+
+    @Override
+    @PostMapping("/register")
+    public Response<AdminUserResponseDTO> registerAdminUser(@RequestBody AdminUserRegisterRequestDTO request) {
+        try {
+            if (request == null || !StringUtils.hasText(request.getUsername())
+                    || !StringUtils.hasText(request.getPassword())) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名和密码不能为空")
+                        .data(null)
+                        .build();
+            }
+
+            String username = request.getUsername().trim();
+            if (username.length() < 3) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名至少 3 个字符")
+                        .data(null)
+                        .build();
+            }
+            if (request.getPassword().length() < 6) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("密码至少 6 位")
+                        .data(null)
+                        .build();
+            }
+            // 两次密码一致：前端已校验一次，服务端必须再校验一次（注册是匿名接口，不能只信前端）
+            if (StringUtils.hasText(request.getConfirmPassword())
+                    && !request.getPassword().equals(request.getConfirmPassword())) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("两次输入的密码不一致")
+                        .data(null)
+                        .build();
+            }
+            log.info("用户自助注册请求，username={}", username);
+
+            if (adminUserDao.queryByUsername(username) != null) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("用户名已存在")
+                        .data(null)
+                        .build();
+            }
+
+            AdminUser adminUser = AdminUser.builder()
+                    .userId(UUID.randomUUID().toString())
+                    .username(username)
+                    .password(PasswordUtil.encode(request.getPassword()))
+                    .status(1)
+                    .createTime(LocalDateTime.now())
+                    .updateTime(LocalDateTime.now())
+                    .build();
+
+            if (adminUserDao.insert(adminUser) <= 0) {
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.UN_ERROR.getCode())
+                        .info("注册失败，请稍后重试")
+                        .data(null)
+                        .build();
+            }
+
+            // 注册即登录：直接签发 token，前端不必再走一次登录
+            AdminUserResponseDTO responseDTO = convertToAdminUserResponseDTO(adminUser);
+            responseDTO.setToken(adminJwtTokenService.createToken(adminUser.getUserId(), adminUser.getUsername()));
+
+            return Response.<AdminUserResponseDTO>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(responseDTO)
+                    .build();
+        } catch (Exception e) {
+            log.error("用户自助注册失败", e);
+            return Response.<AdminUserResponseDTO>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .data(null)
+                    .build();
+        }
+    }
 
     @Override
     @PostMapping("/create")

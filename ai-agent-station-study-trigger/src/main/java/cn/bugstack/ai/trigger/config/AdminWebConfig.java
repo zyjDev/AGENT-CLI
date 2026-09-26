@@ -19,12 +19,13 @@ public class AdminWebConfig implements WebMvcConfigurer {
     /**
      * 是否把 {@code /api/v1/agent/**} 也纳入鉴权。
      * <p>
-     * 默认关闭：对话链路是课程演示页（{@code docs/dev-ops/nginx/html/index.html}）唯一的入口，
-     * 而该页面调用时不带 token，一旦强制鉴权会直接打断演示。
+     * <b>2026-09-26 起默认改为 true</b>：数据要按用户隔离（公共资源 = owner_id 为空，
+     * 私有资源 = 本人），而对话链路必须先知道"当前是谁"才谈得上隔离；
+     * 前端 zhishu-ui 的对话页与 SSE 请求本来就带 token，因此不会再出现演示被中断的问题。
      * <p>
-     * 生产环境应置为 {@code true} —— 否则任何人都能匿名调用 Agent，白耗 LLM 额度。
+     * 仍保留该开关：万一需要临时开放（例如外部巡检、压测），可显式置为 false。
      */
-    @Value("${xfg.ai.auth.protect-agent-api:false}")
+    @Value("${xfg.ai.auth.protect-agent-api:true}")
     private boolean protectAgentApi;
 
     public AdminWebConfig(AdminAuthInterceptor adminAuthInterceptor) {
@@ -42,6 +43,8 @@ public class AdminWebConfig implements WebMvcConfigurer {
                 .addPathPatterns(patterns)
                 .excludePathPatterns(
                         "/api/v1/admin/admin-user/login",
-                        "/api/v1/admin/admin-user/validate-login");
+                        "/api/v1/admin/admin-user/validate-login",
+                        // 自助注册必须放行：注册时还没有 token
+                        "/api/v1/admin/admin-user/register");
     }
 }

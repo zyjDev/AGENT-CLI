@@ -2,6 +2,7 @@ package cn.bugstack.ai.api;
 
 import cn.bugstack.ai.api.dto.AdminUserLoginRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
+import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserResponseDTO;
 import cn.bugstack.ai.api.response.Response;
@@ -15,6 +16,16 @@ import java.util.List;
  * @description 管理员用户管理服务接口
  */
 public interface IAdminUserAdminService {
+
+    /**
+     * 用户自助注册（无需登录即可调用）
+     * <p>
+     * 注册成功后直接签发 token，前端拿到即可进入对话页，不必再走一次登录。
+     *
+     * @param request 注册请求对象（用户名 + 两次密码）
+     * @return 用户信息（含 token）
+     */
+    Response<AdminUserResponseDTO> registerAdminUser(AdminUserRegisterRequestDTO request);
 
     /**
      * 创建管理员用户

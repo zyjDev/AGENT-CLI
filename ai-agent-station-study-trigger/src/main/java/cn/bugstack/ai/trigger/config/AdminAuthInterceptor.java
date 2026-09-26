@@ -37,7 +37,8 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
             token = authorization.substring(BEARER_PREFIX.length());
         }
 
-        if (!adminJwtTokenService.validateToken(token)) {
+        DecodedJWT jwt = adminJwtTokenService.verifyAndDecode(token);
+        if (jwt == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
@@ -45,6 +46,16 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
+        // 落地当前用户：数据按用户隔离后，Controller 要靠它拿到 owner_id
+        UserContext.set(new UserContext.LoginUser(jwt.getSubject(), adminJwtTokenService.usernameOf(jwt)));
         return true;
+    }
+
+    /**
+     * 请求结束必须清理线程上下文 —— Tomcat 线程会被复用，不清就会把上一个请求的用户带给下一个。
+     */
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        UserContext.clear();
     }
 }

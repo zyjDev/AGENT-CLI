@@ -6,7 +6,7 @@
  * 保留原始的 [{key, value}] 结构（含 value 为 {content} 对象的情形），避免破坏后端契约。
  */
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Drawer, Input, InputNumber, Select } from 'ant-design-vue'
+import { Button, Drawer, Input, InputNumber, message, Select } from 'ant-design-vue'
 import { AiClientAdvisorApi } from '@/api/ai-client-advisor'
 import { AiClientApi } from '@/api/ai-client'
 import { AiClientModelApi } from '@/api/ai-client-model'
@@ -41,7 +41,7 @@ interface Option {
 
 /** 各类节点可编辑的字段描述 */
 const REF_FIELD: Partial<Record<DrawNodeType, { key: string; label: string; hint: string }>> = {
-  agent: { key: 'agentName', label: '智能体名称', hint: '同名会复用已有智能体记录，装配时按其配置拉起' },
+  agent: { key: 'agentName', label: '智能体引用', hint: '同名会复用已有智能体记录，装配时按其配置拉起' },
   client: { key: 'clientName', label: '客户端引用', hint: '选择后会同时写入 clientId，装配时按 clientId 关联流程' },
   model: { key: 'modelName', label: '模型引用', hint: '写入模型ID（modelId）' },
   prompt: { key: 'promptName', label: '提示词引用', hint: '写入提示词ID（promptId）' },
@@ -170,6 +170,12 @@ function handleApply(): void {
 
   emit('apply', { nodeId: node.id, title: form.title || catalog.value.label, inputsValues: next })
 }
+
+/** 重置：丢弃尚未应用的改动，回到画布上该节点的当前值 */
+function handleReset(): void {
+  syncFromNode()
+  message.info('已重置为画布上的当前属性')
+}
 </script>
 
 <template>
@@ -177,6 +183,7 @@ function handleApply(): void {
     :open="open"
     placement="right"
     :width="340"
+    :mask="false"
     :body-style="{ padding: '16px' }"
     @update:open="(value: boolean) => emit('update:open', value)"
   >
@@ -193,8 +200,11 @@ function handleApply(): void {
 
     <div v-else class="space-y-4">
       <div>
-        <label class="mb-1.5 block text-[12px] text-ink-600">节点名称</label>
+        <label class="mb-1.5 block text-[12px] text-ink-600">
+          节点名称 <span class="text-[#E5484D]">*</span>
+        </label>
         <Input v-model:value="form.title" placeholder="用于卡片标题，也是保存时写入的 data.title" />
+        <p class="mt-1.5 font-mono text-[10.5px] text-ink-400">{{ node.id }}</p>
       </div>
 
       <div v-if="refField">
@@ -230,27 +240,28 @@ function handleApply(): void {
 
       <template v-if="isAgent">
         <div>
-          <label class="mb-1.5 block text-[12px] text-ink-600">描述（description）</label>
+          <label class="mb-1.5 block text-[12px] text-ink-600">描述</label>
           <Input v-model:value="form.description" placeholder="智能体用途说明，会写入 ai_agent 表" />
         </div>
         <div>
-          <label class="mb-1.5 block text-[12px] text-ink-600">渠道（channel）</label>
+          <label class="mb-1.5 block text-[12px] text-ink-600">渠道 channel</label>
           <Input v-model:value="form.channel" placeholder="如 agent / chat_stream" />
         </div>
         <div>
-          <label class="mb-1.5 block text-[12px] text-ink-600">执行策略（strategy）</label>
+          <label class="mb-1.5 block text-[12px] text-ink-600">执行策略 strategy</label>
           <Select v-model:value="form.strategy" :options="STRATEGY_OPTIONS" class="w-full" />
         </div>
       </template>
 
       <div class="rounded-lg bg-page px-3 py-2.5 text-[11px] leading-5 text-ink-400">
-        节点标识 <span class="font-mono text-ink-600">{{ node.id }}</span>；保存时会写入
-        <span class="font-mono">data.inputsValues</span>，未在此处暴露的字段会原样保留。
+        保存时序列化为后端可解析的 JSON：<span class="font-mono text-ink-600">nodes[].{id,type,data.inputsValues}</span>
+        与 <span class="font-mono text-ink-600">edges[].{sourceNodeID,targetNodeID}</span>。
       </div>
 
       <div class="flex items-center gap-2 border-t border-line pt-4">
         <Button danger class="!h-8 text-[12.5px]" @click="emit('remove', node.id)">删除节点</Button>
-        <Button type="primary" class="btn-grad !h-8 ml-auto text-[12.5px]" @click="handleApply">应用</Button>
+        <Button class="btn-ghost !h-8 ml-auto text-[12.5px]" @click="handleReset">重置</Button>
+        <Button type="primary" class="btn-grad !h-8 text-[12.5px]" @click="handleApply">应用</Button>
       </div>
     </div>
   </Drawer>
