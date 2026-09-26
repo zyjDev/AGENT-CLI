@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>统一登录 · 智枢 原型</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body class="bg-[#F7F8FC]">
+  <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[1.45fr_1fr]">
+
+    <!-- ================= 左侧品牌区 ================= -->
+    <section class="login-bg login-grid relative hidden flex-col justify-between px-14 py-12 lg:flex">
+      <div class="blob left-[-90px] top-[-60px] h-[320px] w-[320px] bg-[#4F46E5]"></div>
+      <div class="blob right-[-60px] bottom-[-80px] h-[360px] w-[360px] bg-[#7C3AED]" style="animation-delay:-6s"></div>
+
+      <!-- 品牌标识 -->
+      <div class="relative flex items-center gap-3">
+        <div class="brand-grad flex h-11 w-11 items-center justify-center rounded-xl shadow-[0_10px_24px_-10px_rgba(79,70,229,.9)]">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none">
+            <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="12" cy="7.6" r="1.5" fill="#fff" />
+            <circle cx="7.9" cy="15.2" r="1.5" fill="#fff" />
+            <circle cx="16.1" cy="15.2" r="1.5" fill="#fff" />
+          </svg>
+        </div>
+        <div class="leading-tight">
+          <p class="text-[16px] font-semibold tracking-[0.06em] text-white">智枢</p>
+          <p class="text-[11px] tracking-[0.08em] text-white/45">智能体编排 · 知识问答</p>
+        </div>
+      </div>
+
+      <!-- 主文案 -->
+      <div class="relative max-w-[520px]">
+        <p class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[12px] text-white/70">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#7C3AED]"></span>统一入口 · 一套账号贯通两端
+        </p>
+        <h1 class="text-[40px] font-semibold leading-[1.22] text-white">
+          智能体编排与<br />
+          <span class="bg-gradient-to-r from-[#A5B4FC] to-[#D8B4FE] bg-clip-text text-transparent">智能对话一体化平台</span>
+        </h1>
+        <p class="mt-5 text-[14px] leading-7 text-white/60">
+          私有知识库驱动，把智能体编排、知识问答与流式对话收进同一个工作台。<br />
+          登录后默认进入智能对话，随时可无感切换到管理后台。
+        </p>
+
+        <ul class="mt-10 space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="#C7D2FE" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v6M12 15v6M5.5 7.5l3.5 3.5M15 13l3.5 3.5M18.5 7.5 15 11M9 13l-3.5 3.5" /><circle cx="12" cy="12" r="2.6" /></svg>
+            </span>
+            <div>
+              <p class="text-[13.5px] font-medium text-white/90">拖拽式智能体编排</p>
+              <p class="text-[12.5px] text-white/45">开始、智能体、模型、提示词、MCP 工具等 13 类节点，画布所见即所得</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="#C7D2FE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7" /><circle cx="18.5" cy="17.5" r="2" /></svg>
+            </span>
+            <div>
+              <p class="text-[13.5px] font-medium text-white/90">四阶段流式对话</p>
+              <p class="text-[12.5px] text-white/45">分析、执行、监督、总结分步呈现，结果以 Markdown 实时渲染</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+              <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="#C7D2FE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6.5v5c0 4.2 2.9 8 7 9.5 4.1-1.5 7-5.3 7-9.5v-5L12 3Z" /><path d="m9 12 2 2 4-4" /></svg>
+            </span>
+            <div>
+              <p class="text-[13.5px] font-medium text-white/90">统一登录态</p>
+              <p class="text-[12.5px] text-white/45">一次登录两端通用，JWT 失效时明确提示并回到本页</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="relative flex items-center justify-between text-[11.5px] text-white/35">
+        <span>v0.1.31 · 内部演示环境</span>
+        <span>© 2026 智枢 · 智能体编排与知识问答平台</span>
+      </div>
+    </section>
+
+    <!-- ================= 右侧登录表单区 ================= -->
+    <section class="relative flex items-center justify-center px-6 py-12">
+      <div class="pointer-events-none absolute left-1/2 top-0 h-[300px] w-[420px] -translate-x-1/2 rounded-full bg-[#4F46E5]/10 blur-[90px]"></div>
+
+      <div class="glass modal relative w-full max-w-[404px] rounded-2xl px-8 py-9">
+        <div class="mb-7">
+          <h2 class="text-[26px] font-semibold tracking-tight text-[#1F2430]">欢迎登录</h2>
+          <p class="mt-2 text-[13px] leading-6 text-[#5A6474]">
+            请输入账号和密码，登录后默认进入<span class="font-medium text-[#4F46E5]">智能对话</span>，可随时切换到管理后台。
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label for="username" class="mb-1.5 block text-[12.5px] font-medium text-[#5A6474]">账号</label>
+            <div class="relative">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8C94A3]">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.4" /><path d="M5 20c.8-3.5 3.6-5.4 7-5.4S18.2 16.5 19 20" /></svg>
+              </span>
+              <input id="username" type="text" value="admin" placeholder="请输入账号"
+                class="h-11 w-full rounded-lg border border-[#E6E9F2] bg-white pl-9 pr-3 text-[13.5px] text-[#1F2430] outline-none transition placeholder:text-[#B4BAC7] focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+            </div>
+          </div>
+
+          <div>
+            <label for="password" class="mb-1.5 block text-[12.5px] font-medium text-[#5A6474]">密码</label>
+            <div class="relative">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8C94A3]">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4.5" y="10" width="15" height="10" rx="2.2" /><path d="M8 10V7.5a4 4 0 0 1 8 0V10" /></svg>
+              </span>
+              <input id="password" type="password" value="123456" placeholder="请输入密码"
+                class="h-11 w-full rounded-lg border border-[#E6E9F2] bg-white pl-9 pr-11 text-[13.5px] text-[#1F2430] outline-none transition placeholder:text-[#B4BAC7] focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+              <button type="button" onclick="togglePassword('password', this)" title="显示 / 隐藏密码"
+                data-see='<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>'
+                data-hide='<svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l16 16M10 5.9A8.7 8.7 0 0 1 12 5.8c6 0 9.5 6.2 9.5 6.2a17 17 0 0 1-3.4 4M6.2 8.1A17 17 0 0 0 2.5 12S6 18.2 12 18.2c1 0 1.9-.2 2.7-.5"/></svg>'
+                class="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-[#8C94A3] transition hover:bg-[#F2F4FB] hover:text-[#4F46E5]">
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-0.5">
+            <label class="flex cursor-pointer select-none items-center gap-2 text-[12.5px] text-[#5A6474]">
+              <input type="checkbox" checked class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" />
+              记住登录状态
+            </label>
+            <a href="javascript:protoToast('原型演示：请联系管理员重置密码')" class="text-[12.5px] text-[#4F46E5] hover:underline">忘记密码？</a>
+          </div>
+
+          <button type="button" onclick="doLogin(this)" class="btn-grad h-11 w-full text-[14px] font-medium">立即登录</button>
+        </div>
+
+        <div class="my-6 flex items-center gap-3 text-[11.5px] text-[#8C94A3]">
+          <span class="h-px flex-1 bg-[#E6E9F2]"></span>或<span class="h-px flex-1 bg-[#E6E9F2]"></span>
+        </div>
+
+        <button type="button" onclick="quickLogin(this)" class="btn-ghost h-10 w-full text-[13px]">使用 admin 账号快捷登录</button>
+
+        <div class="mt-5 rounded-lg bg-[#F7F8FC] px-3.5 py-2.5 text-[11.5px] leading-5 text-[#8C94A3]">
+          演示账号：<span class="mono text-[#5A6474]">admin</span> / 密码 <span class="mono text-[#5A6474]">123456</span>。
+          登录后同一账号即可访问智能对话与管理后台，无需二次输入密码。
+        </div>
+
+        <p class="mt-5 text-center text-[11px] text-[#8C94A3]">登录即表示同意《服务条款》与《隐私政策》</p>
+      </div>
+    </section>
+  </div>
+
+  <a href="index.html" class="proto-nav brand-grad" title="返回原型目录">
+    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+    原型：统一登录页
+  </a>
+
+  <script src="assets/proto.js"></script>
+</body>
+</html>

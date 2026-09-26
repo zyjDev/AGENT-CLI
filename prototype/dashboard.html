@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理端 · 数据总览 · 智枢 原型</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body class="overflow-hidden">
+  <div class="flex h-screen">
+
+    <!-- ================= 侧边导航 ================= -->
+    <aside class="flex w-60 shrink-0 flex-col border-r border-[#E6E9F2] bg-white">
+      <div class="flex h-14 items-center gap-2.5 border-b border-[#F1F3F9] px-4">
+        <div class="brand-grad flex h-8 w-8 items-center justify-center rounded-lg">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none">
+            <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="12" cy="7.6" r="1.5" fill="#fff" /><circle cx="7.9" cy="15.2" r="1.5" fill="#fff" /><circle cx="16.1" cy="15.2" r="1.5" fill="#fff" />
+          </svg>
+        </div>
+        <div class="leading-tight">
+          <p class="text-[14px] font-semibold tracking-[0.06em]">智枢</p>
+          <p class="text-[10.5px] text-[#8C94A3]">管理后台</p>
+        </div>
+      </div>
+
+      <nav class="scroll flex-1 overflow-y-auto py-1">
+        <p class="side-group">对话与编排</p>
+        <div class="space-y-0.5 px-2">
+          <a href="dashboard.html" class="side-link active">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" /></svg>
+            数据总览
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，智能体列表将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16 19v-1.6a3.4 3.4 0 0 0-3.4-3.4H6.4A3.4 3.4 0 0 0 3 17.4V19M9.5 10.6a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6M21 19v-1.6a3.4 3.4 0 0 0-2.6-3.3M16.4 4.1a3.4 3.4 0 0 1 0 6.5" /></svg>
+            智能体列表
+          </a>
+          <a href="agent-config.html" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4.6" r="2.1" /><circle cx="5" cy="19.4" r="2.1" /><circle cx="19" cy="19.4" r="2.1" /><path d="M10.7 6.6 6.3 17.6M13.3 6.6l4.4 11M7.1 19.4h9.8" /></svg>
+            智能体编排
+          </a>
+        </div>
+
+        <p class="side-group">资源管理</p>
+        <div class="space-y-0.5 px-2">
+          <a href="client-management.html" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="12" rx="2" /><path d="M8.5 20.5h7M12 16.5v4" /></svg>
+            客户端管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，客户端 API 管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 6.5 7.5 4 4 7.5 6.5 10M14 17.5 16.5 20 20 16.5 17.5 14M13.5 10.5l-3 3M9 13l-2.5 2.5M15 11l2.5-2.5" /></svg>
+            客户端 API 管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，顾问管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3 5 6.4v4.9c0 4.1 2.9 7.9 7 9.2 4.1-1.3 7-5.1 7-9.2V6.4L12 3Z" /><path d="m9.2 11.8 2 2 3.6-3.6" /></svg>
+            顾问管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，模型管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" /><path d="M10 3.5v3M14 3.5v3M10 17.5v3M14 17.5v3M3.5 10h3M3.5 14h3M17.5 10h3M17.5 14h3" /></svg>
+            模型管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，系统提示词管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.5 12.5a7.5 7.5 0 0 1-10.9 6.7L4.5 20.5l1.3-5A7.5 7.5 0 1 1 20.5 12.5Z" /><path d="M9 11.5h6M9 14.5h3.5" /></svg>
+            系统提示词
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，MCP 工具管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15.5 3.5a5 5 0 0 0-6.6 6.2L3.8 14.8a2 2 0 1 0 2.8 2.8l5.1-5.1a5 5 0 0 0 6.2-6.6l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6Z" /></svg>
+            MCP 工具管理
+          </a>
+        </div>
+
+        <p class="side-group">知识库</p>
+        <div class="space-y-0.5 px-2">
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，RAG 知识库配置将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7.5" ry="3" /><path d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" /></svg>
+            RAG 知识库配置
+          </a>
+        </div>
+      </nav>
+
+      <div class="border-t border-[#F1F3F9] p-3">
+        <a href="chat.html" class="btn-ghost flex h-9 items-center justify-center gap-1.5 text-[12.5px]">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+          返回智能对话
+        </a>
+      </div>
+    </aside>
+
+    <!-- ================= 主区 ================= -->
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="flex h-14 items-center justify-between border-b border-[#E6E9F2] bg-white px-5">
+        <div class="flex items-center gap-2 text-[12.5px]">
+          <span class="text-[#8C94A3]">首页</span>
+          <span class="text-[#D9DEF0]">/</span>
+          <span class="font-medium text-[#1F2430]">数据总览</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button onclick="protoToast('数据已刷新 · 统计时间 10:24:30')" class="btn-ghost flex h-8 items-center gap-1.5 px-3 text-[12.5px]">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4.5V10h-5.5" /></svg>
+            刷新
+          </button>
+          <a href="chat.html" class="btn-grad flex h-8 items-center gap-1.5 px-3.5 text-[12.5px] font-medium">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a7.5 7.5 0 0 1-11 6.6L4 20l1.4-5A7.5 7.5 0 1 1 20 12Z" /></svg>
+            返回智能对话
+          </a>
+          <span class="brand-grad flex h-8 w-8 items-center justify-center rounded-full text-[11.5px] font-medium text-white">AD</span>
+        </div>
+      </header>
+
+      <main class="scroll flex-1 overflow-y-auto bg-[#F7F8FC] p-5">
+        <!-- 指标卡 -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="card card-hover p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-[12px] text-[#8C94A3]">智能体总数</p>
+                <p class="mt-2 text-[26px] font-semibold leading-none tracking-tight">12</p>
+              </div>
+              <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF0FE] text-[#4F46E5]">
+                <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="5" r="2.4" /><circle cx="5" cy="18" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M10.6 7.1 6.4 15.9M13.4 7.1l4.2 8.8M7.4 18h9.2" /></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-[11.5px] text-[#16A34A]">↑ 2 个 · 较上周</p>
+          </div>
+          <div class="card card-hover p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-[12px] text-[#8C94A3]">客户端数</p>
+                <p class="mt-2 text-[26px] font-semibold leading-none tracking-tight">8</p>
+              </div>
+              <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F1E8FD] text-[#7C3AED]">
+                <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="12" rx="2" /><path d="M8.5 20.5h7M12 16.5v4" /></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-[11.5px] text-[#8C94A3]">与上周持平</p>
+          </div>
+          <div class="card card-hover p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-[12px] text-[#8C94A3]">接入模型数</p>
+                <p class="mt-2 text-[26px] font-semibold leading-none tracking-tight">6</p>
+              </div>
+              <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E4F6EA] text-[#16A34A]">
+                <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" /><path d="M10 3.5v3M14 3.5v3M10 17.5v3M14 17.5v3M3.5 10h3M3.5 14h3M17.5 10h3M17.5 14h3" /></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-[11.5px] text-[#8C94A3]">新增 glm-4-plus</p>
+          </div>
+          <div class="card card-hover p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-[12px] text-[#8C94A3]">今日对话调用</p>
+                <p class="mt-2 text-[26px] font-semibold leading-none tracking-tight">1,284</p>
+              </div>
+              <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#FDF0E0] text-[#F59E0B]">
+                <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17.5 9 11l4 3.6L20.5 6" /><path d="M15.5 6h5v5" /></svg>
+              </span>
+            </div>
+            <p class="mt-3 text-[11.5px] text-[#16A34A]">↑ 12.4% · 环比昨日</p>
+          </div>
+        </div>
+
+        <!-- 趋势与分布 -->
+        <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.6fr_1fr]">
+          <div class="card p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-[14px] font-medium">近 7 日对话调用趋势</h2>
+                <p class="mt-1 text-[11.5px] text-[#8C94A3]">含 Auto Agent / RAG 智能体 / 流程编排智能体</p>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11.5px]">
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-[#4F46E5]"></span>调用量</span>
+                <span class="ml-3 flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-[#C7CBF7]"></span>失败量</span>
+              </div>
+            </div>
+            <div class="mt-5">
+              <svg viewBox="0 0 640 200" class="h-[200px] w-full">
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.24" />
+                    <stop offset="100%" stop-color="#4F46E5" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+                <g stroke="#EDF0F8" stroke-width="1">
+                  <line x1="40" y1="30" x2="620" y2="30" /><line x1="40" y1="70" x2="620" y2="70" />
+                  <line x1="40" y1="110" x2="620" y2="110" /><line x1="40" y1="150" x2="620" y2="150" />
+                </g>
+                <g fill="#8C94A3" font-size="10">
+                  <text x="14" y="34">1.6k</text><text x="14" y="74">1.2k</text><text x="14" y="114">800</text><text x="14" y="154">400</text>
+                </g>
+                <path d="M50 140 L140 118 L230 128 L320 92 L410 100 L500 62 L590 44 L590 168 L50 168 Z" fill="url(#areaGrad)" />
+                <polyline points="50,140 140,118 230,128 320,92 410,100 500,62 590,44" fill="none" stroke="#4F46E5" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" />
+                <polyline points="50,160 140,155 230,158 320,150 410,152 500,146 590,142" fill="none" stroke="#C7CBF7" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" />
+                <g fill="#fff" stroke="#4F46E5" stroke-width="2.2">
+                  <circle cx="50" cy="140" r="3.4" /><circle cx="140" cy="118" r="3.4" /><circle cx="230" cy="128" r="3.4" />
+                  <circle cx="320" cy="92" r="3.4" /><circle cx="410" cy="100" r="3.4" /><circle cx="500" cy="62" r="3.4" /><circle cx="590" cy="44" r="3.4" />
+                </g>
+                <g fill="#5A6474" font-size="10" text-anchor="middle">
+                  <text x="50" y="186">09-20</text><text x="140" y="186">09-21</text><text x="230" y="186">09-22</text>
+                  <text x="320" y="186">09-23</text><text x="410" y="186">09-24</text><text x="500" y="186">09-25</text><text x="590" y="186">09-26</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-[14px] font-medium">模型调用占比</h2>
+            <p class="mt-1 text-[11.5px] text-[#8C94A3]">统计口径：今日 00:00 至 10:24</p>
+            <div class="mt-5 space-y-4">
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-[12.5px]"><span class="text-[#3B4252]">deepseek-v3</span><span class="mono text-[#5A6474]">42%</span></div>
+                <div class="h-2 overflow-hidden rounded-full bg-[#F1F3F9]"><div class="brand-grad h-full rounded-full" style="width:42%"></div></div>
+              </div>
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-[12.5px]"><span class="text-[#3B4252]">gpt-4o</span><span class="mono text-[#5A6474]">28%</span></div>
+                <div class="h-2 overflow-hidden rounded-full bg-[#F1F3F9]"><div class="h-full rounded-full bg-[#7C3AED]" style="width:28%"></div></div>
+              </div>
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-[12.5px]"><span class="text-[#3B4252]">qwen-max</span><span class="mono text-[#5A6474]">19%</span></div>
+                <div class="h-2 overflow-hidden rounded-full bg-[#F1F3F9]"><div class="h-full rounded-full bg-[#6366F1]" style="width:19%"></div></div>
+              </div>
+              <div>
+                <div class="mb-1.5 flex items-center justify-between text-[12.5px]"><span class="text-[#3B4252]">glm-4-plus</span><span class="mono text-[#5A6474]">11%</span></div>
+                <div class="h-2 overflow-hidden rounded-full bg-[#F1F3F9]"><div class="h-full rounded-full bg-[#A5B4FC]" style="width:11%"></div></div>
+              </div>
+            </div>
+            <div class="mt-6 rounded-lg bg-[#F8F9FE] px-3.5 py-3 text-[11.5px] leading-5 text-[#5A6474]">
+              平均首字延迟 <span class="mono text-[#1F2430]">412 ms</span>，平均单轮耗时 <span class="mono text-[#1F2430]">12.4 s</span>，SSE 中断率 <span class="mono text-[#1F2430]">0.6%</span>。
+            </div>
+          </div>
+        </div>
+
+        <!-- 最近动态 -->
+        <div class="card mt-5">
+          <div class="flex items-center justify-between border-b border-[#F1F3F9] px-5 py-3.5">
+            <h2 class="text-[14px] font-medium">最近动态</h2>
+            <button onclick="protoToast('原型演示：查看全部操作日志')" class="text-[12px] text-[#4F46E5] hover:underline">查看全部</button>
+          </div>
+          <div class="divide-y divide-[#F4F6FB]">
+            <div class="flex items-center gap-4 px-5 py-3">
+              <span class="mono w-[86px] shrink-0 text-[11.5px] text-[#8C94A3]">10:18:42</span>
+              <span class="text-[13px] text-[#3B4252]">装配智能体 <span class="mono text-[12px] text-[#4F46E5]">agentId=3</span>（Auto Agent 自动智能对话体）</span>
+              <span class="ml-auto stage stage-summary">成功</span>
+            </div>
+            <div class="flex items-center gap-4 px-5 py-3">
+              <span class="mono w-[86px] shrink-0 text-[11.5px] text-[#8C94A3]">10:02:11</span>
+              <span class="text-[13px] text-[#3B4252]">更新客户端 API <span class="mono text-[12px] text-[#4F46E5]">apiId=7</span>（DeepSeek-V3 对话补全）</span>
+              <span class="ml-auto stage stage-summary">成功</span>
+            </div>
+            <div class="flex items-center gap-4 px-5 py-3">
+              <span class="mono w-[86px] shrink-0 text-[11.5px] text-[#8C94A3]">09:47:05</span>
+              <span class="text-[13px] text-[#3B4252]">保存编排配置 <span class="mono text-[12px] text-[#4F46E5]">configId=auto_agent_v3</span>（版本 v12 → v13）</span>
+              <span class="ml-auto stage stage-summary">成功</span>
+            </div>
+            <div class="flex items-center gap-4 px-5 py-3">
+              <span class="mono w-[86px] shrink-0 text-[11.5px] text-[#8C94A3]">09:31:20</span>
+              <span class="text-[13px] text-[#3B4252]">RAG 知识库 <span class="mono text-[12px] text-[#4F46E5]">kb_spring_perf</span> 增量更新，新增文档 12 篇</span>
+              <span class="ml-auto stage stage-summary">成功</span>
+            </div>
+            <div class="flex items-center gap-4 px-5 py-3">
+              <span class="mono w-[86px] shrink-0 text-[11.5px] text-[#8C94A3]">09:12:58</span>
+              <span class="text-[13px] text-[#3B4252]">MCP 工具 <span class="mono text-[12px] text-[#4F46E5]">knowledge_search</span> 调用超时（3000 ms），已自动重试 1 次</span>
+              <span class="ml-auto stage stage-error">告警</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <a href="index.html" class="proto-nav brand-grad" title="返回原型目录">
+    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+    原型：管理端数据总览
+  </a>
+</body>
+</html>

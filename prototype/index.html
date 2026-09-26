@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智枢 · 前端原型目录</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body>
+  <!-- ================= Hero ================= -->
+  <header class="login-bg login-grid relative overflow-hidden px-8 py-14 lg:px-16">
+    <div class="blob left-[-80px] top-[-70px] h-[300px] w-[300px] bg-[#4F46E5]"></div>
+    <div class="blob right-[40px] bottom-[-110px] h-[340px] w-[340px] bg-[#7C3AED]" style="animation-delay:-6s"></div>
+
+    <div class="relative mx-auto max-w-[1180px]">
+      <div class="flex items-center gap-3">
+        <div class="brand-grad flex h-10 w-10 items-center justify-center rounded-xl shadow-[0_10px_24px_-10px_rgba(79,70,229,.9)]">
+          <svg viewBox="0 0 24 24" style="width:22px;height:22px" fill="none">
+            <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="12" cy="7.6" r="1.5" fill="#fff" /><circle cx="7.9" cy="15.2" r="1.5" fill="#fff" /><circle cx="16.1" cy="15.2" r="1.5" fill="#fff" />
+          </svg>
+        </div>
+        <span class="text-[16px] font-semibold tracking-[0.06em] text-white">智枢</span>
+        <span class="rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11.5px] text-white/60">前端重构原型 v1</span>
+      </div>
+
+      <h1 class="mt-7 text-[38px] font-semibold leading-tight text-white">
+        智枢 · <span class="bg-gradient-to-r from-[#A5B4FC] to-[#D8B4FE] bg-clip-text text-transparent">双端合一、统一登录、一键切换</span>
+      </h1>
+      <p class="mt-4 max-w-[760px] text-[14px] leading-7 text-white/60">
+        本原型用于确认合并后的交互与视觉基准：React 管理后台与静态 HTML 用户端合并为一个 Vue3 + Ant Design Vue 工程，
+        全局仅保留一个登录页，登录后默认进入智能对话，并可无感切换到管理后台 —— 管理端覆盖智能体编排与私有知识库配置。
+      </p>
+
+      <div class="mt-8 flex flex-wrap gap-2.5">
+        <span class="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] text-white/80">Vue 3.4 + TypeScript</span>
+        <span class="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] text-white/80">ant-design-vue 4</span>
+        <span class="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] text-white/80">Vite 5 · Pinia · vue-router</span>
+        <span class="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] text-white/80">LogicFlow 编排画布</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-[1180px] px-8 py-12 lg:px-16">
+
+    <!-- ================= 核心页面 ================= -->
+    <h2 class="text-[22px] font-semibold tracking-tight">核心页面（5 页）</h2>
+    <p class="mt-2 text-[13px] text-[#5A6474]">点击卡片进入对应原型页，页面之间可直接互相跳转，模拟真实操作链路。</p>
+
+    <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <a href="login.html" class="card card-hover block p-5">
+        <div class="flex items-center gap-2.5">
+          <span class="brand-grad flex h-9 w-9 items-center justify-center rounded-lg text-white">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="4.5" y="10" width="15" height="10" rx="2.2" /><path d="M8 10V7.5a4 4 0 0 1 8 0V10" /></svg>
+          </span>
+          <div>
+            <p class="text-[14px] font-medium">01 · 统一登录页</p>
+            <p class="mono text-[11px] text-[#8C94A3]">/login</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[12.5px] leading-6 text-[#5A6474]">深色渐变品牌区 + 玻璃拟态表单卡，支持密码明文切换与 admin 快捷登录，登录成功跳转 /chat。</p>
+      </a>
+
+      <a href="chat.html" class="card card-hover block p-5">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF0FE] text-[#4F46E5]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.5a7.5 7.5 0 0 1-10.9 6.7L4.5 20.5l1.3-5A7.5 7.5 0 1 1 20.5 12.5Z" /><path d="M9 11.5h6M9 14.5h3.5" /></svg>
+          </span>
+          <div>
+            <p class="text-[14px] font-medium">02 · 用户端智能对话</p>
+            <p class="mono text-[11px] text-[#8C94A3]">/chat（默认落地）</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[12.5px] leading-6 text-[#5A6474]">会话列表 + 智能体/步数/案例选择 + 过程与结果双栏 + Markdown 渲染，顶栏一键进入管理后台。</p>
+      </a>
+
+      <a href="dashboard.html" class="card card-hover block p-5">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E4F6EA] text-[#16A34A]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17.5 9 11l4 3.6L20.5 6" /><path d="M15.5 6h5v5" /></svg>
+          </span>
+          <div>
+            <p class="text-[14px] font-medium">03 · 管理端数据总览</p>
+            <p class="mono text-[11px] text-[#8C94A3]">/admin/dashboard</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[12.5px] leading-6 text-[#5A6474]">4 张指标卡 + 7 日趋势折线 + 模型调用占比 + 最近动态，侧边菜单按编排/资源/知识库分组。</p>
+      </a>
+
+      <a href="client-management.html" class="card card-hover block p-5">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F1E8FD] text-[#7C3AED]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="12" rx="2" /><path d="M8.5 20.5h7M12 16.5v4" /></svg>
+          </span>
+          <div>
+            <p class="text-[14px] font-medium">04 · 列表范式页</p>
+            <p class="mono text-[11px] text-[#8C94A3]">/admin/client-management</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[12.5px] leading-6 text-[#5A6474]">查询区 + 操作区 + 吸顶表头表格 + 分页 + 新增/编辑弹窗 + 删除二次确认，10 个模块复用同一范式。</p>
+      </a>
+
+      <a href="agent-config.html" class="card card-hover block p-5">
+        <div class="flex items-center gap-2.5">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#FDF0E0] text-[#F59E0B]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="4.6" r="2.1" /><circle cx="5" cy="19.4" r="2.1" /><circle cx="19" cy="19.4" r="2.1" /><path d="M10.7 6.6 6.3 17.6M13.3 6.6l4.4 11M7.1 19.4h9.8" /></svg>
+          </span>
+          <div>
+            <p class="text-[14px] font-medium">05 · 智能体编排画布</p>
+            <p class="mono text-[11px] text-[#8C94A3]">/admin/agent-config</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[12.5px] leading-6 text-[#5A6474]">LogicFlow 点阵画布 + 节点面板 + 连线 + 小地图 + 右侧属性抽屉，保存时序列化为后端兼容 JSON。</p>
+      </a>
+
+      <div class="card flex flex-col justify-center border-dashed p-5">
+        <p class="text-[13px] font-medium text-[#5A6474]">其余 8 个管理页</p>
+        <p class="mt-2 text-[12.5px] leading-6 text-[#8C94A3]">智能体列表、客户端 API、顾问、模型、系统提示词、MCP 工具、RAG 知识库配置，全部复用第 04 页的列表范式，仅查询字段与表单字段不同，本次不单独出图。</p>
+      </div>
+    </div>
+
+    <!-- ================= 交互链路 ================= -->
+    <h2 class="mt-14 text-[22px] font-semibold tracking-tight">核心交互链路</h2>
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div class="card p-5">
+        <span class="brand-grad flex h-6 w-6 items-center justify-center rounded-md text-[11.5px] font-medium text-white">1</span>
+        <p class="mt-3 text-[13.5px] font-medium">一次登录，写入统一登录态</p>
+        <p class="mt-2 text-[12.5px] leading-6 text-[#5A6474]">调用 <span class="mono text-[11.5px]">POST /api/v1/admin/admin-user/login</span>，将 token 与用户信息写入 Pinia 并持久化到 localStorage，刷新后仍保持登录。</p>
+      </div>
+      <div class="card p-5">
+        <span class="brand-grad flex h-6 w-6 items-center justify-center rounded-md text-[11.5px] font-medium text-white">2</span>
+        <p class="mt-3 text-[13.5px] font-medium">默认落地用户端</p>
+        <p class="mt-2 text-[12.5px] leading-6 text-[#5A6474]">登录成功后跳转 <span class="mono text-[11.5px]">/chat</span>，对话通过 SSE 流式呈现分析 / 执行 / 监督 / 总结四个阶段。</p>
+      </div>
+      <div class="card p-5">
+        <span class="brand-grad flex h-6 w-6 items-center justify-center rounded-md text-[11.5px] font-medium text-white">3</span>
+        <p class="mt-3 text-[13.5px] font-medium">免二次登录切换管理端</p>
+        <p class="mt-2 text-[12.5px] leading-6 text-[#5A6474]">点击「进入管理后台」直达 <span class="mono text-[11.5px]">/admin/dashboard</span>，复用同一 token，无需再次输入密码；管理端亦可随时返回对话页。</p>
+      </div>
+    </div>
+
+    <!-- ================= 设计规范 ================= -->
+    <h2 class="mt-14 text-[22px] font-semibold tracking-tight">设计规范</h2>
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <div class="card p-5">
+        <p class="text-[13.5px] font-medium">色彩</p>
+        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div><div class="brand-grad h-12 rounded-lg"></div><p class="mt-2 text-[11.5px] text-[#5A6474]">主色 #4F46E5</p></div>
+          <div><div class="h-12 rounded-lg bg-[#7C3AED]"></div><p class="mt-2 text-[11.5px] text-[#5A6474]">延展 #7C3AED</p></div>
+          <div><div class="h-12 rounded-lg bg-[#F7F8FC] ring-1 ring-[#E6E9F2]"></div><p class="mt-2 text-[11.5px] text-[#5A6474]">页面底 #F7F8FC</p></div>
+          <div><div class="h-12 rounded-lg bg-[#1F2430]"></div><p class="mt-2 text-[11.5px] text-[#5A6474]">正文 #1F2430</p></div>
+          <div><div class="h-12 rounded-lg bg-[#16A34A]"></div><p class="mt-2 text-[11.5px] text-[#5A6474]">成功 #16A34A</p></div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <span class="stage stage-analysis">分析</span><span class="stage stage-execution">执行</span>
+          <span class="stage stage-supervision">监督</span><span class="stage stage-summary">总结</span><span class="stage stage-error">错误</span>
+        </div>
+        <p class="mt-3 text-[11.5px] leading-5 text-[#8C94A3]">阶段标签统一使用低饱和浅底 + 深色文字，保证对比度与可读性。</p>
+      </div>
+
+      <div class="card p-5">
+        <p class="text-[13.5px] font-medium">字体与节奏</p>
+        <div class="mt-4 space-y-3">
+          <div class="flex items-baseline justify-between"><span class="text-[28px] font-semibold leading-none">标题</span><span class="mono text-[11px] text-[#8C94A3]">28px / 600</span></div>
+          <div class="flex items-baseline justify-between"><span class="text-[16px] font-medium leading-none">小标题</span><span class="mono text-[11px] text-[#8C94A3]">16px / 500</span></div>
+          <div class="flex items-baseline justify-between"><span class="text-[14px] leading-none">正文</span><span class="mono text-[11px] text-[#8C94A3]">14px / 400</span></div>
+          <div class="flex items-baseline justify-between"><span class="text-[12px] leading-none text-[#5A6474]">辅助信息</span><span class="mono text-[11px] text-[#8C94A3]">12px / 400</span></div>
+        </div>
+        <p class="mt-4 text-[11.5px] leading-5 text-[#8C94A3]">中文优先 PingFang SC，英文与数字优先 Inter；ID、会话号、策略名使用等宽字体。</p>
+      </div>
+    </div>
+
+    <!-- ================= 说明 ================= -->
+    <h2 class="mt-14 text-[22px] font-semibold tracking-tight">原型说明</h2>
+    <div class="card mt-6 p-5">
+      <ul class="space-y-2.5 text-[12.5px] leading-6 text-[#5A6474]">
+        <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>本原型为静态 HTML + Tailwind 实现，<span class="font-medium text-[#1F2430]">仅用于确认视觉与交互</span>，不含真实接口调用；按钮点击以轻提示模拟结果。</li>
+        <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>正式实现将落在新工程 <span class="mono text-[11.5px]">ai-agent-station-ui</span>（Vue3 + Ant Design Vue 4 + Pinia + vue-router + LogicFlow），后端 Java 代码零改动。</li>
+        <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>登录后不做角色区分：任一账号登录即可访问用户端与管理端，与「两端绑定同一个账号」的约定一致。</li>
+        <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>画布页保留了后端契约提示：持久化 JSON 的连线字段为 <span class="mono text-[11.5px]">sourceNodeID / targetNodeID</span>，与 LogicFlow 原生字段不同，迁移时由适配器双向转换。</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="border-t border-[#E6E9F2] bg-white px-8 py-6 text-center text-[11.5px] text-[#8C94A3] lg:px-16">
+    智枢 · 前端重构原型 v1 · 验收后可直接删除 prototype/ 目录，不影响 ai-agent-station-ui
+  </footer>
+</body>
+</html>

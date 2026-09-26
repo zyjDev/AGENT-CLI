@@ -1,0 +1,234 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: #4f46e5;
+    --brand-violet: #7c3aed;
+    --page: #f7f8fc;
+    --ink-900: #1f2430;
+    --ink-600: #5a6474;
+    --ink-400: #8c94a3;
+    --line: #e6e9f2;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink-900);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* ---------- 品牌 ---------- */
+  .brand-grad {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-violet) 100%);
+  }
+  .brand-text {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-violet) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ---------- 按钮 ---------- */
+  .btn-grad {
+    @apply border-0 font-medium text-white transition-all duration-200;
+    background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-violet) 100%);
+  }
+  .btn-grad:not(:disabled):hover {
+    @apply -translate-y-px text-white shadow-[0_8px_20px_-6px_rgba(79,70,229,.55)];
+  }
+  .btn-ghost {
+    @apply cursor-pointer rounded-lg border border-line bg-white text-ink-600 transition-all duration-200;
+  }
+  .btn-ghost:hover {
+    @apply border-brand-500 text-brand;
+  }
+
+  /* ---------- 卡片 ---------- */
+  .card-panel {
+    @apply rounded-[10px] border border-line bg-white shadow-[0_1px_2px_rgba(31,36,48,.04)];
+  }
+  .glass-card {
+    @apply rounded-2xl border border-white/90 bg-white/80 backdrop-blur-xl;
+    box-shadow: 0 24px 60px -28px rgba(15, 16, 32, 0.45);
+  }
+  .card-hover {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-[#d9def0] hover:shadow-[0_12px_26px_-14px_rgba(31,36,48,.28)];
+  }
+
+  /* ---------- 登录页背景 ---------- */
+  .login-bg {
+    background: linear-gradient(150deg, #0f1020 0%, #171a3a 48%, #1a1c36 100%);
+  }
+  .login-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 40% 45%, #000 0%, transparent 72%);
+    -webkit-mask-image: radial-gradient(circle at 40% 45%, #000 0%, transparent 72%);
+  }
+  .blob {
+    @apply pointer-events-none absolute rounded-full opacity-50 blur-[70px] animate-blob;
+  }
+
+  /* ---------- SSE 阶段标签 ---------- */
+  .stage {
+    @apply inline-flex items-center rounded-full px-2 py-[1px] text-[11px] font-semibold leading-[18px];
+  }
+  .stage-analysis {
+    @apply bg-[#e3ecfd] text-[#1d4ed8];
+  }
+  .stage-execution {
+    @apply bg-[#f1e8fd] text-[#6d28d9];
+  }
+  .stage-supervision {
+    @apply bg-[#fdf0e0] text-[#b45309];
+  }
+  .stage-summary {
+    @apply bg-[#e4f6ea] text-[#15803d];
+  }
+  .stage-error {
+    @apply bg-[#fde8e9] text-[#b91c1c];
+  }
+  .sub-tag {
+    @apply inline-block rounded-md bg-[#f2f4fa] px-1.5 py-[1px] font-mono text-[10px] text-ink-400;
+  }
+
+  /* ---------- 画布 ---------- */
+  .dot-bg {
+    background-color: #fbfcff;
+    background-image: radial-gradient(#d7dcec 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .node-card {
+    @apply cursor-pointer rounded-xl border border-[#dfe4f2] bg-white shadow-[0_4px_14px_-8px_rgba(31,36,48,.35)] transition-all duration-200;
+  }
+  .node-card:hover {
+    @apply border-brand-500;
+  }
+  .node-card.is-active {
+    @apply border-brand shadow-[0_0_0_3px_rgba(79,70,229,.18),0_10px_24px_-12px_rgba(79,70,229,.6)];
+  }
+  .port {
+    @apply absolute h-[9px] w-[9px] rounded-full border-2 border-brand-500 bg-white;
+  }
+  .minimap {
+    @apply rounded-lg border border-line bg-white/90 shadow-[0_6px_18px_-12px_rgba(31,36,48,.5)];
+  }
+
+  /* ---------- Markdown 正文（Tailwind preflight 会重置标题与列表，这里补回排版） ---------- */
+  .md-body {
+    @apply text-[13px] leading-6 text-[#3B4252];
+  }
+  .md-body > :first-child {
+    @apply mt-0;
+  }
+  .md-body h1 {
+    @apply mb-2 mt-4 text-[18px] font-semibold text-ink-900;
+  }
+  .md-body h2 {
+    @apply mb-2 mt-4 text-[16px] font-semibold text-ink-900;
+  }
+  .md-body h3 {
+    @apply mb-1.5 mt-3.5 text-[14.5px] font-semibold text-ink-900;
+  }
+  .md-body h4 {
+    @apply mb-1.5 mt-3 text-[13.5px] font-semibold text-ink-900;
+  }
+  .md-body p {
+    @apply my-1.5;
+  }
+  .md-body ul {
+    @apply my-2 list-disc space-y-1 pl-5;
+  }
+  .md-body ol {
+    @apply my-2 list-decimal space-y-1 pl-5;
+  }
+  .md-body a {
+    @apply text-brand underline;
+  }
+  .md-body code {
+    @apply rounded bg-[#F2F4FA] px-1 py-[1px] font-mono text-[12px] text-[#6D28D9];
+  }
+  .md-body blockquote {
+    @apply my-2 border-l-[3px] border-brand-400 bg-[#F8F9FE] py-1.5 pl-3 text-ink-600;
+  }
+  .md-body table {
+    @apply my-3 w-full border-collapse text-[12.5px];
+  }
+  .md-body th {
+    @apply border border-line bg-[#FAFBFE] px-3 py-2 text-left font-medium text-ink-600;
+  }
+  .md-body td {
+    @apply border border-line px-3 py-2;
+  }
+  .md-body hr {
+    @apply my-4 border-t border-line;
+  }
+
+  /* 代码块（含语言标签与复制按钮） */
+  .md-body .md-pre {
+    @apply my-3 overflow-hidden rounded-lg bg-[#1F2430];
+  }
+  .md-body .md-pre-bar {
+    @apply flex items-center justify-between border-b border-white/10 px-3 py-1.5;
+  }
+  .md-body .md-pre-bar span {
+    @apply font-mono text-[11px] text-white/50;
+  }
+  .md-body .md-pre-bar button {
+    @apply cursor-pointer text-[11px] text-white/60 transition hover:text-white;
+  }
+  .md-body .md-pre pre {
+    @apply scroll-thin overflow-x-auto px-3.5 py-3;
+  }
+  .md-body .md-pre pre code {
+    @apply block bg-transparent p-0 text-[12px] leading-6 text-[#C7D2FE];
+  }
+
+  /* ---------- 管理端侧边导航 ---------- */
+  .side-link {
+    @apply flex h-[38px] items-center gap-2.5 rounded-lg px-3 text-[13px] text-ink-600 transition-all duration-150 hover:bg-[#f2f4fb] hover:text-ink-900;
+  }
+  .side-link.active {
+    @apply bg-gradient-to-r from-[rgba(79,70,229,.12)] to-[rgba(124,58,237,.06)] font-medium text-brand;
+  }
+  .side-group {
+    @apply px-3 pb-1 pt-3.5 text-[11px] tracking-[0.08em] text-ink-400;
+  }
+}
+
+@layer utilities {
+  .scroll-thin {
+    scrollbar-width: thin;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: #cfd6e6;
+    border-radius: 3px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb:hover {
+    background: #b6bfd6;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

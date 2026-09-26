@@ -1,0 +1,70 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - paragraph [ref=f2e15]: 智枢
+    - generic [ref=f2e16]:
+      - generic [ref=f2e17]: 服务正常 · 8099
+      - button "进入管理后台" [ref=f2e19] [cursor=pointer]
+      - button "AD admin" [ref=f2e25] [cursor=pointer]:
+        - generic [ref=f2e26]: AD
+        - generic [ref=f2e27]: admin
+  - main [ref=f2e30]:
+    - generic [ref=f2e31]:
+      - complementary [ref=f2e32]:
+        - generic [ref=f2e33]:
+          - button "新建对话" [ref=f2e34] [cursor=pointer]
+          - button "清空全部" [ref=f2e36] [cursor=pointer]
+        - button "新对话 暂无对话 · 19:59" [ref=f2e42] [cursor=pointer]:
+          - paragraph [ref=f2e44]: 新对话
+          - paragraph [ref=f2e45]:
+            - generic [ref=f2e46]: 暂无对话
+            - generic [ref=f2e47]: ·
+            - generic [ref=f2e48]: 19:59
+        - generic [ref=f2e49]:
+          - paragraph [ref=f2e50]: 当前会话 ID
+          - generic [ref=f2e51]:
+            - generic [ref=f2e52]: session_1790423949821_pq25g6
+            - button "复制会话 ID" [ref=f2e53] [cursor=pointer]
+      - generic [ref=f2e57]:
+        - generic [ref=f2e58]:
+          - generic [ref=f2e59]:
+            - generic [ref=f2e60]: 智能体
+            - generic [ref=f2e62] [cursor=pointer]:
+              - combobox [ref=f2e64]
+              - generic "智能对话体（Auto）（agentId=3）" [ref=f2e65]
+          - generic [ref=f2e66]:
+            - generic [ref=f2e67]: 最大执行步数
+            - generic [ref=f2e69] [cursor=pointer]:
+              - combobox [ref=f2e71]
+              - generic "1" [ref=f2e72]
+          - generic [ref=f2e73]:
+            - generic [ref=f2e74]: 预设案例
+            - generic [ref=f2e76] [cursor=pointer]:
+              - combobox [ref=f2e78]
+              - generic: 选择一个案例填入输入框
+          - generic [ref=f2e79]:
+            - generic [ref=f2e80]: 共 0 轮对话
+            - button "刷新" [ref=f2e81] [cursor=pointer]
+        - generic [ref=f2e87]:
+          - generic [ref=f2e88]:
+            - generic [ref=f2e89]:
+              - heading "思考与执行过程" [level=2] [ref=f2e93]
+              - generic [ref=f2e94]: 实时流式推送 · SSE
+            - generic [ref=f2e96]:
+              - paragraph [ref=f2e97]: 暂无执行过程
+              - paragraph [ref=f2e98]: 发送问题后，这里会按「分析 → 执行 → 监督 → 总结」逐步展示智能体的思考与调用过程。
+          - generic [ref=f2e99]:
+            - generic [ref=f2e100]:
+              - generic [ref=f2e101]:
+                - heading "最终结果" [level=2] [ref=f2e105]
+                - generic [ref=f2e106]: Markdown 渲染
+              - button "复制全文" [disabled] [ref=f2e107]
+            - generic [ref=f2e112]:
+              - paragraph [ref=f2e116]: 暂无结果
+              - paragraph [ref=f2e117]: 总结阶段产出的内容会渲染在这里，支持标题、列表、表格与代码高亮。
+        - generic [ref=f2e119]:
+          - textbox "请输入您的问题，例如：帮我评估当前连接池配置是否存在风险..." [ref=f2e120]: 1+1
+          - generic [ref=f2e121]:
+            - generic [ref=f2e122]: Enter 发送 · Shift + Enter 换行
+            - generic [ref=f2e123]:
+              - generic [ref=f2e124]: 3 / 1000
+              - button "发送" [ref=f2e125] [cursor=pointer]

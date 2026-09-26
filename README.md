@@ -1,16 +1,51 @@
-# Agent CLI 智能体CLI
+# 智枢 · 智能体编排与知识问答平台
 
 ## 项目简介
 
-本项目是一个基于DDD架构的AI智能体学习平台，提供Auto Agent自动智能对话功能，支持流式响应和实时交互体验。
+本项目是一个基于 DDD 架构的 AI 智能体学习平台：**私有知识库驱动，把智能体编排、知识问答与流式对话收进同一个工作台**。
+
+- 用户端：Auto Agent 自动智能对话，支持 SSE 流式响应与实时交互体验
+- 管理端：智能体编排画布、客户端/模型/提示词/MCP 工具/顾问/RAG 知识库等资源配置
+- 两端共用同一个登录入口与登录态，一键切换、无需二次登录
 
 ## 技术架构
 
 - **架构模式**: DDD（领域驱动设计）
 - **后端技术**: Spring Boot + Java
-- **前端技术**: HTML5 + JavaScript + Tailwind CSS
+- **前端技术**: Vue 3 + TypeScript + Ant Design Vue 4 + Vite 5 + Pinia + vue-router + Tailwind CSS + LogicFlow
 - **通信方式**: Server-Sent Events (SSE) 流式响应
 - **容器化**: Docker
+
+## 前端工程（zhishu-ui · 智枢）
+
+用户端与管理后台已合并为**同一个前端工程**，全局只有一个登录入口：
+
+- **默认落地页**：登录后进入用户端智能对话（`/chat`）
+- **一键切换**：顶栏「进入管理后台」直达 `/admin/dashboard`，**不需要二次输入密码**
+  （两端共用同一个 JWT：同一 token 同时用于 `/api/v1/admin/**` 与 `/api/v1/agent/**`）
+- **登录账号**：`admin` / `123456`（登录页提供快捷登录按钮）
+- **接口前缀**：开发环境走 Vite 代理（`/api` → `http://127.0.0.1:8099`），因此**不需要改后端 CORS 白名单**
+
+### 页面清单
+
+| 路由 | 页面 |
+|------|------|
+| `/login` | 统一登录页（全局唯一） |
+| `/chat` | 用户端智能对话（会话列表、智能体/步数选择、过程与结果双栏、SSE 流式、Markdown 渲染） |
+| `/admin/dashboard` | 数据总览（实时聚合统计 + 资源分布 + 最近更新的编排配置） |
+| `/admin/agent-list` | 智能体列表（配置查询 / 查看 / 修改 / 装配 / 删除） |
+| `/admin/agent-config` | 智能体编排（LogicFlow 画布：节点面板 / 连线 / 属性抽屉 / 保存 / 装配） |
+| `/admin/client-management` 等 7 个 | 客户端、客户端 API、顾问、模型、系统提示词、MCP 工具、RAG 知识库配置 |
+
+管理端 10 个资源页共用同一套「查询 + 分页 + 新增/编辑弹窗 + 删除确认」范式（`src/components/admin/CrudPage.vue` + 各模块 descriptor）。
+
+### 接口契约要点（改动前务必先读）
+
+1. 后端统一响应包装 `{ code, info, data }`，成功码固定 `"0000"`；`code !== "0000"` 会被请求层统一抛业务错误。
+2. 所有 `query-list` 都是**内存分页**且**只返回裸数组**（响应里没有 total），因此列表页不展示「共 N 条」，翻页以「本页是否取满」推断。
+3. 登录态失效返回 **HTTP 401**：请求层会清登录态、明确提示「登录已过期」并跳登录页（不会伪装成网络故障）。
+4. 画布配置持久化 JSON 的字段名为 `nodes[].{id,type,data.title,data.inputsValues}` 与 `edges[].{sourceNodeID,targetNodeID,sourcePortID?}`（**连线字段是大写 ID**，与 LogicFlow 原生的 `sourceNodeId` 不同，由 `logicflow/adapter.ts` 双向转换）。
+5. `ai-client-api/update-by-id` 后端为 **PUT**（历史实现误用过 POST）。
 
 ## 相关文档
 
@@ -135,7 +170,7 @@ const requestData = {
 };
 
 // 发送POST请求
-fetch('http://localhost:8091/api/v1/agent/auto_agent', {
+fetch('http://localhost:8099/api/v1/agent/auto_agent', {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
@@ -239,8 +274,8 @@ data: {"type":"error","subType":null,"step":null,"content":"请求参数错误�
 
 **服务端口**
 
-- 默认端口：8091
-- 前端演示页面：http://localhost:8080/index.html
+- 后端端口：8099
+- 前端开发端口：5173（该端口已在后端 CORS 白名单内；开发环境走 Vite 代理，实际不触发跨域）
 
 ## 快速开始
 
@@ -249,14 +284,19 @@ data: {"type":"error","subType":null,"step":null,"content":"请求参数错误�
    mvn spring-boot:run
    ```
 
-2. **访问前端页面**
+2. **启动前端工程**
    ```bash
-   cd docs/dev-ops/nginx/html
-   python3 -m http.server 8080
+   cd zhishu-ui
+   npm install
+   npm run dev
    ```
-   
+
 3. **打开浏览器访问**
    ```
-   http://localhost:8080/index.html
+   http://localhost:5173
    ```
+   使用 `admin / 123456` 登录（或点登录页的「使用 admin 账号快捷登录」）。
+   登录后默认进入智能对话，点顶栏「进入管理后台」即可切换到管理端。
+
+4. **Windows 一键启动**：双击根目录 `start-ui-admin.bat`（会自动打开浏览器并启动前端）。
 

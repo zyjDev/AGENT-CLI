@@ -1,0 +1,18 @@
+{
+  "name": "project-study",
+  "mainConversationId": "b81d0c22b84d4681aad3a8ff609df19d",
+  "workspacePath": "e:/Study_Project/ai-agent-station-study",
+  "createdAt": "2026-09-26T04:11:52.159Z",
+  "options": {
+    "workspacePath": "e:/Study_Project/ai-agent-station-study"
+  },
+  "members": [
+    {
+      "memberId": "architect-mentor@project-study",
+      "name": "architect-mentor",
+      "role": "讲解项目核心设计",
+      "sessionId": "bacec8e0967b4185a58eeecbf257c612",
+      "status": "running"
+    }
+  ]
+}

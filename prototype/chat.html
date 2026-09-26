@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智能对话（默认落地页）· 智枢 原型</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body class="overflow-hidden bg-[#F7F8FC]">
+
+  <!-- ================= 顶栏 ================= -->
+  <header class="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-[#E6E9F2] bg-white px-5">
+    <div class="flex items-center gap-3">
+      <div class="brand-grad flex h-8 w-8 items-center justify-center rounded-lg">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none">
+          <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="12" cy="7.6" r="1.5" fill="#fff" /><circle cx="7.9" cy="15.2" r="1.5" fill="#fff" /><circle cx="16.1" cy="15.2" r="1.5" fill="#fff" />
+        </svg>
+      </div>
+      <span class="text-[15px] font-semibold tracking-[0.06em]">智枢</span>
+      <span class="mx-1 h-4 w-px bg-[#E6E9F2]"></span>
+      <button onclick="toggleSidebar()" class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#8C94A3] transition hover:bg-[#F2F4FB] hover:text-[#4F46E5]" title="折叠 / 展开会话列表">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+      <span class="text-[13.5px] font-medium text-[#1F2430]">Spring Boot 性能调优学习计划</span>
+      <span class="stage stage-complete">已完成</span>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      <span class="hidden items-center gap-1.5 rounded-full bg-[#F2F4FB] px-2.5 py-1 text-[11.5px] text-[#5A6474] md:flex">
+        <span class="h-1.5 w-1.5 rounded-full bg-[#16A34A]"></span>服务正常 · 8099
+      </span>
+      <button onclick="go('dashboard.html')" class="btn-grad flex h-8 items-center gap-1.5 px-3.5 text-[12.5px] font-medium" title="同一账号，免二次登录">
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.4" /><path d="M3.5 9.5h17M9 9.5v10" /></svg>
+        进入管理后台
+      </button>
+      <div class="relative">
+        <button onclick="document.getElementById('userMenu').classList.toggle('hidden')" class="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-[#F2F4FB]">
+          <span class="brand-grad flex h-7 w-7 items-center justify-center rounded-full text-[11.5px] font-medium text-white">AD</span>
+          <span class="text-[12.5px] text-[#5A6474]">admin</span>
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-[#8C94A3]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+        <div id="userMenu" class="modal absolute right-0 top-11 hidden w-48 rounded-lg border border-[#E6E9F2] bg-white p-1.5 shadow-[0_16px_36px_-18px_rgba(31,36,48,.4)]">
+          <div class="px-2.5 py-2">
+            <p class="text-[12.5px] font-medium">admin</p>
+            <p class="text-[11px] text-[#8C94A3]">超级管理员 · admin-user</p>
+          </div>
+          <div class="my-1 h-px bg-[#F1F3F9]"></div>
+          <a href="dashboard.html" class="block rounded-md px-2.5 py-2 text-[12.5px] text-[#5A6474] hover:bg-[#F8F9FE]">进入管理后台</a>
+          <a href="login.html" class="block rounded-md px-2.5 py-2 text-[12.5px] text-[#E5484D] hover:bg-[#FEF4F4]">退出登录</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex h-screen pt-14">
+    <!-- ================= 左侧会话栏 ================= -->
+    <aside id="sidebar" data-collapsed="0" class="flex w-60 shrink-0 flex-col overflow-hidden border-r border-[#E6E9F2] bg-white transition-all duration-300">
+      <div class="space-y-2 border-b border-[#F1F3F9] p-3">
+        <button onclick="protoToast('已新建对话 session_' + Date.now())" class="btn-grad flex h-9 w-full items-center justify-center gap-1.5 text-[13px] font-medium">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          新建对话
+        </button>
+        <button onclick="protoToast('已清空全部会话记录')" class="btn-ghost flex h-8 w-full items-center justify-center gap-1.5 text-[12.5px] text-[#E5484D] hover:border-[#F5C2C4] hover:text-[#E5484D]">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" /></svg>
+          清空全部
+        </button>
+      </div>
+
+      <div class="scroll flex-1 space-y-1 overflow-y-auto p-2">
+        <button class="relative w-full cursor-pointer rounded-lg bg-[#F4F5FE] px-3 py-2.5 text-left">
+          <span class="absolute left-0 top-2.5 h-8 w-[3px] rounded-r bg-gradient-to-b from-[#4F46E5] to-[#7C3AED]"></span>
+          <p class="truncate text-[12.5px] font-medium text-[#1F2430]">Spring Boot 性能调优学习计划</p>
+          <p class="mt-1 flex items-center gap-2 text-[11px] text-[#8C94A3]"><span>12 条消息</span><span>·</span><span>10:24</span></p>
+        </button>
+        <button onclick="protoToast('已切换到会话：RAG 知识库召回率优化建议')" class="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition hover:bg-[#F8F9FE]">
+          <p class="truncate text-[12.5px] text-[#5A6474]">RAG 知识库召回率优化建议</p>
+          <p class="mt-1 flex items-center gap-2 text-[11px] text-[#8C94A3]"><span>8 条消息</span><span>·</span><span>昨天 18:02</span></p>
+        </button>
+        <button onclick="protoToast('已切换到会话：MCP 工具接入排查')" class="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition hover:bg-[#F8F9FE]">
+          <p class="truncate text-[12.5px] text-[#5A6474]">MCP 工具接入排查</p>
+          <p class="mt-1 flex items-center gap-2 text-[11px] text-[#8C94A3]"><span>5 条消息</span><span>·</span><span>昨天 09:41</span></p>
+        </button>
+        <button onclick="protoToast('已切换到会话：多智能体协作流程设计')" class="w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition hover:bg-[#F8F9FE]">
+          <p class="truncate text-[12.5px] text-[#5A6474]">多智能体协作流程设计</p>
+          <p class="mt-1 flex items-center gap-2 text-[11px] text-[#8C94A3]"><span>17 条消息</span><span>·</span><span>09-24 15:30</span></p>
+        </button>
+      </div>
+
+      <div class="border-t border-[#F1F3F9] p-3">
+        <p class="mb-1.5 text-[11px] text-[#8C94A3]">当前会话 ID</p>
+        <div class="flex items-center gap-1.5 rounded-lg bg-[#F7F8FC] px-2.5 py-2">
+          <span class="mono flex-1 truncate text-[10.5px] text-[#5A6474]">session_1758812345678_x8k2m9</span>
+          <button onclick="protoToast('会话 ID 已复制到剪贴板')" class="cursor-pointer text-[#8C94A3] transition hover:text-[#4F46E5]" title="复制">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" /></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ================= 右侧主区 ================= -->
+    <main id="main" class="flex min-w-0 flex-1 flex-col">
+      <!-- 工具条 -->
+      <div class="flex flex-wrap items-center gap-3 border-b border-[#E6E9F2] bg-white px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] text-[#8C94A3]">智能体</span>
+          <select class="h-8 cursor-pointer rounded-lg border border-[#E6E9F2] bg-white px-2.5 text-[12.5px] text-[#1F2430] outline-none transition hover:border-[#C7CBF7] focus:border-[#6366F1]">
+            <option>Auto Agent 自动智能对话体（agentId=3）</option>
+            <option>RAG 知识问答智能体（agentId=2）</option>
+            <option>流程编排智能体（agentId=1）</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] text-[#8C94A3]">最大执行步数</span>
+          <select class="h-8 cursor-pointer rounded-lg border border-[#E6E9F2] bg-white px-2.5 text-[12.5px] outline-none transition hover:border-[#C7CBF7] focus:border-[#6366F1]">
+            <option>1</option><option>2</option><option>3</option><option selected>5</option><option>10</option><option>20</option><option>50</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] text-[#8C94A3]">预设案例</span>
+          <select class="h-8 cursor-pointer rounded-lg border border-[#E6E9F2] bg-white px-2.5 text-[12.5px] outline-none transition hover:border-[#C7CBF7] focus:border-[#6366F1]">
+            <option>Spring Boot 性能调优学习计划</option>
+            <option>RAG 召回率优化建议</option>
+            <option>MCP 工具接入排查清单</option>
+          </select>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <span class="text-[11.5px] text-[#8C94A3]">共 4 轮对话 · 平均耗时 12.4s</span>
+          <button onclick="protoToast('已重新加载智能体列表')" class="btn-ghost flex h-8 items-center gap-1.5 px-2.5 text-[12.5px]">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4.5V10h-5.5" /></svg>
+            刷新
+          </button>
+        </div>
+      </div>
+
+      <!-- 双栏内容 -->
+      <div class="grid min-h-0 flex-1 grid-cols-1 divide-x divide-[#E6E9F2] xl:grid-cols-2">
+        <!-- 左：思考与执行过程 -->
+        <section class="flex min-h-0 flex-col">
+          <div class="flex items-center justify-between border-b border-[#F1F3F9] bg-[#FCFCFE] px-4 py-2.5">
+            <div class="flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-[#4F46E5]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3a6 6 0 0 1 3.5 10.9V17h-7v-3.1A6 6 0 0 1 12 3Z" /><path d="M10 20h4" /></svg>
+              <h2 class="text-[13px] font-medium">思考与执行过程</h2>
+              <span class="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[11px] text-[#4F46E5]">7 条</span>
+            </div>
+            <span class="text-[11.5px] text-[#8C94A3]">实时流式推送 · SSE</span>
+          </div>
+
+          <div id="processList" class="scroll flex-1 space-y-3 overflow-y-auto p-4">
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-analysis">分析阶段</span>
+                <span class="sub-tag">analysis_status</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 1 · 10:24:02</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">开始分析用户需求：请基于知识库帮我制定一份 Spring Boot 性能调优的学习计划，要求分阶段、可执行，并给出关键指标的观测方法。</p>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-analysis">分析阶段</span>
+                <span class="sub-tag">analysis_strategy</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 1 · 10:24:03</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">识别到 3 个关键诉求：① 知识库检索（rag-order 中「性能调优」相关文档）；② 分阶段计划（周维度）；③ 可落地的指标观测清单。执行策略选择 <span class="mono text-[12px] text-[#6D28D9]">flowAgentExecuteStrategy</span>。</p>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-execution">执行阶段</span>
+                <span class="sub-tag">execution_target</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 2 · 10:24:05</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">执行目标：检索知识库 <span class="mono text-[12px]">kb_spring_perf</span>，定位 JVM、连接池、SQL 与缓存四个方向的调优资料。</p>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-execution">执行阶段</span>
+                <span class="sub-tag">execution_process</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 3 · 10:24:11</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">已调用 MCP 工具 <span class="mono text-[12px]">knowledge_search</span>，命中 12 篇文档，召回率 0.87，按相关度排序后保留前 6 篇作为生成依据。</p>
+              <div class="mt-3 space-y-1.5 rounded-lg bg-[#F8F9FE] p-2.5">
+                <p class="text-[11.5px] text-[#5A6474]">· 《Spring Boot 连接池参数与压测基线》 相关度 0.94</p>
+                <p class="text-[11.5px] text-[#5A6474]">· 《JVM 内存模型与 GC 日志解读》 相关度 0.91</p>
+                <p class="text-[11.5px] text-[#5A6474]">· 《MyBatis 慢 SQL 治理清单》 相关度 0.88</p>
+              </div>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-supervision">监督阶段</span>
+                <span class="sub-tag">assessment</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 4 · 10:24:15</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">质量评分 <span class="font-medium text-[#16A34A]">92 / 100</span>，覆盖度、可执行性、指标可观测性均达标；补充建议：第 5 周加入线上灰度验证环节。</p>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-summary">总结阶段</span>
+                <span class="sub-tag">summary_overview</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 5 · 10:24:17</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">已生成 6 周学习计划（Markdown），含每周目标、实践任务、验收指标与参考资料，输出至右侧「最终结果」。</p>
+            </article>
+
+            <article class="fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5">
+              <div class="mb-2 flex items-center gap-2">
+                <span class="stage stage-summary">总结阶段</span>
+                <span class="sub-tag">evaluation</span>
+                <span class="ml-auto text-[11px] text-[#8C94A3]">步骤 5 · 10:24:18</span>
+              </div>
+              <p class="text-[13px] leading-6 text-[#3B4252]">任务执行完成，总耗时 12.4 秒，共调用模型 4 次、检索工具 1 次。</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- 右：最终结果 -->
+        <section class="flex min-h-0 flex-col bg-white">
+          <div class="flex items-center justify-between border-b border-[#F1F3F9] bg-[#FCFCFE] px-4 py-2.5">
+            <div class="flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-[#16A34A]" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 4.5h9l5 5V20H5z" /><path d="M14 4.5V10h5M8.5 14h7M8.5 17h4" /></svg>
+              <h2 class="text-[13px] font-medium">最终结果</h2>
+              <span class="rounded-full bg-[#E4F6EA] px-2 py-0.5 text-[11px] text-[#15803D]">Markdown 渲染</span>
+            </div>
+            <button onclick="protoToast('结果已复制为 Markdown 源码')" class="btn-ghost flex h-7 items-center gap-1.5 px-2.5 text-[12px]">复制全文</button>
+          </div>
+
+          <div class="scroll flex-1 overflow-y-auto px-5 py-4">
+            <h3 class="text-[19px] font-semibold tracking-tight text-[#1F2430]">Spring Boot 性能调优 · 6 周学习计划</h3>
+            <p class="mt-2 text-[13px] leading-6 text-[#5A6474]">基于知识库 6 篇高相关度文档整理，按「先度量、再定位、后优化」的顺序推进。每周预留 6–8 小时，含实验任务与验收指标。</p>
+
+            <h4 class="mt-6 flex items-center gap-2 text-[14.5px] font-semibold text-[#1F2430]">
+              <span class="brand-grad flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-medium text-white">1</span>
+              第 1–2 周：建立度量与观测基线
+            </h4>
+            <ul class="mt-3 space-y-2 text-[13px] leading-6 text-[#3B4252]">
+              <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>接入 Micrometer + Prometheus，暴露 <span class="mono text-[12px]">/actuator/prometheus</span> 端点，确认 JVM、HTTP、连接池三类指标可采集。</li>
+              <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>使用 JMeter 建立 3 组压测基线：50 / 200 / 500 并发，记录 P95、P99 与错误率。</li>
+              <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4F46E5]"></span>开启 GC 日志（<span class="mono text-[12px]">-Xlog:gc*:file=gc.log</span>），确认单次 Full GC 时长与频率。</li>
+            </ul>
+
+            <h4 class="mt-6 flex items-center gap-2 text-[14.5px] font-semibold text-[#1F2430]">
+              <span class="brand-grad flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-medium text-white">2</span>
+              第 3–4 周：连接池与 SQL 治理
+            </h4>
+            <div class="mt-3 overflow-hidden rounded-lg border border-[#E6E9F2]">
+              <table class="w-full text-[12.5px]">
+                <thead>
+                  <tr class="bg-[#FAFBFE] text-[#5A6474]">
+                    <th class="px-3 py-2 text-left font-medium">观测项</th>
+                    <th class="px-3 py-2 text-left font-medium">采集方式</th>
+                    <th class="px-3 py-2 text-left font-medium">建议阈值</th>
+                  </tr>
+                </thead>
+                <tbody class="text-[#3B4252]">
+                  <tr class="border-t border-[#F1F3F9]"><td class="px-3 py-2">连接等待时长</td><td class="px-3 py-2 mono text-[12px]">hikaricp.connections.pending</td><td class="px-3 py-2">&lt; 10 ms</td></tr>
+                  <tr class="border-t border-[#F1F3F9]"><td class="px-3 py-2">慢 SQL 数量</td><td class="px-3 py-2 mono text-[12px]">druid.sql.slow.count</td><td class="px-3 py-2">&lt; 5 条 / 分钟</td></tr>
+                  <tr class="border-t border-[#F1F3F9]"><td class="px-3 py-2">P99 响应耗时</td><td class="px-3 py-2 mono text-[12px]">http.server.requests</td><td class="px-3 py-2">&lt; 300 ms</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="mt-4 text-[13px] leading-6 text-[#3B4252]">连接池参考配置（需结合压测结果调整，不要直接照搬）：</p>
+            <div class="mt-3 overflow-hidden rounded-lg bg-[#1F2430]">
+              <div class="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
+                <span class="mono text-[11px] text-white/50">application-perf.yml</span>
+                <button onclick="protoToast('代码已复制')" class="cursor-pointer text-[11px] text-white/60 transition hover:text-white">复制</button>
+              </div>
+              <pre class="scroll overflow-x-auto px-3.5 py-3 text-[12px] leading-6 text-[#C7D2FE]"><code>spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 32        # 约 2 × CPU 核数
+      minimum-idle: 8
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1740000        # 小于数据库 wait_timeout</code></pre>
+            </div>
+
+            <h4 class="mt-6 flex items-center gap-2 text-[14.5px] font-semibold text-[#1F2430]">
+              <span class="brand-grad flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-medium text-white">3</span>
+              第 5–6 周：灰度验证与回归
+            </h4>
+            <ul class="mt-3 space-y-2 text-[13px] leading-6 text-[#3B4252]">
+              <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#7C3AED]"></span>按 5% → 30% → 100% 三档灰度放开优化后的实例，比对 P95 与错误率。</li>
+              <li class="flex gap-2"><span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#7C3AED]"></span>建立回归压测任务，纳入 CI，指标劣化超过 10% 时阻断发布。</li>
+            </ul>
+
+            <div class="mt-6 flex flex-wrap items-center gap-3 rounded-xl bg-[#F8F9FE] px-4 py-3 text-[11.5px] text-[#5A6474]">
+              <span class="flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[#16A34A]"></span>生成耗时 12.4s</span>
+              <span class="text-[#D9DEF0]">|</span>
+              <span>引用知识库文档 6 篇</span>
+              <span class="text-[#D9DEF0]">|</span>
+              <span>质量评分 92 / 100</span>
+            </div>
+          </div>
+
+          <!-- 输入区 -->
+          <div class="border-t border-[#E6E9F2] bg-white px-4 py-3">
+            <div class="rounded-xl border border-[#E6E9F2] p-2 transition focus-within:border-[#6366F1] focus-within:ring-[3px] focus-within:ring-[#6366F1]/15">
+              <textarea id="msgInput" rows="2" maxlength="1000" placeholder="请输入您的问题，例如：帮我评估当前连接池配置是否存在风险..."
+                class="scroll w-full resize-none border-0 bg-transparent text-[13px] leading-6 text-[#1F2430] outline-none placeholder:text-[#B4BAC7]"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-[11px] text-[#8C94A3]">Enter 发送 · Shift + Enter 换行</span>
+                <div class="flex items-center gap-3">
+                  <span id="counter" class="text-[11px] text-[#8C94A3]">0 / 1000</span>
+                  <button id="stopBtn" onclick="stopStream()" class="btn-ghost hidden h-8 items-center gap-1.5 px-3 text-[12.5px] text-[#E5484D] hover:border-[#F5C2C4] hover:text-[#E5484D]">
+                    <span class="h-2.5 w-2.5 rounded-sm bg-current"></span>停止
+                  </button>
+                  <button id="sendBtn" onclick="sendMessage()" class="btn-grad flex h-8 items-center gap-1.5 px-4 text-[12.5px] font-medium">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12 20 4.5 15.5 20 11.5 13.5z" /></svg>
+                    发送
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/proto.js"></script>
+  <script>
+    const input = document.getElementById('msgInput');
+    const counter = document.getElementById('counter');
+    input.addEventListener('input', () => { counter.textContent = input.value.length + ' / 1000'; });
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      const collapsed = sb.dataset.collapsed === '1';
+      sb.dataset.collapsed = collapsed ? '0' : '1';
+      sb.classList.toggle('w-0', !collapsed);
+      sb.classList.toggle('opacity-0', !collapsed);
+      sb.classList.toggle('w-60', collapsed);
+    }
+
+    function sendMessage() {
+      if (!input.value.trim()) { protoToast('请输入您的问题'); return; }
+      const btn = document.getElementById('sendBtn');
+      document.getElementById('stopBtn').classList.remove('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"></span> 执行中';
+
+      const item = document.createElement('article');
+      item.className = 'fade-up rounded-xl border border-[#EDF0F8] bg-white p-3.5';
+      item.innerHTML =
+        '<div class="mb-2 flex items-center gap-2">' +
+        '<span class="stage stage-analysis">分析阶段</span><span class="sub-tag">analysis_status</span>' +
+        '<span class="ml-auto text-[11px] text-[#8C94A3]">步骤 1 · 刚刚</span></div>' +
+        '<p class="text-[13px] leading-6 text-[#3B4252]">开始分析用户需求：' + input.value.slice(0, 60) + '</p>' +
+        '<div class="mt-3 flex items-center gap-1.5 text-[11.5px] text-[#8C94A3]">' +
+        '<span class="pulse-dot h-1.5 w-1.5 rounded-full bg-[#4F46E5]"></span>' +
+        '<span class="pulse-dot h-1.5 w-1.5 rounded-full bg-[#4F46E5]" style="animation-delay:.15s"></span>' +
+        '<span class="pulse-dot h-1.5 w-1.5 rounded-full bg-[#4F46E5]" style="animation-delay:.3s"></span>' +
+        '<span class="ml-1">正在流式接收 SSE 消息...</span></div>';
+
+      const list = document.getElementById('processList');
+      list.appendChild(item);
+      list.scrollTop = list.scrollHeight;
+      input.value = '';
+      counter.textContent = '0 / 1000';
+
+      setTimeout(() => {
+        if (document.getElementById('stopBtn').classList.contains('hidden')) return;
+        const done = item.querySelector('p');
+        done.insertAdjacentHTML('afterend',
+          '<p class="mt-2 text-[13px] leading-6 text-[#3B4252]">已检索知识库并完成评估，结果已输出到右侧「最终结果」。</p>');
+        item.querySelector('div.mt-3').remove();
+        stopStream();
+        protoToast('本次对话已完成，总耗时 9.8s');
+      }, 2600);
+    }
+
+    function stopStream() {
+      document.getElementById('stopBtn').classList.add('hidden');
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12 20 4.5 15.5 20 11.5 13.5z" /></svg>发送';
+    }
+  </script>
+</body>
+</html>

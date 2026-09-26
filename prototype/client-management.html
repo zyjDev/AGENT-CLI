@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理端 · 客户端管理（列表范式页）· 智枢 原型</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body class="overflow-hidden">
+  <div class="flex h-screen">
+
+    <!-- ================= 侧边导航 ================= -->
+    <aside class="flex w-60 shrink-0 flex-col border-r border-[#E6E9F2] bg-white">
+      <div class="flex h-14 items-center gap-2.5 border-b border-[#F1F3F9] px-4">
+        <div class="brand-grad flex h-8 w-8 items-center justify-center rounded-lg">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px" fill="none">
+            <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+            <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="12" cy="7.6" r="1.5" fill="#fff" /><circle cx="7.9" cy="15.2" r="1.5" fill="#fff" /><circle cx="16.1" cy="15.2" r="1.5" fill="#fff" />
+          </svg>
+        </div>
+        <div class="leading-tight">
+          <p class="text-[14px] font-semibold tracking-[0.06em]">智枢</p>
+          <p class="text-[10.5px] text-[#8C94A3]">管理后台</p>
+        </div>
+      </div>
+
+      <nav class="scroll flex-1 overflow-y-auto py-1">
+        <p class="side-group">对话与编排</p>
+        <div class="space-y-0.5 px-2">
+          <a href="dashboard.html" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" /></svg>
+            数据总览
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，智能体列表将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16 19v-1.6a3.4 3.4 0 0 0-3.4-3.4H6.4A3.4 3.4 0 0 0 3 17.4V19M9.5 10.6a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6M21 19v-1.6a3.4 3.4 0 0 0-2.6-3.3M16.4 4.1a3.4 3.4 0 0 1 0 6.5" /></svg>
+            智能体列表
+          </a>
+          <a href="agent-config.html" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="4.6" r="2.1" /><circle cx="5" cy="19.4" r="2.1" /><circle cx="19" cy="19.4" r="2.1" /><path d="M10.7 6.6 6.3 17.6M13.3 6.6l4.4 11M7.1 19.4h9.8" /></svg>
+            智能体编排
+          </a>
+        </div>
+
+        <p class="side-group">资源管理</p>
+        <div class="space-y-0.5 px-2">
+          <a href="client-management.html" class="side-link active">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="12" rx="2" /><path d="M8.5 20.5h7M12 16.5v4" /></svg>
+            客户端管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，客户端 API 管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 6.5 7.5 4 4 7.5 6.5 10M14 17.5 16.5 20 20 16.5 17.5 14M13.5 10.5l-3 3M9 13l-2.5 2.5M15 11l2.5-2.5" /></svg>
+            客户端 API 管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，顾问管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3 5 6.4v4.9c0 4.1 2.9 7.9 7 9.2 4.1-1.3 7-5.1 7-9.2V6.4L12 3Z" /><path d="m9.2 11.8 2 2 3.6-3.6" /></svg>
+            顾问管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，模型管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" /><path d="M10 3.5v3M14 3.5v3M10 17.5v3M14 17.5v3M3.5 10h3M3.5 14h3M17.5 10h3M17.5 14h3" /></svg>
+            模型管理
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，系统提示词管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.5 12.5a7.5 7.5 0 0 1-10.9 6.7L4.5 20.5l1.3-5A7.5 7.5 0 1 1 20.5 12.5Z" /><path d="M9 11.5h6M9 14.5h3.5" /></svg>
+            系统提示词
+          </a>
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，MCP 工具管理将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15.5 3.5a5 5 0 0 0-6.6 6.2L3.8 14.8a2 2 0 1 0 2.8 2.8l5.1-5.1a5 5 0 0 0 6.2-6.6l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6Z" /></svg>
+            MCP 工具管理
+          </a>
+        </div>
+
+        <p class="side-group">知识库</p>
+        <div class="space-y-0.5 px-2">
+          <a href="javascript:protoToast('原型仅提供 5 个核心页面，RAG 知识库配置将在正式实现中呈现')" class="side-link">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7.5" ry="3" /><path d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" /></svg>
+            RAG 知识库配置
+          </a>
+        </div>
+      </nav>
+
+      <div class="border-t border-[#F1F3F9] p-3">
+        <a href="chat.html" class="btn-ghost flex h-9 items-center justify-center gap-1.5 text-[12.5px]">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+          返回智能对话
+        </a>
+      </div>
+    </aside>
+
+    <!-- ================= 主区 ================= -->
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="flex h-14 items-center justify-between border-b border-[#E6E9F2] bg-white px-5">
+        <div class="flex items-center gap-2 text-[12.5px]">
+          <span class="text-[#8C94A3]">资源管理</span><span class="text-[#D9DEF0]">/</span>
+          <span class="font-medium text-[#1F2430]">客户端管理</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <a href="chat.html" class="btn-ghost flex h-8 items-center gap-1.5 px-3 text-[12.5px]">返回智能对话</a>
+          <span class="brand-grad flex h-8 w-8 items-center justify-center rounded-full text-[11.5px] font-medium text-white">AD</span>
+        </div>
+      </header>
+
+      <main class="scroll flex-1 overflow-y-auto bg-[#F7F8FC] p-5">
+        <!-- 查询区 -->
+        <div class="card px-5 py-4">
+          <div class="flex flex-wrap items-end gap-4">
+            <div>
+              <label class="mb-1.5 block text-[12px] text-[#8C94A3]">客户端ID</label>
+              <input type="text" placeholder="请输入客户端ID"
+                class="h-9 w-[180px] rounded-lg border border-[#E6E9F2] bg-white px-3 text-[12.5px] outline-none transition placeholder:text-[#B4BAC7] focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-[12px] text-[#8C94A3]">客户端名称</label>
+              <input type="text" placeholder="支持模糊匹配"
+                class="h-9 w-[220px] rounded-lg border border-[#E6E9F2] bg-white px-3 text-[12.5px] outline-none transition placeholder:text-[#B4BAC7] focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-[12px] text-[#8C94A3]">状态</label>
+              <select class="h-9 w-[140px] cursor-pointer rounded-lg border border-[#E6E9F2] bg-white px-2.5 text-[12.5px] outline-none transition hover:border-[#C7CBF7] focus:border-[#6366F1]">
+                <option>全部</option><option>启用</option><option>停用</option><option>待配置</option>
+              </select>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="protoToast('已按条件查询，命中 8 条记录')" class="btn-grad h-9 px-4 text-[12.5px] font-medium">查询</button>
+              <button onclick="protoToast('查询条件已重置')" class="btn-ghost h-9 px-4 text-[12.5px]">重置</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作与表格 -->
+        <div class="card mt-4">
+          <div class="flex items-center justify-between border-b border-[#F1F3F9] px-5 py-3.5">
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-[14px] font-medium">客户端列表</h2>
+              <span class="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[11px] text-[#4F46E5]">共 8 条</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openMask('editModal')" class="btn-grad flex h-8 items-center gap-1.5 px-3.5 text-[12.5px] font-medium">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                新增客户端
+              </button>
+              <button onclick="protoToast('已刷新列表数据')" class="btn-ghost h-8 px-3 text-[12.5px]">刷新</button>
+              <button onclick="openMask('delModal')" class="btn-ghost h-8 px-3 text-[12.5px] text-[#E5484D] hover:border-[#F5C2C4] hover:text-[#E5484D]">批量删除</button>
+            </div>
+          </div>
+
+          <div class="scroll max-h-[calc(100vh-330px)] overflow-auto">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th class="w-10"><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></th>
+                  <th class="w-[92px]">客户端ID</th>
+                  <th class="w-[190px]">客户端名称</th>
+                  <th>描述</th>
+                  <th class="w-[92px]">状态</th>
+                  <th class="w-[150px]">创建时间</th>
+                  <th class="w-[92px]">创建人</th>
+                  <th class="w-[132px] text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1001</td>
+                  <td class="font-medium">DeepSeek-V3 客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">对接 DeepSeek 官方 API，支持流式对话与工具调用</td>
+                  <td><span class="stage stage-summary">启用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-08-12 14:22</td>
+                  <td class="text-[12.5px] text-[#5A6474]">admin</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1002</td>
+                  <td class="font-medium">GPT-4o 客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">OpenAI 多模态对话，用于顾问角色与复杂推理场景</td>
+                  <td><span class="stage stage-summary">启用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-08-14 09:41</td>
+                  <td class="text-[12.5px] text-[#5A6474]">admin</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1003</td>
+                  <td class="font-medium">Qwen-Max 客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">通义千问长文本场景，上下文窗口 32K</td>
+                  <td><span class="stage stage-summary">启用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-08-19 16:03</td>
+                  <td class="text-[12.5px] text-[#5A6474]">zhangwei</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1004</td>
+                  <td class="font-medium">GLM-4-Plus 客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">智谱开放平台，用于内部知识问答与代码补全</td>
+                  <td><span class="stage stage-error">停用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-08-21 11:27</td>
+                  <td class="text-[12.5px] text-[#5A6474]">zhangwei</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1005</td>
+                  <td class="font-medium">Ollama 本地客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">本地部署 qwen2.5:14b，用于离线推理与压测验证</td>
+                  <td><span class="stage stage-summary">启用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-09-02 10:15</td>
+                  <td class="text-[12.5px] text-[#5A6474]">admin</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1006</td>
+                  <td class="font-medium">Dify 工作流客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">对接 Dify 工作流引擎，用于多步任务编排</td>
+                  <td><span class="stage stage-supervision">待配置</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-09-08 15:52</td>
+                  <td class="text-[12.5px] text-[#5A6474]">lisi</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1007</td>
+                  <td class="font-medium">向量检索客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">对接 Elasticsearch 向量索引，供 RAG 召回使用</td>
+                  <td><span class="stage stage-summary">启用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-09-11 08:36</td>
+                  <td class="text-[12.5px] text-[#5A6474]">admin</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="h-3.5 w-3.5 cursor-pointer accent-[#4F46E5]" /></td>
+                  <td class="mono text-[12.5px] text-[#5A6474]">1008</td>
+                  <td class="font-medium">阿里云百炼客户端</td>
+                  <td class="text-[12.5px] text-[#5A6474]">百炼平台应用调用，用于线上灰度验证</td>
+                  <td><span class="stage stage-error">停用</span></td>
+                  <td class="mono text-[12px] text-[#8C94A3]">2026-09-18 17:09</td>
+                  <td class="text-[12.5px] text-[#5A6474]">lisi</td>
+                  <td class="text-right">
+                    <button onclick="openMask('editModal')" class="text-[12.5px] text-[#4F46E5] hover:underline">编辑</button>
+                    <span class="mx-1.5 text-[#E6E9F2]">|</span>
+                    <button onclick="openMask('delModal')" class="text-[12.5px] text-[#E5484D] hover:underline">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-[#F1F3F9] px-5 py-3">
+            <span class="text-[12px] text-[#8C94A3]">已选 0 项 · 共 8 条记录</span>
+            <div class="flex items-center gap-1.5 text-[12.5px]">
+              <button class="btn-ghost h-7 w-7 cursor-not-allowed text-[#C4CAD8]" disabled>‹</button>
+              <button class="brand-grad h-7 w-7 rounded-md text-[12.5px] font-medium text-white">1</button>
+              <button onclick="protoToast('原型演示：共 1 页数据')" class="btn-ghost h-7 w-7">2</button>
+              <button onclick="protoToast('原型演示：共 1 页数据')" class="btn-ghost h-7 w-7">›</button>
+              <select class="btn-ghost ml-2 h-7 cursor-pointer px-2 text-[12px]"><option>10 条/页</option><option>20 条/页</option><option>50 条/页</option></select>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= 新增 / 编辑弹窗 ================= -->
+  <div id="editModal" class="mask">
+    <div class="modal absolute left-1/2 top-1/2 w-[560px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl bg-white shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#F1F3F9] px-5 py-3.5">
+        <h3 class="text-[14.5px] font-medium">新增客户端</h3>
+        <button onclick="closeMask('editModal')" class="cursor-pointer text-[#8C94A3] transition hover:text-[#1F2430]">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <div class="scroll max-h-[62vh] space-y-4 overflow-y-auto px-5 py-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1.5 block text-[12.5px] text-[#5A6474]"><span class="text-[#E5484D]">*</span> 客户端名称</label>
+            <input type="text" value="DeepSeek-V3 客户端" class="h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12.5px] outline-none focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-[12.5px] text-[#5A6474]">状态</label>
+            <select class="h-9 w-full cursor-pointer rounded-lg border border-[#E6E9F2] px-2.5 text-[12.5px] outline-none focus:border-[#6366F1]"><option>启用</option><option>停用</option><option>待配置</option></select>
+          </div>
+        </div>
+        <div>
+          <label class="mb-1.5 block text-[12.5px] text-[#5A6474]">描述</label>
+          <textarea rows="3" class="scroll w-full resize-none rounded-lg border border-[#E6E9F2] px-3 py-2 text-[12.5px] leading-6 outline-none focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20">对接 DeepSeek 官方 API，支持流式对话与工具调用</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1.5 block text-[12.5px] text-[#5A6474]">API 地址（baseUrl）</label>
+            <input type="text" value="https://api.deepseek.com" class="h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12.5px] outline-none focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-[12.5px] text-[#5A6474]">API Key</label>
+            <input type="password" value="sk-2f9c1b7e4a5d" class="h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12.5px] outline-none focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+          </div>
+        </div>
+        <div class="rounded-lg bg-[#F8F9FE] px-3.5 py-2.5 text-[11.5px] leading-5 text-[#8C94A3]">
+          保存后需在「智能体编排」中将该客户端引用到节点，并点击「装配」使其生效。
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 border-t border-[#F1F3F9] px-5 py-3.5">
+        <button onclick="closeMask('editModal')" class="btn-ghost h-8 px-4 text-[12.5px]">取消</button>
+        <button onclick="closeMask('editModal'); protoToast('客户端已保存')" class="btn-grad h-8 px-4 text-[12.5px] font-medium">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 删除确认弹窗 ================= -->
+  <div id="delModal" class="mask">
+    <div class="modal absolute left-1/2 top-1/2 w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-5 shadow-2xl">
+      <div class="flex items-start gap-3">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FDE8E9] text-[#E5484D]">
+          <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" style="width:18px;height:18px" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 4.5 21 19.5H3L12 4.5Z" /><path d="M12 10v4M12 17h.01" /></svg>
+        </span>
+        <div>
+          <h3 class="text-[14.5px] font-medium">确认删除该客户端？</h3>
+          <p class="mt-1.5 text-[12.5px] leading-6 text-[#5A6474]">删除后，已引用该客户端的编排节点将无法装配，且操作不可恢复。</p>
+        </div>
+      </div>
+      <div class="mt-5 flex items-center justify-end gap-2">
+        <button onclick="closeMask('delModal')" class="btn-ghost h-8 px-4 text-[12.5px]">取消</button>
+        <button onclick="closeMask('delModal'); protoToast('客户端已删除')" class="h-8 rounded-lg bg-[#E5484D] px-4 text-[12.5px] font-medium text-white transition hover:bg-[#cf3b40]">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <a href="index.html" class="proto-nav brand-grad" title="返回原型目录">
+    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+    原型：列表范式页（客户端管理）
+  </a>
+
+  <script src="assets/proto.js"></script>
+</body>
+</html>

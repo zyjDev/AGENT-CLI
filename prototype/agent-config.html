@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理端 · 智能体编排（LogicFlow 画布）· 智枢 原型</title>
+  <script src="assets/tailwind-3.4.17.js"></script>
+  <link rel="stylesheet" href="assets/proto.css" />
+</head>
+<body class="overflow-hidden">
+  <div class="flex h-screen flex-col">
+
+    <!-- ================= 顶部工具栏 ================= -->
+    <header class="flex h-12 shrink-0 items-center gap-2 border-b border-[#E6E9F2] bg-white px-4">
+      <a href="dashboard.html" class="flex h-7 items-center gap-1.5 rounded-md px-2 text-[12.5px] text-[#5A6474] transition hover:bg-[#F2F4FB] hover:text-[#4F46E5]">
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+        返回
+      </a>
+      <span class="h-4 w-px bg-[#E6E9F2]"></span>
+      <span class="text-[13px] font-medium">Auto Agent 自动智能对话体</span>
+      <span class="mono rounded-md bg-[#F2F4FB] px-1.5 py-0.5 text-[11px] text-[#5A6474]">configId: auto_agent_v3</span>
+      <span class="stage stage-summary">已启用</span>
+      <span class="text-[11.5px] text-[#8C94A3]">版本 v13 · 最后保存 09-26 09:47</span>
+
+      <span class="mx-1 h-4 w-px bg-[#E6E9F2]"></span>
+      <button onclick="protoToast('已撤销上一步操作')" title="撤销" class="flex h-7 w-7 items-center justify-center rounded-md text-[#5A6474] transition hover:bg-[#F2F4FB] hover:text-[#4F46E5]">
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10a5 5 0 0 1 0 10H9M4 8l4-4M4 8l4 4" /></svg>
+      </button>
+      <button onclick="protoToast('已重做上一步操作')" title="重做" class="flex h-7 w-7 items-center justify-center rounded-md text-[#5A6474] transition hover:bg-[#F2F4FB] hover:text-[#4F46E5]">
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 8H10a5 5 0 0 0 0 10h5M20 8l-4-4M20 8l-4 4" /></svg>
+      </button>
+
+      <span class="mx-1 h-4 w-px bg-[#E6E9F2]"></span>
+      <div class="flex items-center gap-1 rounded-md border border-[#E6E9F2] px-1">
+        <button onclick="protoToast('已缩小至 75%')" class="flex h-6 w-6 items-center justify-center rounded text-[#5A6474] transition hover:bg-[#F2F4FB]">−</button>
+        <span class="mono w-[42px] text-center text-[11.5px] text-[#5A6474]">85%</span>
+        <button onclick="protoToast('已放大至 95%')" class="flex h-6 w-6 items-center justify-center rounded text-[#5A6474] transition hover:bg-[#F2F4FB]">+</button>
+      </div>
+      <button onclick="protoToast('画布已适应窗口')" class="btn-ghost h-7 px-2.5 text-[12px]">适应画布</button>
+      <button onclick="toggleBtn(this); document.getElementById('minimap').classList.toggle('hidden')" class="btn-ghost h-7 px-2.5 text-[12px] !bg-[#EEF0FE] !text-[#4F46E5] !border-[#C7CBF7]">小地图</button>
+      <button onclick="toggleBtn(this); document.getElementById('canvas').classList.toggle('is-readonly')" class="btn-ghost h-7 px-2.5 text-[12px]">只读</button>
+
+      <div class="ml-auto flex items-center gap-2">
+        <button onclick="protoToast('画布已保存 · 版本 v14，已同步为后端兼容 JSON')" class="btn-ghost flex h-8 items-center gap-1.5 px-3.5 text-[12.5px]">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h11L19.5 8v11.5h-15z" /><path d="M8.5 4.5v5h6v-5M8.5 19.5v-5h7v5" /></svg>
+          保存
+        </button>
+        <button onclick="protoToast('已触发装配：POST /api/v1/agent/armory_agent {agentId:3}')" class="btn-grad flex h-8 items-center gap-1.5 px-3.5 text-[12.5px] font-medium">
+          <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor"><path d="M7 4.5 19 12 7 19.5z" /></svg>
+          运行 / 装配
+        </button>
+      </div>
+    </header>
+
+    <div class="flex min-h-0 flex-1">
+
+      <!-- ================= 左侧节点面板 ================= -->
+      <aside class="scroll flex w-[228px] shrink-0 flex-col overflow-y-auto border-r border-[#E6E9F2] bg-white p-3">
+        <p class="mb-2 px-1 text-[11px] tracking-wider text-[#8C94A3]">拖拽节点到画布</p>
+
+        <p class="mt-2 mb-1.5 px-1 text-[11.5px] font-medium text-[#5A6474]">基础</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="addNode('开始节点','start','#16A34A')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#16A34A]"></span>开始</button>
+          <button onclick="addNode('结束节点','end','#E5484D')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#E5484D]"></span>结束</button>
+          <button onclick="addNode('注释节点','comment','#8C94A3')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#8C94A3]"></span>注释</button>
+          <button onclick="addNode('任务节点','task','#2563EB')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#2563EB]"></span>任务</button>
+        </div>
+
+        <p class="mt-3 mb-1.5 px-1 text-[11.5px] font-medium text-[#5A6474]">智能</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="addNode('智能体节点','agent','#4F46E5')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#4F46E5]"></span>智能体</button>
+          <button onclick="addNode('大模型节点','llm','#7C3AED')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#7C3AED]"></span>大模型</button>
+        </div>
+
+        <p class="mt-3 mb-1.5 px-1 text-[11.5px] font-medium text-[#5A6474]">资源引用</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="addNode('客户端节点','client','#0EA5E9')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#0EA5E9]"></span>客户端</button>
+          <button onclick="addNode('顾问节点','advisor','#F59E0B')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#F59E0B]"></span>顾问</button>
+          <button onclick="addNode('模型节点','model','#6366F1')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#6366F1]"></span>模型</button>
+          <button onclick="addNode('提示词节点','prompt','#14B8A6')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#14B8A6]"></span>提示词</button>
+          <button onclick="addNode('MCP 工具节点','tool_mcp','#DB2777')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#DB2777]"></span>MCP 工具</button>
+          <button onclick="addNode('循环节点','loop','#0891B2')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#0891B2]"></span>循环</button>
+        </div>
+
+        <p class="mt-3 mb-1.5 px-1 text-[11.5px] font-medium text-[#5A6474]">流程控制</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="addNode('条件节点','condition','#8B5CF6')" class="flex cursor-grab items-center gap-1.5 rounded-lg border border-[#E6E9F2] px-2 py-1.5 text-[12px] transition hover:border-[#C7CBF7] hover:bg-[#F8F9FE]"><span class="h-2.5 w-2.5 rounded-sm bg-[#8B5CF6]"></span>条件</button>
+        </div>
+
+        <div class="mt-4 rounded-lg bg-[#F8F9FE] px-3 py-2.5 text-[11px] leading-5 text-[#8C94A3]">
+          快捷键：<span class="mono">Ctrl+Z</span> 撤销 · <span class="mono">Ctrl+C/V</span> 复制 · <span class="mono">Delete</span> 删除 · 滚轮缩放 · 空格拖拽平移
+        </div>
+      </aside>
+
+      <!-- ================= 中间画布 ================= -->
+      <section id="canvas" class="dot-bg scroll relative min-w-0 flex-1 overflow-auto">
+        <div class="relative" style="width:880px;height:580px">
+          <svg viewBox="0 0 880 580" class="absolute inset-0" style="width:880px;height:580px">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#A5B4FC" />
+              </marker>
+            </defs>
+            <path d="M200 285 C 220 285 220 265 240 265" fill="none" stroke="#A5B4FC" stroke-width="2" marker-end="url(#arrow)" />
+            <path d="M420 265 C 440 265 440 165 460 165" fill="none" stroke="#A5B4FC" stroke-width="2" marker-end="url(#arrow)" />
+            <path d="M640 165 C 660 165 660 285 680 285" fill="none" stroke="#A5B4FC" stroke-width="2" marker-end="url(#arrow)" />
+            <path d="M640 385 C 660 385 660 285 680 285" fill="none" stroke="#A5B4FC" stroke-width="2" marker-end="url(#arrow)" />
+            <circle cx="200" cy="285" r="3.4" fill="#fff" stroke="#A5B4FC" stroke-width="2" />
+            <circle cx="420" cy="265" r="3.4" fill="#fff" stroke="#A5B4FC" stroke-width="2" />
+            <circle cx="640" cy="165" r="3.4" fill="#fff" stroke="#A5B4FC" stroke-width="2" />
+            <circle cx="640" cy="385" r="3.4" fill="#fff" stroke="#A5B4FC" stroke-width="2" />
+            <text x="208" y="307" fill="#8C94A3" font-size="10">output</text>
+            <text x="648" y="238" fill="#8C94A3" font-size="10">default</text>
+          </svg>
+
+          <!-- 开始 -->
+          <div onclick="selectNode(this,'开始','Start','start_0 · 流程入口')" class="node-card absolute w-[180px] px-3 py-2.5" style="left:20px;top:250px">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-md bg-[#E4F6EA] text-[#16A34A]">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor"><path d="M7 4.5 19 12 7 19.5z" /></svg>
+              </span>
+              <div class="min-w-0"><p class="truncate text-[12.5px] font-medium">Start</p><p class="text-[10.5px] text-[#8C94A3]">流程入口</p></div>
+            </div>
+            <p class="mono mt-2 text-[10px] text-[#8C94A3]">start_0</p>
+            <span class="port absolute -right-[5px] top-1/2 -translate-y-1/2"></span>
+          </div>
+
+          <!-- 智能体（选中） -->
+          <div onclick="selectNode(this,'智能体','Agent_1','agent_QyqMj · Auto Agent 自动智能对话体')" class="node-card is-active absolute w-[180px] px-3 py-2.5" style="left:240px;top:230px">
+            <div class="flex items-center gap-2">
+              <span class="brand-grad flex h-6 w-6 items-center justify-center rounded-md text-white">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2.2" /><circle cx="6" cy="18.5" r="2.2" /><circle cx="18" cy="18.5" r="2.2" /><path d="M10.8 6.8 7 16.6M13.2 6.8 17 16.6M8.2 18.5h7.6" /></svg>
+              </span>
+              <div class="min-w-0"><p class="truncate text-[12.5px] font-medium">Agent_1</p><p class="truncate text-[10.5px] text-[#8C94A3]">Auto Agent 自动智能对话体</p></div>
+            </div>
+            <div class="mt-2 flex min-w-0 items-center gap-1">
+              <span class="mono shrink-0 rounded bg-[#F2F4FB] px-1 py-0.5 text-[9.5px] text-[#5A6474]">agent</span>
+              <span class="mono min-w-0 flex-1 truncate rounded bg-[#EEF0FE] px-1 py-0.5 text-[9.5px] text-[#4F46E5]">flowAgentExecuteStrategy</span>
+            </div>
+            <span class="port absolute -left-[5px] top-1/2 -translate-y-1/2"></span>
+            <span class="port absolute -right-[5px] top-1/2 -translate-y-1/2"></span>
+          </div>
+
+          <!-- 模型 -->
+          <div onclick="selectNode(this,'模型','Model_1','model_Kx91a · deepseek-v3')" class="node-card absolute w-[180px] px-3 py-2.5" style="left:460px;top:130px">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-md bg-[#EEF0FE] text-[#6366F1]">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="7" y="7" width="10" height="10" rx="2" /><path d="M10 4v3M14 4v3M10 17v3M14 17v3M4 10h3M4 14h3M17 10h3M17 14h3" /></svg>
+              </span>
+              <div class="min-w-0"><p class="truncate text-[12.5px] font-medium">Model_1</p><p class="truncate text-[10.5px] text-[#8C94A3]">deepseek-v3 · 温度 0.7</p></div>
+            </div>
+            <p class="mono mt-2 text-[10px] text-[#8C94A3]">model_Kx91a</p>
+            <span class="port absolute -left-[5px] top-1/2 -translate-y-1/2"></span>
+            <span class="port absolute -right-[5px] top-1/2 -translate-y-1/2"></span>
+          </div>
+
+          <!-- 条件 -->
+          <div onclick="selectNode(this,'条件','Condition_1','condition_P3m7 · result 非空时放行')" class="node-card absolute w-[180px] px-3 py-2.5" style="left:460px;top:350px">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-md bg-[#F1E8FD] text-[#8B5CF6]">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3.5 20.5 12 12 20.5 3.5 12z" /><path d="M9.5 10.5 12 13l3-3.5" /></svg>
+              </span>
+              <div class="min-w-0"><p class="truncate text-[12.5px] font-medium">Condition_1</p><p class="truncate text-[10.5px] text-[#8C94A3]">result 非空时放行</p></div>
+            </div>
+            <p class="mono mt-2 text-[10px] text-[#8C94A3]">condition_P3m7</p>
+            <span class="port absolute -left-[5px] top-1/2 -translate-y-1/2"></span>
+            <span class="port absolute -right-[5px] top-1/2 -translate-y-1/2"></span>
+          </div>
+
+          <!-- 结束 -->
+          <div onclick="selectNode(this,'结束','End','end_0 · 输出 summary')" class="node-card absolute w-[180px] px-3 py-2.5" style="left:680px;top:250px">
+            <div class="flex items-center gap-2">
+              <span class="flex h-6 w-6 items-center justify-center rounded-md bg-[#FDE8E9] text-[#E5484D]">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2" /><path d="M9.5 9.5h5v5h-5z" /></svg>
+              </span>
+              <div class="min-w-0"><p class="truncate text-[12.5px] font-medium">End</p><p class="truncate text-[10.5px] text-[#8C94A3]">输出 summary</p></div>
+            </div>
+            <p class="mono mt-2 text-[10px] text-[#8C94A3]">end_0</p>
+            <span class="port absolute -left-[5px] top-1/2 -translate-y-1/2"></span>
+          </div>
+        </div>
+
+        <!-- 小地图 -->
+        <div id="minimap" class="minimap absolute bottom-4 left-4 h-[104px] w-[168px] p-1.5">
+          <div class="relative h-full w-full rounded bg-[#FBFCFE]">
+            <span class="brand-grad absolute rounded-sm" style="left:3px;top:38px;width:32px;height:12px"></span>
+            <span class="absolute rounded-sm bg-[#C7CBF7]" style="left:44px;top:32px;width:32px;height:12px"></span>
+            <span class="absolute rounded-sm bg-[#C7CBF7]" style="left:85px;top:8px;width:32px;height:12px"></span>
+            <span class="absolute rounded-sm bg-[#C7CBF7]" style="left:85px;top:68px;width:32px;height:12px"></span>
+            <span class="absolute rounded-sm bg-[#C7CBF7]" style="left:122px;top:38px;width:32px;height:12px"></span>
+            <span class="absolute border border-[#4F46E5]/60" style="left:2px;top:4px;width:152px;height:84px"></span>
+          </div>
+        </div>
+
+        <div class="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-[#E6E9F2] bg-white/90 px-3 py-1.5 text-[11px] text-[#5A6474] backdrop-blur">
+          <span class="mono">5 节点 · 4 连线</span>
+          <span class="text-[#D9DEF0]">|</span>
+          <span>点击节点编辑属性</span>
+        </div>
+      </section>
+
+      <!-- ================= 右侧属性抽屉 ================= -->
+      <aside id="drawer" class="flex w-[320px] shrink-0 flex-col border-l border-[#E6E9F2] bg-white transition-transform duration-300">
+        <div class="flex items-center justify-between border-b border-[#F1F3F9] px-4 py-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-[13.5px] font-medium">节点属性</h2>
+            <span id="drawerType" class="stage stage-execution">智能体</span>
+          </div>
+          <button onclick="protoToast('右侧属性面板已收起')" class="cursor-pointer text-[#8C94A3] transition hover:text-[#1F2430]">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+        </div>
+
+        <div class="scroll flex-1 space-y-3.5 overflow-y-auto px-4 py-4">
+          <div>
+            <label class="mb-1.5 block text-[12px] text-[#5A6474]">节点名称 <span class="text-[#E5484D]">*</span></label>
+            <input id="drawerTitle" type="text" value="Agent_1" class="h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12.5px] outline-none transition focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+            <p id="drawerSub" class="mono mt-1.5 text-[10.5px] text-[#8C94A3]">agent_QyqMj · Auto Agent 自动智能对话体</p>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-[12px] text-[#5A6474]">智能体引用</label>
+            <select class="h-9 w-full cursor-pointer rounded-lg border border-[#E6E9F2] px-2.5 text-[12.5px] outline-none transition hover:border-[#C7CBF7] focus:border-[#6366F1]">
+              <option>Auto Agent 自动智能对话体（agentId=3）</option>
+              <option>RAG 知识问答智能体（agentId=2）</option>
+              <option>流程编排智能体（agentId=1）</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-[12px] text-[#5A6474]">描述</label>
+            <input type="text" value="负责分析需求、调度工具并汇总结果" class="h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12.5px] outline-none transition focus:border-[#6366F1] focus:ring-[3px] focus:ring-[#6366F1]/20" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="mb-1.5 block text-[12px] text-[#5A6474]">渠道 channel</label>
+              <input type="text" value="agent" class="mono h-9 w-full rounded-lg border border-[#E6E9F2] px-3 text-[12px] outline-none transition focus:border-[#6366F1]" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-[12px] text-[#5A6474]">最大步数</label>
+              <select class="h-9 w-full cursor-pointer rounded-lg border border-[#E6E9F2] px-2.5 text-[12.5px] outline-none focus:border-[#6366F1]"><option>3</option><option selected>5</option><option>10</option><option>20</option></select>
+            </div>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-[12px] text-[#5A6474]">执行策略 strategy</label>
+            <select class="mono h-9 w-full cursor-pointer rounded-lg border border-[#E6E9F2] px-2.5 text-[12px] outline-none focus:border-[#6366F1]">
+              <option>flowAgentExecuteStrategy</option><option>simpleAgentExecuteStrategy</option><option>loopAgentExecuteStrategy</option>
+            </select>
+          </div>
+
+          <div class="overflow-hidden rounded-lg border border-[#E6E9F2]">
+            <button onclick="toggleBtn(this); document.getElementById('inputGroup').classList.toggle('hidden')" class="flex w-full cursor-pointer items-center justify-between bg-[#FAFBFE] px-3 py-2 text-[12px] text-[#5A6474]">
+              <span>输入 inputsValues</span><span>−</span>
+            </button>
+            <div id="inputGroup" class="space-y-2 border-t border-[#F1F3F9] p-3">
+              <div class="flex items-center gap-2">
+                <input type="text" value="agentName" readonly class="mono h-8 w-[104px] rounded-md border border-[#E6E9F2] bg-[#F8F9FE] px-2 text-[11px] text-[#5A6474] outline-none" />
+                <input type="text" value="[{ key: 'agentName', value: 'Auto Agent 自动智能对话体' }]" class="mono h-8 flex-1 rounded-md border border-[#E6E9F2] px-2 text-[11px] outline-none focus:border-[#6366F1]" />
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" value="description" readonly class="mono h-8 w-[104px] rounded-md border border-[#E6E9F2] bg-[#F8F9FE] px-2 text-[11px] text-[#5A6474] outline-none" />
+                <input type="text" value="智能体描述" class="mono h-8 flex-1 rounded-md border border-[#E6E9F2] px-2 text-[11px] outline-none focus:border-[#6366F1]" />
+              </div>
+              <button onclick="protoToast('已新增一行输入映射')" class="w-full rounded-md border border-dashed border-[#D9DEF0] py-1.5 text-[11.5px] text-[#8C94A3] transition hover:border-[#A5B4FC] hover:text-[#4F46E5]">+ 添加输入映射</button>
+            </div>
+          </div>
+
+          <div class="overflow-hidden rounded-lg border border-[#E6E9F2]">
+            <button onclick="toggleBtn(this); document.getElementById('outputGroup').classList.toggle('hidden')" class="flex w-full cursor-pointer items-center justify-between bg-[#FAFBFE] px-3 py-2 text-[12px] text-[#5A6474]">
+              <span>输出 outputs</span><span>−</span>
+            </button>
+            <div id="outputGroup" class="border-t border-[#F1F3F9] p-3">
+              <div class="flex items-center gap-2 text-[11.5px]">
+                <span class="mono rounded bg-[#E4F6EA] px-1.5 py-0.5 text-[#15803D]">result</span>
+                <span class="text-[#8C94A3]">→</span>
+                <span class="mono text-[#5A6474]">string</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-lg bg-[#F8F9FE] px-3 py-2.5 text-[11px] leading-5 text-[#8C94A3]">
+            保存时序列化为后端可解析的 JSON：<span class="mono">nodes[].{'{'}id,type,data.inputsValues{'}'}</span> 与 <span class="mono">edges[].{'{'}sourceNodeID,targetNodeID{'}'}</span>。
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 border-t border-[#F1F3F9] px-4 py-3">
+          <button onclick="protoToast('已删除节点 Agent_1（原型演示）')" class="btn-ghost h-8 px-3 text-[12.5px] text-[#E5484D] hover:border-[#F5C2C4] hover:text-[#E5484D]">删除节点</button>
+          <button onclick="protoToast('已重置为上次保存的属性')" class="btn-ghost ml-auto h-8 px-3.5 text-[12.5px]">重置</button>
+          <button onclick="protoToast('节点属性已应用')" class="btn-grad h-8 px-4 text-[12.5px] font-medium">应用</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <a href="index.html" class="proto-nav brand-grad" title="返回原型目录">
+    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+    原型：智能体编排画布
+  </a>
+
+  <script src="assets/proto.js"></script>
+  <script>
+    let counter = 0;
+
+    function addNode(title, type, color) {
+      const wrap = document.querySelector('#canvas .relative');
+      const el = document.createElement('div');
+      el.className = 'node-card absolute w-[180px] px-3 py-2.5';
+      el.style.left = (120 + (counter % 4) * 200) + 'px';
+      el.style.top = (430 + Math.floor(counter / 4) * 90) + 'px';
+      el.setAttribute('onclick', "selectNode(this,'" + type + "','" + title + "','新增节点 · 待配置')");
+      el.innerHTML =
+        '<div class="flex items-center gap-2">' +
+        '<span class="flex h-6 w-6 items-center justify-center rounded-md" style="background:' + color + '20;color:' + color + '">' +
+        '<svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>' +
+        '<div class="min-w-0"><p class="truncate text-[12.5px] font-medium">' + title + '</p>' +
+        '<p class="truncate text-[10.5px] text-[#8C94A3]">' + type + ' · 待配置</p></div></div>' +
+        '<span class="port absolute -left-[5px] top-1/2 -translate-y-1/2"></span>' +
+        '<span class="port absolute -right-[5px] top-1/2 -translate-y-1/2"></span>';
+      wrap.appendChild(el);
+      counter += 1;
+      selectNode(el, type, title, '新增节点 · 待配置');
+      protoToast('已添加「' + title + '」节点，请在右侧配置属性');
+    }
+  </script>
+</body>
+</html>

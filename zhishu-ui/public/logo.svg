@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="zhishu-brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="url(#zhishu-brand)" />
+  <g transform="translate(4 4)" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="12,2.6 20.1,7.3 20.1,16.7 12,21.4 3.9,16.7 3.9,7.3" />
+    <path d="M12 7.6 7.9 15.2M12 7.6l4.1 7.6M7.9 15.2h8.2" />
+  </g>
+  <g transform="translate(4 4)" fill="#ffffff">
+    <circle cx="12" cy="7.6" r="1.5" />
+    <circle cx="7.9" cy="15.2" r="1.5" />
+    <circle cx="16.1" cy="15.2" r="1.5" />
+  </g>
+</svg>
