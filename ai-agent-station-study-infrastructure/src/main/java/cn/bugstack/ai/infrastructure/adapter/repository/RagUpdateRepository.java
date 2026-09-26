@@ -258,6 +258,7 @@ public class RagUpdateRepository implements IRagUpdateRepository {
                 .ragId(order.getRagId())
                 .ragName(order.getRagName())
                 .knowledgeTag(order.getKnowledgeTag())
+                .ownerId(order.getOwnerId())
                 .status(order.getStatus())
                 .version(order.getVersion())
                 .fileHash(order.getFileHash())

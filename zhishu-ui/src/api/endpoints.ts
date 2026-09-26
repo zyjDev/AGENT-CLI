@@ -54,6 +54,8 @@ export const ENDPOINTS = {
   ADMIN_USER: {
     LOGIN: `${ADMIN_BASE.ADMIN_USER}/login`,
     VALIDATE_LOGIN: `${ADMIN_BASE.ADMIN_USER}/validate-login`,
+    /** 自助注册：注册成功直接返回 token（无需再登录） */
+    REGISTER: `${ADMIN_BASE.ADMIN_USER}/register`,
   },
 
   /** 智能体编排配置（画布） */

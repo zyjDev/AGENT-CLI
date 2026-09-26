@@ -51,6 +51,11 @@ public class AiRagUpdateTask {
     private String status;
 
     /**
+     * 归属用户ID；为空表示公共资源（人人可用），非空表示该用户私有
+     */
+    private String ownerId;
+
+    /**
      * 进度(0-100)
      */
     private Integer progress;

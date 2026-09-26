@@ -99,7 +99,7 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
                     .callable(() -> chatClient
                             .prompt(summaryPrompt)
                             .advisors(a -> {
-                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId() + "-summary")
+                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId() + "-summary")
                                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 50);
                                 if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                     a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());

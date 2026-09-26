@@ -66,6 +66,11 @@ public class AiAgentDrawConfig {
     private Integer status;
 
     /**
+     * 归属用户ID；为空表示公共资源（人人可用），非空表示该用户私有
+     */
+    private String ownerId;
+
+    /**
      * 创建人
      */
     private String createBy;

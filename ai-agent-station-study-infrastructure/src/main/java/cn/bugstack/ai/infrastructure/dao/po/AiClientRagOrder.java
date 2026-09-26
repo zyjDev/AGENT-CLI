@@ -51,6 +51,11 @@ public class AiClientRagOrder {
     private Integer status;
 
     /**
+     * 归属用户ID；为空表示公共资源（人人可用，如课程演示知识库），非空表示该用户私有知识库
+     */
+    private String ownerId;
+
+    /**
      * 版本号
      */
     private Integer version;

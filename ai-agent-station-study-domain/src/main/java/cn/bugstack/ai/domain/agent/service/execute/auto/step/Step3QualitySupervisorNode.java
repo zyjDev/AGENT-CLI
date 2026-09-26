@@ -65,7 +65,7 @@ public class Step3QualitySupervisorNode extends AbstractExecuteSupport {
                 .callable(() -> chatClient
                         .prompt(supervisionPrompt)
                         .advisors(a -> {
-                            a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId())
+                            a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId())
                                     .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 1024);
                             if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                 a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());

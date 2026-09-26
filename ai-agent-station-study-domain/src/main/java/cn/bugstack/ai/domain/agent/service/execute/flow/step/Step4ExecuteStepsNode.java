@@ -58,7 +58,9 @@ public class Step4ExecuteStepsNode extends AbstractExecuteSupport {
             }
             
             // 按顺序执行规划步骤
-            executeStepsInOrder(executorChatClient, stepsMap, dynamicContext, request.getSessionId());
+            // 传「按用户分区的会话键」而不是裸 sessionId：记忆顾问按它读写上下文，
+            // 否则不同账号的 sessionId 撞上就会串记忆（该值同时作为 NodeGuard 事件的 sessionId 上报）
+            executeStepsInOrder(executorChatClient, stepsMap, dynamicContext, request.getMemoryConversationId());
             
             // 发送SSE结果
             AutoAgentExecuteResultEntity result = AutoAgentExecuteResultEntity.createExecutionResult(

@@ -12,8 +12,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { message, Select } from 'ant-design-vue'
 import { RefreshCw, Send, Square } from 'lucide-vue-next'
 import { AgentApi, type AvailableAgent } from '@/api/agent'
+import { AiClientRagOrderApi, type AiClientRagOrderItem } from '@/api/ai-client-rag-order'
 import { streamAutoAgent, type SseHandle } from '@/composables/useSse'
-import { useSessions } from '@/composables/useSessions'
+import { reloadSessionsForCurrentUser, useSessions } from '@/composables/useSessions'
 import { SseMessageType, SseSubType, type SseMessage } from '@/enums/sse'
 import type { ChatMessage, ChatPreset, ChatRound } from '@/types/chat'
 import ProcessPanel from './components/ProcessPanel.vue'
@@ -60,6 +61,15 @@ const agents = ref<AvailableAgent[]>([])
 const agentsLoading = ref(false)
 const selectedAgentId = ref(DEFAULT_AGENT_ID)
 const maxStep = ref(5)
+
+/**
+ * 知识库（RAG）选择：列表来自 /ai-client-rag-order/query-enabled，
+ * 后端已按归属过滤（公共库 + 本人私有库），所以这里不需要前端再筛。
+ * 选中后把 knowledgeTag 随对话请求发给后端做检索过滤。
+ */
+const knowledgeBases = ref<AiClientRagOrderItem[]>([])
+const knowledgeLoading = ref(false)
+const selectedRagId = ref<string | undefined>()
 const selectedPreset = ref<string | undefined>(undefined)
 
 const inputText = ref('')
@@ -112,9 +122,38 @@ const agentOptions = computed(() => {
 
 const presetOptions = computed(() => PRESETS.map((item) => ({ value: item.label, label: item.label })))
 
+const knowledgeOptions = computed(() =>
+  knowledgeBases.value.map((item) => ({
+    value: item.ragId,
+    label: `${item.ragName}（${item.knowledgeTag}）`,
+  })),
+)
+
+/** 当前选中的知识库标签：未选 = 不限定知识域（沿用智能体自身的 RAG 配置） */
+const selectedKnowledgeTag = computed(() => {
+  const current = knowledgeBases.value.find((item) => item.ragId === selectedRagId.value)
+  return current?.knowledgeTag || undefined
+})
+
 const canSend = computed(() => Boolean(inputText.value.trim()) && !streaming.value)
 
 /* ---------------------------- 行为 ---------------------------- */
+
+async function loadKnowledgeBases(): Promise<void> {
+  knowledgeLoading.value = true
+  try {
+    const list = await AiClientRagOrderApi.queryEnabled()
+    knowledgeBases.value = Array.isArray(list) ? list : []
+    // 之前选中的库若已不可见（被删除 / 换了账号），清掉选择避免带着脏 tag 去检索
+    if (selectedRagId.value && !knowledgeBases.value.some((item) => item.ragId === selectedRagId.value)) {
+      selectedRagId.value = undefined
+    }
+  } catch (error) {
+    console.error('[chat] 获取知识库列表失败', error)
+  } finally {
+    knowledgeLoading.value = false
+  }
+}
 
 async function loadAgents(): Promise<void> {
   agentsLoading.value = true
@@ -223,6 +262,8 @@ function send(): void {
       message: text,
       sessionId: session.id,
       maxStep: session.maxStep,
+      // 选了知识库才带 tag：不选时保持智能体自身的 RAG 配置
+      knowledgeTag: selectedKnowledgeTag.value,
     },
     {
       onMessage: handleMessage,
@@ -277,8 +318,12 @@ watch(currentId, () => {
 watch(selectedPreset, (value) => applyPreset(value))
 
 onMounted(() => {
+  // 会话按用户隔离：模块级单例只在首次 import 时读过 localStorage，
+  // 登录 / 换账号后必须按当前用户重载，否则会显示上一个账号的会话
+  reloadSessionsForCurrentUser()
   ensureSession(DEFAULT_AGENT_ID, 5)
   void loadAgents()
+  void loadKnowledgeBases()
 })
 </script>
 
@@ -311,6 +356,19 @@ onMounted(() => {
         <div class="flex items-center gap-2">
           <span class="text-[12px] text-ink-400">最大执行步数</span>
           <Select :value="maxStep" :options="MAX_STEP_OPTIONS.map((v) => ({ value: v, label: String(v) }))" size="small" class="w-[76px]" @change="onMaxStepChange" />
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] text-ink-400">知识库</span>
+          <Select
+            v-model:value="selectedRagId"
+            :options="knowledgeOptions"
+            :loading="knowledgeLoading"
+            :allow-clear="true"
+            placeholder="不限定知识库"
+            size="small"
+            class="min-w-[200px]"
+          />
         </div>
 
         <div class="flex items-center gap-2">

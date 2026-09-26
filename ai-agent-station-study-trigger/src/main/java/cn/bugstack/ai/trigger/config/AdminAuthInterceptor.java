@@ -1,6 +1,7 @@
 package cn.bugstack.ai.trigger.config;
 
 import cn.bugstack.ai.api.response.Response;
+import cn.bugstack.ai.types.context.UserContext;
 import com.alibaba.fastjson.JSON;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,8 +38,8 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
             token = authorization.substring(BEARER_PREFIX.length());
         }
 
-        DecodedJWT jwt = adminJwtTokenService.verifyAndDecode(token);
-        if (jwt == null) {
+        UserContext.LoginUser loginUser = adminJwtTokenService.verifyToLoginUser(token);
+        if (loginUser == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
@@ -47,7 +48,7 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         }
 
         // 落地当前用户：数据按用户隔离后，Controller 要靠它拿到 owner_id
-        UserContext.set(new UserContext.LoginUser(jwt.getSubject(), adminJwtTokenService.usernameOf(jwt)));
+        UserContext.set(loginUser);
         return true;
     }
 

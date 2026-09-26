@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -32,7 +33,12 @@ public interface IAiAgentDao extends BaseMapper<AiAgent> {
     }
 
     default AiAgent queryById(Long id) {
-        return selectById(id);
+        AiAgent po = selectById(id);
+        // 归属校验：别人的私有资源对当前用户等同「不存在」（列表已过滤，这里堵"按主键直接读"）
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiAgent queryByAgentId(String agentId) {
@@ -40,15 +46,16 @@ public interface IAiAgentDao extends BaseMapper<AiAgent> {
     }
 
     default List<AiAgent> queryEnabledAgents() {
-        return selectList(new QueryWrapper<AiAgent>().eq("status", 1).orderByDesc("create_time"));
+        // 归属过滤：公共资源（owner_id 为空，如 6 个基础智能体）+ 本人私有
+        return selectList(OwnerQuerySupport.<AiAgent>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
     default List<AiAgent> queryByChannel(String channel) {
-        return selectList(new QueryWrapper<AiAgent>().eq("channel", channel).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgent>visibleWrapper().eq("channel", channel).orderByDesc("create_time"));
     }
 
     default List<AiAgent> queryAll() {
-        return selectList(new QueryWrapper<AiAgent>().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgent>visibleWrapper().orderByDesc("create_time"));
     }
 
 }

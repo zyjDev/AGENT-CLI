@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -33,7 +34,12 @@ public interface IAiClientApiDao extends BaseMapper<AiClientApi> {
     }
 
     default AiClientApi queryById(Long id) {
-        return selectById(id);
+        AiClientApi po = selectById(id);
+        // apiKey 属敏感凭据：按主键读也必须过归属校验
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiClientApi queryByApiId(String apiId) {
@@ -41,11 +47,12 @@ public interface IAiClientApiDao extends BaseMapper<AiClientApi> {
     }
 
     default List<AiClientApi> queryEnabledApis() {
-        return selectList(new QueryWrapper<AiClientApi>().eq("status", 1).orderByDesc("create_time"));
+        // apiKey 属敏感凭据：列表只出「公共 + 本人」，别人的通道不可见
+        return selectList(OwnerQuerySupport.<AiClientApi>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
     default List<AiClientApi> queryAll() {
-        return selectList(new QueryWrapper<AiClientApi>().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientApi>visibleWrapper().orderByDesc("create_time"));
     }
 
 }

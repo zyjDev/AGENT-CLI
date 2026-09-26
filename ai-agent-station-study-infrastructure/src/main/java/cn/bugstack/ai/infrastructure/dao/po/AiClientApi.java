@@ -61,6 +61,12 @@ public class AiClientApi {
     private Integer status;
 
     /**
+     * 归属用户ID；为空表示公共资源（人人可用），非空表示该用户私有。
+     * apiKey 属敏感凭据，私有资源只有本人可见可用。
+     */
+    private String ownerId;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

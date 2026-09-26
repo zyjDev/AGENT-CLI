@@ -8,6 +8,8 @@ import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.service.IRagService;
 import cn.bugstack.ai.infrastructure.dao.IAiClientRagOrderDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientRagOrder;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
+import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -46,6 +48,8 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             
             // DTO转PO
             AiClientRagOrder aiClientRagOrder = convertToAiClientRagOrder(request);
+            // 标签加作用域，避免不同用户同名 tag 在向量检索时互相召回（见 scopedKnowledgeTag）
+            aiClientRagOrder.setKnowledgeTag(scopedKnowledgeTag(request.getKnowledgeTag()));
             aiClientRagOrder.setCreateTime(LocalDateTime.now());
             aiClientRagOrder.setUpdateTime(LocalDateTime.now());
             
@@ -84,6 +88,11 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             AiClientRagOrder aiClientRagOrder = convertToAiClientRagOrder(request);
             aiClientRagOrder.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人知识库本人可改；公共知识库（课程演示库）仅管理员；他人私有库不可改
+            AiClientRagOrder existing = aiClientRagOrderDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("知识库");
+            }
             int result = aiClientRagOrderDao.updateById(aiClientRagOrder);
             
             return Response.<Boolean>builder()
@@ -119,6 +128,10 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             AiClientRagOrder aiClientRagOrder = convertToAiClientRagOrder(request);
             aiClientRagOrder.setUpdateTime(LocalDateTime.now());
             
+            AiClientRagOrder existing = aiClientRagOrderDao.queryByRagId(aiClientRagOrder.getRagId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("知识库");
+            }
             int result = aiClientRagOrderDao.updateByRagId(aiClientRagOrder);
             
             return Response.<Boolean>builder()
@@ -142,6 +155,10 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
         try {
             log.info("根据ID删除知识库配置：{}", id);
             
+            AiClientRagOrder existing = aiClientRagOrderDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("知识库");
+            }
             int result = aiClientRagOrderDao.deleteById(id);
             
             return Response.<Boolean>builder()
@@ -165,6 +182,10 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
         try {
             log.info("根据知识库ID删除知识库配置：{}", ragId);
             
+            AiClientRagOrder existing = aiClientRagOrderDao.queryByRagId(ragId);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("知识库");
+            }
             int result = aiClientRagOrderDao.deleteByRagId(ragId);
             
             return Response.<Boolean>builder()
@@ -425,7 +446,8 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
     public Response<Boolean> uploadRagFile(@RequestParam("name") String name, @RequestParam("tag") String tag, @RequestParam("files") List<MultipartFile> files) {
         try {
             log.info("上传知识库，请求 {}", name);
-            ragService.storeRagFile(name, tag, files);
+            // 同上：落库与向量 metadata 都用带作用域的 tag，检索侧天然隔离
+            ragService.storeRagFile(name, scopedKnowledgeTag(tag), files);
             Response<Boolean> response = Response.<Boolean>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
@@ -441,6 +463,25 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
                     .data(false)
                     .build();
         }
+    }
+
+    /**
+     * 知识标签作用域化。
+     * <p>
+     * 向量检索是按 {@code knowledge == '<tag>'} 过滤的（RagAnswerAdvisor），
+     * 而新知识库一律是用户私有的：若两个用户都取了 {@code docs} 这种 tag，
+     * 检索时就会把对方的私有文档一起召回 —— 这是实打实的串库。
+     * 因此创建时把 tag 落库成 {@code <userId>:<用户输入>}，从命名上保证全局唯一，
+     * 检索链路直接用库里这个值即可，无需再感知 owner。
+     * <p>
+     * 无登录上下文（历史数据导入 / 后台脚本）时保持原样，保证既有公共库的 tag 不变。
+     */
+    private String scopedKnowledgeTag(String rawTag) {
+        String userId = UserContext.userId();
+        if (userId == null || userId.isBlank()) {
+            return rawTag;
+        }
+        return userId + ":" + rawTag;
     }
 
     /**

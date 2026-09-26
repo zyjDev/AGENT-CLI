@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClient;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -34,7 +35,11 @@ public interface IAiClientDao extends BaseMapper<AiClient> {
     }
 
     default AiClient queryById(Long id) {
-        return selectById(id);
+        AiClient po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiClient queryByClientId(String clientId) {
@@ -42,15 +47,15 @@ public interface IAiClientDao extends BaseMapper<AiClient> {
     }
 
     default List<AiClient> queryEnabledClients() {
-        return selectList(new QueryWrapper<AiClient>().eq("status", 1).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClient>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
     default List<AiClient> queryByClientName(String clientName) {
-        return selectList(new QueryWrapper<AiClient>().like("client_name", clientName).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClient>visibleWrapper().like("client_name", clientName).orderByDesc("create_time"));
     }
 
     default List<AiClient> queryAll() {
-        return selectList(new QueryWrapper<AiClient>().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClient>visibleWrapper().orderByDesc("create_time"));
     }
 
 }

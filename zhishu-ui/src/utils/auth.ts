@@ -24,7 +24,13 @@ const LOGGED_IN_KEY = 'zhishu:isLoggedIn'
 export const LOGIN_PATH = '/login'
 
 export interface StoredUserInfo {
+  /** 登录账号（展示用） */
   username: string
+  /**
+   * 用户ID：后端按它做数据隔离（owner_id）与对话记忆分区，必须持久化 ——
+   * 丢了会导致换账号后仍读同一份本地会话。
+   */
+  userId: string
   loginTime: string
 }
 

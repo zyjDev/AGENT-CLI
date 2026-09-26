@@ -11,6 +11,10 @@ import cn.bugstack.ai.domain.agent.model.valobj.AiAgentVO;
 import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IArmoryService;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
+import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
+import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
+import cn.bugstack.ai.types.common.OwnerScope;
+import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import com.alibaba.fastjson.JSON;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,6 +52,39 @@ public class AiAgentController implements IAiAgentService {
     // 注入装配服务
     @Resource
     private IArmoryService armoryService;
+    // 智能体归属校验用（公共资源 owner 为空，人人可用；私有资源只有 owner 本人可用）
+    @Resource
+    private IAiAgentDao aiAgentDao;
+
+    /**
+     * 当前用户是否可用该智能体。
+     * <p>
+     * 列表接口已在 DAO 层按归属过滤（看不到别人的），但接口不能只靠"看不到"：
+     * agentId 一旦被猜到/泄露，没有这道校验就能白嫖别人的私有智能体（消耗其 API Key）。
+     */
+    private boolean canUseAgent(String agentId) {
+        if (agentId == null || agentId.trim().isEmpty()) {
+            return false;
+        }
+        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
+        return agent != null && OwnerScope.isVisible(agent.getOwnerId(), UserContext.userId());
+    }
+
+    /** 以 SSE 事件的形式回错误（必须是合法 JSON，前端按 data: {type,content} 解析） */
+    private ResponseBodyEmitter sseError(String message) {
+        ResponseBodyEmitter errorEmitter = new ResponseBodyEmitter(sseTimeoutMillis);
+        try {
+            java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("type", "error");
+            payload.put("subType", null);
+            payload.put("content", message);
+            errorEmitter.send("data: " + JSON.toJSONString(payload) + "\n\n");
+            errorEmitter.complete();
+        } catch (Exception ex) {
+            log.error("发送错误信息失败：{}", ex.getMessage(), ex);
+        }
+        return errorEmitter;
+    }
 
     /**
      *  AutoAgent 流式执行
@@ -67,16 +104,24 @@ public class AiAgentController implements IAiAgentService {
             response.setHeader("Cache-Control", "no-cache");
             response.setHeader("Connection", "keep-alive");
 
+            // 0. 归属校验：只能调用「公共 + 本人」的智能体
+            if (!canUseAgent(request.getAiAgentId())) {
+                log.warn("拒绝调用无权限的智能体，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
+                return sseError("智能体不存在或无权访问");
+            }
+
             // 1. 创建流式输出对象
             ResponseBodyEmitter emitter = new ResponseBodyEmitter(sseTimeoutMillis);
 
             // 2. 构建执行命令实体
+            //    userId 一并带上：对话记忆按用户分区（跨线程执行时靠它区分，而不是靠线程上下文）
             ExecuteCommandEntity executeCommandEntity = ExecuteCommandEntity.builder()
                     .aiAgentId(request.getAiAgentId())
                     .message(request.getMessage())
                     .sessionId(request.getSessionId())
                     .maxStep(request.getMaxStep())
                     .knowledgeTag(request.getKnowledgeTag())
+                    .userId(UserContext.userId())
                     .build();
 
             // 3. 调度处理
@@ -116,6 +161,16 @@ public class AiAgentController implements IAiAgentService {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("agentId不能为空")
+                        .data(false)
+                        .build();
+            }
+
+            // 归属校验：装配会把该智能体的资源注册成 Spring 单例 Bean，绝不能装配别人的私有智能体
+            if (!canUseAgent(request.getAgentId())) {
+                log.warn("拒绝装配无权限的智能体，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("智能体不存在或无权访问")
                         .data(false)
                         .build();
             }

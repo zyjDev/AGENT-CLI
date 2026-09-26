@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientToolMcp;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -33,7 +34,11 @@ public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
     }
 
     default AiClientToolMcp queryById(Long id) {
-        return selectById(id);
+        AiClientToolMcp po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiClientToolMcp queryByMcpId(String mcpId) {
@@ -41,19 +46,19 @@ public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
     }
 
     default List<AiClientToolMcp> queryAll() {
-        return selectList(new QueryWrapper<AiClientToolMcp>().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientToolMcp>visibleWrapper().orderByDesc("create_time"));
     }
 
     default List<AiClientToolMcp> queryByStatus(Integer status) {
-        return selectList(new QueryWrapper<AiClientToolMcp>().eq("status", status).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientToolMcp>visibleWrapper().eq("status", status).orderByDesc("create_time"));
     }
 
     default List<AiClientToolMcp> queryByTransportType(String transportType) {
-        return selectList(new QueryWrapper<AiClientToolMcp>().eq("transport_type", transportType).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientToolMcp>visibleWrapper().eq("transport_type", transportType).orderByDesc("create_time"));
     }
 
     default List<AiClientToolMcp> queryEnabledMcps() {
-        return selectList(new QueryWrapper<AiClientToolMcp>().eq("status", 1).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientToolMcp>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
 }

@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientRagOrder;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -23,13 +24,17 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
      * @return 知识库配置列表
      */
     default List<AiClientRagOrder> queryByUpdateTimeAfter(LocalDateTime updateTime) {
-        return selectList(new LambdaQueryWrapper<AiClientRagOrder>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .gt(AiClientRagOrder::getUpdateTime, updateTime)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }
 
     default AiClientRagOrder queryById(Long id) {
-        return selectById(id);
+        AiClientRagOrder po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiClientRagOrder queryByRagId(String ragId) {
@@ -39,18 +44,18 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
     }
 
     default List<AiClientRagOrder> queryAll() {
-        return selectList(new LambdaQueryWrapper<AiClientRagOrder>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }
 
     default List<AiClientRagOrder> queryEnabledRagOrders() {
-        return selectList(new LambdaQueryWrapper<AiClientRagOrder>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .eq(AiClientRagOrder::getStatus, 1)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }
 
     default List<AiClientRagOrder> queryByKnowledgeTag(String knowledgeTag) {
-        return selectList(new LambdaQueryWrapper<AiClientRagOrder>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .eq(AiClientRagOrder::getKnowledgeTag, knowledgeTag)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }

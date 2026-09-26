@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -33,7 +34,11 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
     }
 
     default AiAgentDrawConfig queryById(Long id) {
-        return selectById(id);
+        AiAgentDrawConfig po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiAgentDrawConfig queryByConfigId(String configId) {
@@ -45,15 +50,16 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
     }
 
     default List<AiAgentDrawConfig> queryEnabledConfigs() {
-        return selectList(new QueryWrapper<AiAgentDrawConfig>().eq("status", 1).orderByDesc("create_time"));
+        // 归属过滤：别人拖拉拽搭的编排配置不该出现在我的列表里
+        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
     default List<AiAgentDrawConfig> queryByConfigName(String configName) {
-        return selectList(new QueryWrapper<AiAgentDrawConfig>().like("config_name", configName).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>visibleWrapper().like("config_name", configName).orderByDesc("create_time"));
     }
 
     default List<AiAgentDrawConfig> queryAll() {
-        return selectList(new QueryWrapper<AiAgentDrawConfig>().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>visibleWrapper().orderByDesc("create_time"));
     }
 
 }

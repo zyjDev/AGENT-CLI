@@ -1,5 +1,6 @@
 package cn.bugstack.ai.trigger.config;
 
+import cn.bugstack.ai.types.context.UserContext;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -30,11 +31,18 @@ public class AdminJwtTokenService {
         this.expireMinutes = expireMinutes;
     }
 
-    public String createToken(String userId, String username) {
+    /**
+     * 签发 token。
+     * <p>
+     * role 写进 claim：拦截器解析后放进 {@link UserContext}，用于判定能否修改「公共资源」。
+     * ⚠️ 角色变更后需要重新登录才会生效（token 里是签发那一刻的角色）。
+     */
+    public String createToken(String userId, String username, String role) {
         Instant now = Instant.now();
         return JWT.create()
                 .withSubject(userId)
                 .withClaim("username", username)
+                .withClaim("role", role == null ? UserContext.ROLE_USER : role)
                 .withIssuedAt(Date.from(now))
                 .withExpiresAt(Date.from(now.plus(expireMinutes, ChronoUnit.MINUTES)))
                 .sign(algorithm);
@@ -70,8 +78,29 @@ public class AdminJwtTokenService {
         }
     }
 
+    /**
+     * 校验并把 token 解成「当前登录用户」。
+     * <p>
+     * 拦截器只用这一个方法，就不必依赖 auth0 的 DecodedJWT 类型（依赖只留在本类里）。
+     *
+     * @param token 原始 token（不带 Bearer 前缀）
+     * @return 校验通过返回登录用户，否则 null
+     */
+    public UserContext.LoginUser verifyToLoginUser(String token) {
+        DecodedJWT jwt = verifyAndDecode(token);
+        if (jwt == null) {
+            return null;
+        }
+        // 老 token 没有 role claim：按普通用户处理（fail-closed），重新登录即可获得正确角色
+        String role = jwt.getClaim("role").asString();
+        return new UserContext.LoginUser(
+                jwt.getSubject(),
+                usernameOf(jwt),
+                role == null ? UserContext.ROLE_USER : role);
+    }
+
     /** 从已解码的 token 里取用户名（claim），缺失时返回空串 */
-    public String usernameOf(DecodedJWT jwt) {
+    private String usernameOf(DecodedJWT jwt) {
         String username = jwt.getClaim("username").asString();
         return username == null ? "" : username;
     }

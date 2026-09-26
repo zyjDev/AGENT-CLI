@@ -115,7 +115,7 @@ public class Step1McpToolsAnalysisNode extends AbstractExecuteSupport {
                         .user(mcpAnalysisPrompt)
                         // Spring AI 1.1.6 起记忆顾问强制要求 conversationId，缺失会抛 IllegalArgumentException。
                         // param 只能挂在 AdvisorSpec 上（ChatClientRequestSpec 无 param 方法），与 Auto 链路写法一致。
-                        .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId()))
+                        .advisors(a -> a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId()))
                         .call()
                         .content())
                 .build());

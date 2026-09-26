@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientAdvisor;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -33,7 +34,11 @@ public interface IAiClientAdvisorDao extends BaseMapper<AiClientAdvisor> {
     }
 
     default AiClientAdvisor queryById(Long id) {
-        return selectById(id);
+        AiClientAdvisor po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     default AiClientAdvisor queryByAdvisorId(String advisorId) {
@@ -41,15 +46,15 @@ public interface IAiClientAdvisorDao extends BaseMapper<AiClientAdvisor> {
     }
 
     default List<AiClientAdvisor> queryAll() {
-        return selectList(new QueryWrapper<AiClientAdvisor>().orderByAsc("order_num").orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientAdvisor>visibleWrapper().orderByAsc("order_num").orderByDesc("create_time"));
     }
 
     default List<AiClientAdvisor> queryByStatus(Integer status) {
-        return selectList(new QueryWrapper<AiClientAdvisor>().eq("status", status).orderByAsc("order_num").orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientAdvisor>visibleWrapper().eq("status", status).orderByAsc("order_num").orderByDesc("create_time"));
     }
 
     default List<AiClientAdvisor> queryByAdvisorType(String advisorType) {
-        return selectList(new QueryWrapper<AiClientAdvisor>().eq("advisor_type", advisorType).orderByAsc("order_num").orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiClientAdvisor>visibleWrapper().eq("advisor_type", advisorType).orderByAsc("order_num").orderByDesc("create_time"));
     }
 
 }

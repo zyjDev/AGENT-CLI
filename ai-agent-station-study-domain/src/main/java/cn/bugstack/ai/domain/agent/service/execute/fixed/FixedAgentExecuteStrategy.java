@@ -82,7 +82,7 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
                     .callable(() -> chatClient.prompt(requestParameter.getMessage() + "，" + previous)
                             .system(s -> s.param("current_date", LocalDate.now().toString()))
                             .advisors(a -> {
-                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getSessionId());
+                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId());
                                 a.param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 100);
                                 if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
                                     a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());

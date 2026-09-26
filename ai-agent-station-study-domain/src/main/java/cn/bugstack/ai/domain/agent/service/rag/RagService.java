@@ -3,6 +3,8 @@ package cn.bugstack.ai.domain.agent.service.rag;
 import cn.bugstack.ai.domain.agent.adapter.repository.IAgentRepository;
 import cn.bugstack.ai.domain.agent.model.valobj.AiRagOrderVO;
 import cn.bugstack.ai.domain.agent.service.IRagService;
+import cn.bugstack.ai.types.common.OwnerScope;
+import cn.bugstack.ai.types.context.UserContext;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
@@ -64,6 +66,9 @@ public class RagService implements IRagService {
                     Map<String, Object> metadata = new HashMap<>();
                     metadata.put("knowledge", tag);
                     metadata.put("ragId", ragId);
+        // 归属：知识库由当前登录用户创建（上传是同步请求线程，上下文可用）；
+        //      公共资源（无登录上下文）统一写 __public__ —— 向量 metadata 没有 NULL 语义
+        metadata.put(OwnerScope.VECTOR_OWNER_FIELD, OwnerScope.vectorOwnerOf(UserContext.userId()));
                     metadata.put("version", "1");
                     metadata.put("lastUpdateTime", LocalDateTime.now().toString());
                     metadata.put("fileHash", fileHash);

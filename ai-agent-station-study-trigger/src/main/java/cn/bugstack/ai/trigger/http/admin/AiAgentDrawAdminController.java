@@ -11,6 +11,9 @@ import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
 import cn.bugstack.ai.trigger.http.admin.util.DrawConfigParser;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
+import cn.bugstack.ai.types.common.OwnerScope;
+import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -146,6 +149,16 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                 ? request.getConfigId()
                 : UUID.randomUUID().toString().replace("-", "");
         AiAgentDrawConfig existingConfig = aiAgentDrawConfigDao.queryByConfigId(configId);
+
+        // 越权保护：保存是"有则更新"，configId 若指向别人的私有配置，会把对方画布覆盖掉
+        if (existingConfig != null && !OwnerScope.isVisible(existingConfig.getOwnerId(), UserContext.userId())) {
+            log.warn("拒绝保存无权限的编排配置，configId={}, owner={}, userId={}",
+                    configId, existingConfig.getOwnerId(), UserContext.userId());
+            return Response.<String>builder()
+                    .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                    .info("配置不存在或无权访问")
+                    .build();
+        }
 
         // 3. 决定 agentId
         //    更新：必须复用原 agentId。原实现在更新分支同样重新生成 agentId 并 insert 一条新 agent，
@@ -574,6 +587,11 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                         .code(ResponseCode.UN_ERROR.getCode())
                         .info("删除失败，配置不存在")
                         .build();
+            }
+
+            // 写权限：公共编排配置仅管理员可删，他人私有配置不可删
+            if (!OwnerGuard.writable(drawConfig.getOwnerId())) {
+                return OwnerGuard.deny("配置");
             }
 
             String agentId = drawConfig.getAgentId();

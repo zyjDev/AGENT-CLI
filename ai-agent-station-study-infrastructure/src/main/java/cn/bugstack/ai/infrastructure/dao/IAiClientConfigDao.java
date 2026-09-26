@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -20,7 +21,11 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
      * 根据ID查询AI客户端配置（复用 BaseMapper.selectById）
      */
     default AiClientConfig queryById(Long id) {
-        return selectById(id);
+        AiClientConfig po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     /**
@@ -82,7 +87,7 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
      * 根据源类型、源ID、目标类型、目标ID查询AI客户端配置
      */
     default List<AiClientConfig> queryByConditions(String sourceType, String sourceId, String targetType, String targetId) {
-        return selectList(new LambdaQueryWrapper<AiClientConfig>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientConfig::getOwnerId)
                 .eq(AiClientConfig::getSourceType, sourceType)
                 .eq(AiClientConfig::getSourceId, sourceId)
                 .eq(AiClientConfig::getTargetType, targetType)
@@ -93,7 +98,7 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
      * 查询启用状态的AI客户端配置
      */
     default List<AiClientConfig> queryEnabledConfigs() {
-        return selectList(new LambdaQueryWrapper<AiClientConfig>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientConfig::getOwnerId)
                 .eq(AiClientConfig::getStatus, 1)
                 .orderByDesc(AiClientConfig::getCreateTime));
     }
@@ -102,7 +107,7 @@ public interface IAiClientConfigDao extends BaseMapper<AiClientConfig> {
      * 查询所有AI客户端配置
      */
     default List<AiClientConfig> queryAll() {
-        return selectList(new LambdaQueryWrapper<AiClientConfig>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientConfig::getOwnerId)
                 .orderByDesc(AiClientConfig::getCreateTime));
     }
 

@@ -3,6 +3,7 @@ package cn.bugstack.ai.domain.agent.service.rag;
 import cn.bugstack.ai.api.dto.AiClientRagOrderResponseDTO;
 import cn.bugstack.ai.domain.agent.adapter.repository.IRagUpdateRepository;
 import cn.bugstack.ai.domain.agent.service.IRagUpdateService;
+import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
 import jakarta.annotation.Resource;
@@ -94,7 +95,9 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
             deleteOldDocuments(ragId, order.getKnowledgeTag());
             
             // 5. 分割并存储新文档
-            int documentCount = saveNewDocuments(ragId, order.getKnowledgeTag(), files, newFileHash, updateReason);
+            //    归属从**知识库记录**取，而不是从线程上下文取 —— 批量更新走异步线程池，
+            //    那里 UserContext 是空的，取上下文会把私有库的 chunk 标成公共。
+            int documentCount = saveNewDocuments(ragId, order.getKnowledgeTag(), order.getOwnerId(), files, newFileHash, updateReason);
             
             // 6. 更新配置
             boolean updateResult = ragUpdateRepository.updateRagOrder(
@@ -155,7 +158,7 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
     /**
      * 保存新文档
      */
-    private int saveNewDocuments(String ragId, String knowledgeTag, List<MultipartFile> files, String fileHash, String updateReason) {
+    private int saveNewDocuments(String ragId, String knowledgeTag, String ownerId, List<MultipartFile> files, String fileHash, String updateReason) {
         int totalDocuments = 0;
 
         for (MultipartFile file : files) {
@@ -168,6 +171,8 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
                     Document doc = documentList.get(i);
                     doc.getMetadata().put("knowledge", knowledgeTag);
                     doc.getMetadata().put("ragId", ragId);
+                    // 归属：向量 metadata 无 NULL 语义，公共知识库统一写 __public__（见 OwnerScope）
+                    doc.getMetadata().put(OwnerScope.VECTOR_OWNER_FIELD, OwnerScope.vectorOwnerOf(ownerId));
                     doc.getMetadata().put("lastUpdateTime", LocalDateTime.now().toString());
                     doc.getMetadata().put("fileHash", fileHash);
                     doc.getMetadata().put("updateReason", updateReason);

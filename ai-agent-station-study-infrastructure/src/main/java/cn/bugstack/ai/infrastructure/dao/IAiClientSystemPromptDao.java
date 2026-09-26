@@ -1,6 +1,7 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientSystemPrompt;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -19,7 +20,11 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
      * 根据ID查询系统提示词配置（复用 BaseMapper.selectById）
      */
     default AiClientSystemPrompt queryById(Long id) {
-        return selectById(id);
+        AiClientSystemPrompt po = selectById(id);
+        if (po != null && !OwnerQuerySupport.visibleToCurrentUser(po.getOwnerId())) {
+            return null;
+        }
+        return po;
     }
 
     /**
@@ -56,7 +61,7 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
      * 查询启用的系统提示词配置
      */
     default List<AiClientSystemPrompt> queryEnabledPrompts() {
-        return selectList(new LambdaQueryWrapper<AiClientSystemPrompt>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientSystemPrompt::getOwnerId)
                 .eq(AiClientSystemPrompt::getStatus, 1)
                 .orderByDesc(AiClientSystemPrompt::getCreateTime));
     }
@@ -65,7 +70,7 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
      * 根据提示词名称模糊查询系统提示词配置
      */
     default List<AiClientSystemPrompt> queryByPromptName(String promptName) {
-        return selectList(new LambdaQueryWrapper<AiClientSystemPrompt>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientSystemPrompt::getOwnerId)
                 .like(AiClientSystemPrompt::getPromptName, promptName)
                 .orderByDesc(AiClientSystemPrompt::getCreateTime));
     }
@@ -74,7 +79,7 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
      * 查询所有系统提示词配置
      */
     default List<AiClientSystemPrompt> queryAll() {
-        return selectList(new LambdaQueryWrapper<AiClientSystemPrompt>()
+        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientSystemPrompt::getOwnerId)
                 .orderByDesc(AiClientSystemPrompt::getCreateTime));
     }
 

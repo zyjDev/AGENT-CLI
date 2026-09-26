@@ -45,6 +45,11 @@ public class AiClientRagOrderResponseDTO implements Serializable {
     private String knowledgeTag;
 
     /**
+     * 归属用户ID；为空表示公共知识库（人人可用，如课程演示库），非空表示该用户私有知识库
+     */
+    private String ownerId;
+
+    /**
      * 状态(0:禁用,1:启用)
      */
     private Integer status;
