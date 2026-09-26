@@ -83,7 +83,7 @@ public class NodeGuardEngine {
             }
         }
 
-        trace(task, NodeTraceNotifier.PHASE_START, displayName + " 开始执行");
+        trace(task, NodeTraceNotifier.PHASE_START, "开始执行");
 
         ExecutionBudget budget = task.getBudget();
         boolean budgetExhausted = budget != null && budget.exhausted();
@@ -112,14 +112,18 @@ public class NodeGuardEngine {
                         ? timeoutMs
                         : Math.min(timeoutMs, Math.max(1L, budget.remainingMillis()));
 
-                trace(task, NodeTraceNotifier.PHASE_START,
-                        String.format("%s 调用中（第 %d/%d 次，限时 %dms）", displayName, attempts, maxAttempts, attemptRemaining));
+                // 只有首次调用才重复发 node_start（带上限时信息）；重试由 node_retry 事件表达，
+                // 否则每轮两条 node_start，前端无法区分「新节点」和「同一节点又试了一次」
+                if (attempts == 1) {
+                    trace(task, NodeTraceNotifier.PHASE_START,
+                            String.format("调用中（第 %d/%d 次，限时 %dms）", attempts, maxAttempts, attemptRemaining));
+                }
 
                 try {
                     T value = callWithTimeout(task.getCallable(), attemptRemaining);
                     long cost = elapsed(startedAt);
                     agentRequestMetrics.recordNodeSuccess(nodeKey, cost);
-                    trace(task, NodeTraceNotifier.PHASE_END, String.format("%s 完成（%dms）", displayName, cost));
+                    trace(task, NodeTraceNotifier.PHASE_END, String.format("完成（%dms）", cost));
                     return NodeGuardResult.success(value, cost, attempts, attempts > 1, attemptRemaining);
                 } catch (TimeoutException e) {
                     lastError = e;
@@ -127,7 +131,7 @@ public class NodeGuardEngine {
                     log.warn("⏱️ 节点超时 node={}, 第 {}/{} 次, limit={}ms, {}",
                             displayName, attempts, maxAttempts, attemptRemaining, budget);
                     trace(task, NodeTraceNotifier.PHASE_TIMEOUT,
-                            String.format("%s 超时（%dms），剩余重试 %d 次", displayName, attemptRemaining, maxAttempts - attempts));
+                            String.format("超时（%dms），剩余重试 %d 次", attemptRemaining, maxAttempts - attempts));
                 } catch (ExecutionException e) {
                     lastError = unwrap(e);
                     log.warn("节点执行异常 node={}, 第 {}/{} 次: {}",
@@ -143,7 +147,7 @@ public class NodeGuardEngine {
                 }
                 long backoff = backoffMs(attempts);
                 trace(task, NodeTraceNotifier.PHASE_RETRY,
-                        String.format("%s 触发重试（%dms 后第 %d 次）", displayName, backoff, attempts + 1));
+                        String.format("触发重试（%dms 后第 %d 次）", backoff, attempts + 1));
                 sleepQuietly(backoff);
             }
         } finally {
@@ -206,12 +210,11 @@ public class NodeGuardEngine {
      */
     private <T> NodeGuardResult<T> converge(NodeTask<T> task, long startedAt, String displayName,
                                             int attempts, Throwable lastError, NodeGuardOutcome outcome) {
-        String reason = lastError == null ? (task.getBudget() == null ? "未知原因" : "全局预算耗尽")
-                : lastError.getMessage();
+        String reason = describeFailure(lastError, task.getBudget());
 
         if (task.getDegradeMode() == NodeDegradeMode.FAIL_FAST) {
             log.error("❌ 节点不可降级，链路终止 node={}, reason={}", displayName, reason);
-            trace(task, NodeTraceNotifier.PHASE_DEGRADE, displayName + " 失败且不可降级，链路终止：" + reason);
+            trace(task, NodeTraceNotifier.PHASE_DEGRADE, "失败且不可降级，链路终止：" + reason);
             throw new NodeGuardException(task.getNodeKey(), outcome,
                     "节点执行失败且不可降级：" + displayName + "；原因：" + reason, lastError);
         }
@@ -220,7 +223,7 @@ public class NodeGuardEngine {
             log.warn("⏭️ 节点已跳过 node={}, reason={}", displayName, reason);
             trace(task, outcome == NodeGuardOutcome.BUDGET_EXHAUSTED
                     ? NodeTraceNotifier.PHASE_BUDGET
-                    : NodeTraceNotifier.PHASE_DEGRADE, displayName + " 已跳过（" + reason + "）");
+                    : NodeTraceNotifier.PHASE_DEGRADE, "已跳过（" + reason + "）");
             return NodeGuardResult.of(NodeGuardOutcome.SKIPPED, null, elapsed(startedAt),
                     attempts, false, 0L, lastError);
         }
@@ -238,15 +241,36 @@ public class NodeGuardEngine {
         try {
             T fallbackValue = task.getFallback().get();
             log.warn("🪂 节点降级兜底 node={}, reason={}", displayName, reason);
-            trace(task, phase, displayName + " 已降级（" + reason + "）");
+            trace(task, phase, "已降级（" + reason + "）");
             return NodeGuardResult.of(NodeGuardOutcome.DEGRADED, fallbackValue, elapsed(startedAt),
                     attempts, attempts > 1, 0L, lastError);
         } catch (Exception e) {
             log.error("兜底逻辑自身异常 node={}", displayName, e);
-            trace(task, phase, displayName + " 降级失败：" + e.getMessage());
+            trace(task, phase, "降级失败：" + e.getMessage());
             return NodeGuardResult.of(NodeGuardOutcome.DEGRADED, null, elapsed(startedAt),
                     attempts, attempts > 1, 0L, lastError);
         }
+    }
+
+    /**
+     * 失败原因的人类可读描述。
+     * <p>
+     * 之所以要单独写：Future.get 超时抛的是 {@code TimeoutException}，它的 {@code getMessage()} 恒为 null，
+     * 直接拼字符串会得到「已降级（null）」—— 用户和日志都看不出发生了什么。
+     * 超时必须显式说成「超过 xxms 未返回」。
+     */
+    private String describeFailure(Throwable lastError, ExecutionBudget budget) {
+        if (lastError == null) {
+            return budget == null ? "未知原因" : "全局预算耗尽（" + budget + "）";
+        }
+        String message = lastError.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+        if (lastError instanceof TimeoutException) {
+            return "调用超时未返回";
+        }
+        return lastError.getClass().getSimpleName();
     }
 
     private void trace(NodeTask<?> task, String phase, String detail) {
