@@ -1,22 +1,21 @@
 <script setup lang="ts">
 /**
- * 对话输出（原「思考与执行过程」+「最终结果」两个面板合并而来）。
+ * 一轮对话块：提问 + 过程（可折叠成行）+ 最终答案。
  *
- * 为什么合并：原来是左右各一半，过程在左、答案在右，读答案时眼睛要在两栏之间来回跳；
- * 而真实的阅读顺序是「过程 → 答案」。现在改成自上而下的一条流水账（参考 CodeBuddy 的输出框）：
- *   · 过程按事件收成一行行小标题，点开看细节（有正文产出的默认展开，进度类默认收起）；
- *   · 最终答案内联渲染在流水末尾，流式时逐字追加并带光标。
- *
- * 数据来源不变：messages 是过程事件（后端逐条推送），content 是最终答案（后端流式增量 / 整段下发）。
+ * 由原 ChatTranscript 拆出并**去掉外层标题栏与自己那层滚动条**：
+ * 一个会话现在把全部轮次自上而下渲染（见 chat/index.vue 的 displayRounds），
+ * 滚动统一由页面负责。原来只渲染最新一轮，用户再发一句，上一轮的内容就从界面上"消失"了。
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Button, message } from 'ant-design-vue'
-import { ChevronDown, Copy, FileText, Loader2 } from 'lucide-vue-next'
+import { ChevronDown, Copy, Loader2 } from 'lucide-vue-next'
 import { resolveStageMeta, SseMessageType, SseSubType } from '@/enums/sse'
 import type { ChatMessage } from '@/types/chat'
 import MarkdownView from './MarkdownView.vue'
 
 const props = defineProps<{
+  question: string
+  askedAt: number
   messages: ChatMessage[]
   /** 最终答案（Markdown 源码） */
   content: string
@@ -29,6 +28,8 @@ const props = defineProps<{
   /** 生成信息：步骤数与耗时 */
   stepCount?: number
   durationMs?: number
+  /** 过程是否默认展开；不传 = 按每条内容自动决定（长正文展开、进度噪音收起） */
+  expandAll?: boolean | null
 }>()
 
 const emit = defineEmits<{ (e: 'goto-config'): void }>()
@@ -55,11 +56,19 @@ const NOISY_SUBTYPES: ReadonlySet<string> = new Set([
 /** 用户手动展开/收起过的项：覆盖默认策略 */
 const userToggled = ref<Record<string, boolean>>({})
 
+/** 工具条上的「展开过程/收起过程」切换后，清掉逐条的手动状态，否则会出现一半开一半关 */
+watch(
+  () => props.expandAll,
+  () => {
+    userToggled.value = {}
+  },
+)
+
 const items = computed(() =>
   props.messages
     // 元信息帧不进过程列表：complete 帧的正文是「执行完成」，整段 summary 帧就是答案本身，
     // 增量帧（summary_delta）每次带的是「到目前为止的全文」 —— 留在列表里就是十几条重复条目
-    // （答案区与页脚已经表达了同样的信息）。这里再过滤一次，历史轮次里已存下的脏数据也能显示干净。
+    // （答案区与页脚已经表达了同样的信息）。这里过滤，历史轮次里已存下的脏数据也能显示干净。
     .filter(
       (item) =>
         item.type !== SseMessageType.Complete &&
@@ -73,25 +82,21 @@ const items = computed(() =>
     })),
 )
 
-type TranscriptItem = (typeof items.value)[number]
+type RoundItem = (typeof items.value)[number]
 
-function isOpen(item: TranscriptItem): boolean {
-  return userToggled.value[item.id] ?? item.defaultOpen
+function isOpen(item: RoundItem): boolean {
+  const manual = userToggled.value[item.id]
+  if (manual !== undefined) return manual
+  if (props.expandAll === true || props.expandAll === false) return props.expandAll
+  return item.defaultOpen
 }
 
-function toggle(item: TranscriptItem): void {
+function toggle(item: RoundItem): void {
   userToggled.value = { ...userToggled.value, [item.id]: !isOpen(item) }
 }
 
-const allOpen = computed(() => items.value.length > 0 && items.value.every((item) => isOpen(item)))
-
-function toggleAll(): void {
-  const target = !allOpen.value
-  userToggled.value = Object.fromEntries(items.value.map((item) => [item.id, target])) as Record<string, boolean>
-}
-
 /** 收起时显示的一行摘要：取正文首个非空行，过长交给 CSS 截断 */
-function preview(item: TranscriptItem): string {
+function preview(item: RoundItem): string {
   const line = item.content.split('\n').find((text) => text.trim()) ?? ''
   return (
     line
@@ -115,89 +120,33 @@ async function copyAll(): Promise<void> {
   if (!props.content) return
   try {
     await navigator.clipboard.writeText(props.content)
-    message.success('结果已复制为 Markdown 源码')
+    message.success('答案已复制为 Markdown 源码')
   } catch (error) {
-    console.error('[transcript] 复制失败', error)
+    console.error('[round] 复制失败', error)
     message.error('复制失败，请手动选择内容')
   }
 }
-
-/**
- * 流式期间自动滚到底：新内容追加在末尾，不跟着滚就看不到正在生成的部分。
- * 只在 loading 时自动滚，避免用户手动往回翻时被硬拽回来。
- */
-const scroller = ref<HTMLElement | null>(null)
-
-watch(
-  () => [props.messages.length, props.content.length, props.loading],
-  async () => {
-    if (!props.loading) return
-    await nextTick()
-    const el = scroller.value
-    if (el) el.scrollTop = el.scrollHeight
-  },
-)
-
-/**
- * 切换/加载某轮对话时也滚到底：过程条数多的时候（一轮十几个节点）答案在流水末尾，
- * 不滚动就完全看不到，用户会以为"没有输出"。轮次用首条消息 id 判定（每轮唯一）。
- */
-watch(
-  () => props.messages[0]?.id,
-  async () => {
-    await nextTick()
-    const el = scroller.value
-    if (el) el.scrollTop = el.scrollHeight
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col bg-white">
-    <div class="flex items-center justify-between border-b border-[#F1F3F9] bg-[#FCFCFE] px-4 py-2.5">
-      <div class="flex items-center gap-2">
-        <svg
-          viewBox="0 0 24 24"
-          class="h-4 w-4 text-brand"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.9"
-          stroke-linecap="round"
-        >
-          <path d="M4 5.5h16v10H9l-5 4z" />
-        </svg>
-        <h2 class="text-[13px] font-medium">对话输出</h2>
-        <span v-if="loading" class="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[11px] text-brand">
-          实时流式推送
-        </span>
-        <span v-else-if="hasOutput" class="rounded-full bg-[#E4F6EA] px-2 py-0.5 text-[11px] text-[#15803D]">
-          已完成
-        </span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <button
-          v-if="items.length"
-          type="button"
-          class="btn-ghost flex h-7 cursor-pointer items-center gap-1.5 px-2.5 text-[12px]"
-          @click="toggleAll"
-        >
-          {{ allOpen ? '收起全部' : '展开全部' }}
-        </button>
-        <button
-          type="button"
-          class="btn-ghost flex h-7 cursor-pointer items-center gap-1.5 px-2.5 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="!content"
-          @click="copyAll"
-        >
-          <Copy :size="12" />
-          复制全文
-        </button>
-      </div>
+  <article class="border-b border-[#F1F3F9] px-5 py-3.5 last:border-b-0">
+    <!-- 提问行 -->
+    <div class="flex items-start gap-2">
+      <span class="mt-0.5 shrink-0 rounded-md bg-[#EEF0FE] px-1.5 py-0.5 text-[11px] font-medium text-brand">问</span>
+      <p class="min-w-0 flex-1 text-[13.5px] font-medium leading-6 text-ink-900">{{ question }}</p>
+      <span class="mt-1 shrink-0 text-[11px] text-ink-400">{{ formatTime(askedAt) }}</span>
+      <button
+        v-if="content"
+        type="button"
+        class="btn-ghost mt-0.5 flex h-6 shrink-0 cursor-pointer items-center gap-1 px-2 text-[11.5px]"
+        @click="copyAll"
+      >
+        <Copy :size="11" />
+        复制答案
+      </button>
     </div>
 
-    <div ref="scroller" class="scroll-thin flex-1 overflow-y-auto px-5 py-4">
+    <div class="mt-2">
       <div v-if="error" class="flex items-start gap-2.5 rounded-xl bg-[#FEF4F4] px-4 py-3">
         <span class="mt-0.5 text-err">✕</span>
         <div>
@@ -214,17 +163,6 @@ watch(
             去配置我的模型 Key
           </Button>
         </div>
-      </div>
-
-      <div
-        v-if="!hasOutput && !loading && !error"
-        class="flex h-full flex-col items-center justify-center text-center"
-      >
-        <FileText :size="22" class="text-ink-300" />
-        <p class="mt-2 text-[13px] text-ink-600">暂无输出</p>
-        <p class="mt-1.5 max-w-[340px] text-[12px] leading-6 text-ink-400">
-          发送问题后，这里会按「分析 → 执行 → 监督 → 总结」逐步展示智能体的思考过程，最后给出渲染好的答案。
-        </p>
       </div>
 
       <!-- 过程：折叠成一行行，点开看细节 -->
@@ -253,7 +191,7 @@ watch(
       </ol>
 
       <!-- 最终答案：内联在流水末尾（流式时逐字追加 + 光标） -->
-      <div v-if="content" class="mt-3 border-t border-[#F1F3F9] pt-3">
+      <div v-if="content" class="mt-2 border-t border-[#F1F3F9] pt-2.5">
         <div class="mb-2 flex items-center gap-2">
           <span class="stage stage-summary">最终答案</span>
           <span class="text-[11.5px] text-ink-400">Markdown 渲染</span>
@@ -267,7 +205,7 @@ watch(
 
       <div
         v-else-if="loading && !error"
-        class="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-[#D9DEF0] bg-white/60 px-3.5 py-3"
+        class="mt-2 flex items-center gap-2 rounded-xl border border-dashed border-[#D9DEF0] bg-white/60 px-3.5 py-3"
       >
         <Loader2 :size="14" class="animate-spin text-brand" />
         <span class="text-[12px] text-ink-600">正在执行，过程实时推送，完成后在主区输出答案…</span>
@@ -275,10 +213,11 @@ watch(
 
       <div
         v-if="hasOutput && !loading"
-        class="mt-5 flex flex-wrap items-center gap-3 rounded-xl bg-page px-4 py-3 text-[11.5px] text-ink-600"
+        class="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-page px-4 py-2.5 text-[11.5px] text-ink-600"
       >
         <span class="flex items-center gap-1.5">
-          <span class="h-1.5 w-1.5 rounded-full bg-ok"></span>已完成
+          <span class="h-1.5 w-1.5 rounded-full" :class="error ? 'bg-err' : 'bg-ok'"></span>
+          {{ error ? '未完成' : '已完成' }}
         </span>
         <span class="text-[#D9DEF0]">|</span>
         <span>执行步骤 {{ stepCount ?? 0 }}</span>
@@ -286,5 +225,5 @@ watch(
         <span>耗时 {{ formatDuration(durationMs) }}</span>
       </div>
     </div>
-  </section>
+  </article>
 </template>

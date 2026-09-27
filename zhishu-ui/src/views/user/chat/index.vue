@@ -8,7 +8,7 @@
  * 流式期性能取舍：过程中不把每条消息写回 store（避免整树重渲染 + 反复序列化），
  * 先在本地 reactive 里累积，结束时一次性落库；每 5 条做一次快照兜底刷新丢失。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { message, Select } from 'ant-design-vue'
 import { RefreshCw, Send, Square } from 'lucide-vue-next'
 import { AgentApi, type AvailableAgent } from '@/api/agent'
@@ -18,7 +18,7 @@ import { useRouter } from 'vue-router'
 import { reloadSessionsForCurrentUser, useSessions } from '@/composables/useSessions'
 import { SseMessageType, SseSubType, type SseMessage } from '@/enums/sse'
 import type { ChatMessage, ChatPreset, ChatRound } from '@/types/chat'
-import ChatTranscript from './components/ChatTranscript.vue'
+import ChatRoundBlock from './components/ChatRoundBlock.vue'
 import SessionList from './components/SessionList.vue'
 
 const MAX_STEP_OPTIONS = [1, 2, 3, 5, 10, 20, 50]
@@ -91,37 +91,76 @@ let finalized = true
 
 /* ---------------------------- 展示层派生状态 ---------------------------- */
 
-const currentRound = computed<ChatRound | undefined>(() => currentSession.value?.rounds[0])
+/**
+ * 主区渲染**整个会话的全部轮次**（旧 → 新），而不是只渲染最新一轮。
+ *
+ * ⚠️ 原先只取 rounds[0]：所以在一个会话里再发一句，上一轮的过程与答案就从界面上消失了
+ * （数据其实一直在 localStorage 的 rounds 里，丢的只是展示）。现在按轮次排成一条对话流。
+ * 正在流式输出的那一轮用内存里的实时数据（liveMessages / liveResult），其余用已落库的数据。
+ */
+const displayRounds = computed(() => {
+  const rounds = [...(currentSession.value?.rounds ?? [])].reverse()
+  return rounds.map((round) => {
+    const live = streaming.value && activeRoundId !== '' && activeRoundId === round.id
+    const messages = live ? liveMessages.value : round.messages
+    return {
+      id: round.id,
+      question: round.question,
+      askedAt: round.askedAt,
+      messages,
+      content: live ? liveResult.value : round.result,
+      loading: live,
+      error: live ? liveError.value : (round.error ?? ''),
+      // 历史轮次只存了错误文案（没存码），「去配置」按钮只对本轮实时错误生效
+      errorCode: live ? liveErrorCode.value : '',
+      stepCount: messages.reduce((max, item) => Math.max(max, item.step ?? 0), 0),
+      durationMs:
+        live || messages.length < 2
+          ? live
+            ? liveDurationMs.value
+            : 0
+          : (messages[messages.length - 1]?.timestamp ?? 0) - (messages[0]?.timestamp ?? 0),
+    }
+  })
+})
 
-/** 当前展示的轮次是否就是正在流式输出的那一轮 */
-const isLiveRound = computed(
-  () => streaming.value && activeRoundId !== '' && activeRoundId === currentRound.value?.id,
-)
+/** 过程默认展开状态：undefined = 按每条内容自动决定；工具条按钮在展开 / 收起之间切换 */
+const expandAll = ref<boolean | undefined>(undefined)
 
-const displayMessages = computed<ChatMessage[]>(() =>
-  isLiveRound.value ? liveMessages.value : (currentRound.value?.messages ?? []),
-)
-const displayResult = computed(() => (isLiveRound.value ? liveResult.value : (currentRound.value?.result ?? '')))
-const displayError = computed(() => (isLiveRound.value ? liveError.value : (currentRound.value?.error ?? '')))
-// 历史轮次只存了错误文案（没存码），所以按钮只对本轮实时错误生效
-const displayErrorCode = computed(() => (isLiveRound.value ? liveErrorCode.value : ''))
+function toggleExpandAll(): void {
+  expandAll.value = expandAll.value === true ? false : true
+}
 
 /** 缺模型 Key 时按钮的落点：客户端 API 管理（在那里填 base_url + Key） */
 function goConfigureOwnKey(): void {
   void router.push('/admin/ai-client-api-management')
 }
-const displayLoading = computed(() => streaming.value && isLiveRound.value)
 
-const displayStepCount = computed(() => {
-  const messages = displayMessages.value
-  return messages.reduce((max, item) => Math.max(max, item.step ?? 0), 0)
-})
+/**
+ * 主区滚动：轮次是自上而下追加的、答案在末尾。
+ * 流式期间跟着滚到底（否则新内容出现在视野外）；切换会话时也滚到底（直接看最新一轮）。
+ */
+const transcriptScroller = ref<HTMLElement | null>(null)
 
-const displayDurationMs = computed(() => {
-  if (isLiveRound.value) return liveDurationMs.value
-  const messages = currentRound.value?.messages ?? []
-  if (messages.length < 2) return 0
-  return (messages[messages.length - 1]?.timestamp ?? 0) - (messages[0]?.timestamp ?? 0)
+async function scrollTranscriptToBottom(): Promise<void> {
+  await nextTick()
+  const el = transcriptScroller.value
+  if (el) el.scrollTop = el.scrollHeight
+}
+
+watch(
+  () => [
+    displayRounds.value.length,
+    displayRounds.value[displayRounds.value.length - 1]?.content.length ?? 0,
+    streaming.value,
+  ],
+  () => {
+    if (streaming.value) void scrollTranscriptToBottom()
+  },
+)
+
+watch(currentId, () => {
+  void scrollTranscriptToBottom()
 })
 
 /**
@@ -478,6 +517,14 @@ onMounted(() => {
             共 {{ currentSession?.rounds.length ?? 0 }} 轮对话
           </span>
           <button
+            v-if="displayRounds.length"
+            type="button"
+            class="btn-ghost flex h-8 cursor-pointer items-center gap-1.5 px-2.5 text-[12.5px]"
+            @click="toggleExpandAll"
+          >
+            {{ expandAll === true ? '收起过程' : '展开过程' }}
+          </button>
+          <button
             type="button"
             class="btn-ghost flex h-8 cursor-pointer items-center gap-1.5 px-2.5 text-[12.5px]"
             :disabled="agentsLoading"
@@ -489,17 +536,37 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 输出区：过程与答案合成一条自上而下的流水（原左右双栏已合并，见 ChatTranscript 注释） -->
-      <ChatTranscript
-        :messages="displayMessages"
-        :content="displayResult"
-        :loading="displayLoading"
-        :error="displayError"
-        :error-code="displayErrorCode"
-        :step-count="displayStepCount"
-        :duration-ms="displayDurationMs"
-        @goto-config="goConfigureOwnKey"
-      />
+      <!--
+        输出区：**整个会话的全部轮次**自上而下渲染（旧 → 新），滚动统一由这里负责。
+        每个轮次块内含「提问 + 可折叠的思考过程 + 最终答案」，见 ChatRoundBlock。
+      -->
+      <div ref="transcriptScroller" class="scroll-thin min-h-0 flex-1 overflow-y-auto">
+        <div
+          v-if="!displayRounds.length"
+          class="flex h-full flex-col items-center justify-center px-6 text-center"
+        >
+          <p class="text-[13px] text-ink-600">暂无输出</p>
+          <p class="mt-1.5 max-w-[340px] text-[12px] leading-6 text-ink-400">
+            发送问题后，这里会按「分析 → 执行 → 监督 → 总结」逐步展示智能体的思考过程，最后给出渲染好的答案。
+          </p>
+        </div>
+
+        <ChatRoundBlock
+          v-for="round in displayRounds"
+          :key="round.id"
+          :question="round.question"
+          :asked-at="round.askedAt"
+          :messages="round.messages"
+          :content="round.content"
+          :loading="round.loading"
+          :error="round.error"
+          :error-code="round.errorCode"
+          :step-count="round.stepCount"
+          :duration-ms="round.durationMs"
+          :expand-all="expandAll"
+          @goto-config="goConfigureOwnKey"
+        />
+      </div>
 
       <!-- 输入区 -->
       <div class="border-t border-line bg-white px-4 py-3">
