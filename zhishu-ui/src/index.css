@@ -41,9 +41,22 @@
   }
 
   /* ---------- 按钮 ---------- */
+  /*
+   * 按钮统一「单行 inline-flex」排布，这是修一个真实踩过的坑：
+   * Tailwind 的 preflight 会把 svg 设成 display:block，于是「图标 + 文字」的按钮被拆成两行
+   * （图标一行、文字一行），而按钮高度又被 !h-8 之类的固定值锁死 ——
+   * 结果就是文字压出按钮框（管理端「新增客户端 API」「刷新」都出现过：文字与按钮尺寸不匹配）。
+   * 用 flex 布局把图标与文字摆回同一行，并禁止折行。
+   * 说明：调用方若自己写了 flex / inline-flex 工具类，工具类优先级更高，效果一致。
+   */
+  .ant-btn,
+  .btn-ghost,
   .btn-grad {
-    /* whitespace-nowrap：按钮文字绝不该折行（窄容器里曾被挤成两行） */
-    @apply border-0 whitespace-nowrap font-medium text-white transition-all duration-200;
+    @apply inline-flex items-center justify-center whitespace-nowrap;
+  }
+
+  .btn-grad {
+    @apply border-0 font-medium text-white transition-all duration-200;
     background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-violet) 100%);
   }
   .btn-grad:not(:disabled):hover {
