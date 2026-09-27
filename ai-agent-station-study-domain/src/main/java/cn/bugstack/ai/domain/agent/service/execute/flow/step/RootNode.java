@@ -29,7 +29,10 @@ public class RootNode extends AbstractExecuteSupport {
         log.info("最大执行步数: {}", requestParameter.getMaxStep());
         log.info("会话ID: {}", requestParameter.getSessionId());
 
-        Map<String, AiAgentClientFlowConfigVO> aiAgentClientFlowConfigVOMap = repository.queryAiAgentClientFlowConfig(requestParameter.getAiAgentId());
+        // 按归属取流程配置：用户给该智能体绑定过自己的 Key 就走他的链路，否则回落系统默认。
+        // userId 必须显式传：执行链路切了线程池，UserContext 在那里是空的
+        Map<String, AiAgentClientFlowConfigVO> aiAgentClientFlowConfigVOMap =
+                repository.queryAiAgentClientFlowConfig(requestParameter.getAiAgentId(), requestParameter.getUserId());
 
         // 客户端对话组
         dynamicContext.setAiAgentClientFlowConfigVOMap(aiAgentClientFlowConfigVOMap);

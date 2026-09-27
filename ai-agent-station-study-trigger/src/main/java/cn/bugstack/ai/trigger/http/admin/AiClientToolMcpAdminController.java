@@ -43,6 +43,9 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
             aiClientToolMcp.setCreateTime(LocalDateTime.now());
             aiClientToolMcp.setUpdateTime(LocalDateTime.now());
             
+            // 归属：普通用户建的就是他自己的（管理员建的留空 = 平台默认，人人可用）
+            OwnerGuard.stampOwnerOnCreate(aiClientToolMcp);
+
             int result = aiClientToolMcpDao.insert(aiClientToolMcp);
             
             return Response.<Boolean>builder()

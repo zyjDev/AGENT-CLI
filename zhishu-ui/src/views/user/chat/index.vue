@@ -125,11 +125,16 @@ const displayDurationMs = computed(() => {
   return (messages[messages.length - 1]?.timestamp ?? 0) - (messages[0]?.timestamp ?? 0)
 })
 
+/**
+ * 下拉只展示智能体名称 —— id 是内部标识，对用户没有意义（用户明确要求不出现）。
+ * 名称缺失（历史脏数据）时才退回显示 id，避免出现空白项。
+ */
 const agentOptions = computed(() => {
   if (agents.value.length) {
-    return agents.value.map((item) => ({ value: item.agentId, label: `${item.agentName}（agentId=${item.agentId}）` }))
+    return agents.value.map((item) => ({ value: item.agentId, label: item.agentName || item.agentId }))
   }
-  return [{ value: DEFAULT_AGENT_ID, label: 'Auto Agent 自动智能对话体（agentId=3）' }]
+  // 列表还没加载回来时的占位项：就是后端默认放行的那个 Auto 智能体
+  return [{ value: DEFAULT_AGENT_ID, label: '智能对话体（Auto）' }]
 })
 
 const presetOptions = computed(() => PRESETS.map((item) => ({ value: item.label, label: item.label })))
@@ -315,6 +320,14 @@ function applyPreset(value: string | undefined): void {
   if (preset) inputText.value = preset.prompt
 }
 
+/**
+ * 工具条两个选择器：显示值由 v-model 直接绑定本地 ref（见模板），
+ * 这里只负责把选择同步到当前会话 —— 会话记住它，切换会话时再回填（见下面 watch）。
+ *
+ * ⚠️ 之前这里只调 updateSessionMeta、没更新本地 ref，导致"选了没反应"：
+ * 值确实写进了会话（发送时用的是 session.maxStep），但 Select 显示的仍是老值，
+ * 看起来就是"最大执行步骤改不了"（管理员同样改不了，因为与权限无关）。
+ */
 function onAgentChange(value: unknown): void {
   if (typeof value === 'string') updateSessionMeta(currentId.value, { agentId: value })
 }
@@ -360,7 +373,7 @@ onMounted(() => {
         <div class="flex items-center gap-2">
           <span class="text-[12px] text-ink-400">智能体</span>
           <Select
-            :value="selectedAgentId"
+            v-model:value="selectedAgentId"
             :options="agentOptions"
             :loading="agentsLoading"
             class="min-w-[240px]"
@@ -371,7 +384,13 @@ onMounted(() => {
 
         <div class="flex items-center gap-2">
           <span class="text-[12px] text-ink-400">最大执行步数</span>
-          <Select :value="maxStep" :options="MAX_STEP_OPTIONS.map((v) => ({ value: v, label: String(v) }))" size="small" class="w-[76px]" @change="onMaxStepChange" />
+          <Select
+            v-model:value="maxStep"
+            :options="MAX_STEP_OPTIONS.map((v) => ({ value: v, label: String(v) }))"
+            size="small"
+            class="w-[76px]"
+            @change="onMaxStepChange"
+          />
         </div>
 
         <div class="flex items-center gap-2">

@@ -22,6 +22,19 @@ public interface IAiAgentFlowConfigDao extends BaseMapper<AiAgentFlowConfig> {
         return delete(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId));
     }
 
+    /**
+     * 只删「某个用户在该智能体上的绑定」（owner_id = ownerId 的那几条），公共链路一行不动。
+     * <p>
+     * ⚠️ 解绑、重新绑定都必须用它，绝不能用 {@link #deleteByAgentId(String)} ——
+     * 后者会把系统默认链路（owner 为空）和其它用户的绑定一起删掉。
+     */
+    default int deleteByAgentIdAndOwner(String agentId, String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return 0;
+        }
+        return delete(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId).eq("owner_id", ownerId));
+    }
+
     default AiAgentFlowConfig queryById(String id) {
         return selectById(id);
     }
@@ -44,6 +57,39 @@ public interface IAiAgentFlowConfigDao extends BaseMapper<AiAgentFlowConfig> {
     default List<AiAgentFlowConfig> queryEnabledByAgentId(String agentId) {
         return selectList(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId)
                 .eq("status", 1).orderByAsc("sequence"));
+    }
+
+    /**
+     * 根据智能体ID + 归属查询【有效】流程配置（**只查属于 ownerId 的那份**），按 sequence 升序。
+     * <p>
+     * 「绑定关系」本身就存在本表：{@code agent_id + client_id + owner_id} ——
+     * 普通用户给自己的 Key 绑定某个智能体后，就会多出一条归他本人的流程配置，
+     * 装配/对话时优先用它（见 {@link #queryEnabledByAgentIdPreferOwner(String, String)}）。
+     * 返回空 = 这个用户没为该智能体绑定过自己的 Key。
+     */
+    default List<AiAgentFlowConfig> queryEnabledByAgentIdAndOwner(String agentId, String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return List.of();
+        }
+        return selectList(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId)
+                .eq("status", 1).eq("owner_id", ownerId).orderByAsc("sequence"));
+    }
+
+    /**
+     * 运行期取流程配置：<b>优先用户自己绑定的那份，没有才回落到系统默认（owner_id 为空）</b>。
+     * <p>
+     * 为什么必须有这个优先级：平台默认智能体的链路指向管理员的 base_url / api_key，
+     * 普通用户绑定自己的 Key 之后必须让<b>他的</b>链路生效，否则绑了等于白绑。
+     * 没有用户上下文（定时任务、启动装配）或该用户没绑过时，回落的只是系统默认，
+     * 不会串到别的用户的私有链路上（旧实现按 agent_id 取全部行，会把别人的私有配置也取到）。
+     */
+    default List<AiAgentFlowConfig> queryEnabledByAgentIdPreferOwner(String agentId, String ownerId) {
+        List<AiAgentFlowConfig> ownConfigs = queryEnabledByAgentIdAndOwner(agentId, ownerId);
+        if (!ownConfigs.isEmpty()) {
+            return ownConfigs;
+        }
+        return selectList(new QueryWrapper<AiAgentFlowConfig>().eq("agent_id", agentId)
+                .eq("status", 1).isNull("owner_id").orderByAsc("sequence"));
     }
 
     /**

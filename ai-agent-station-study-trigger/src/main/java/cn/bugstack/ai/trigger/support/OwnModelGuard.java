@@ -137,6 +137,32 @@ public class OwnModelGuard {
         return null;
     }
 
+    /**
+     * 「平台默认智能体必须绑了自己的 Key」校验。
+     *
+     * <p>产品规则（2026-09-27 确认）：平台默认 Key 只给管理员用 —— 普通用户要跑任何智能体
+     * （包括 6 个基础智能体）都必须先配好自己的 base_url + api_key 并绑定给它。
+     * 绑定关系存在 {@code ai_agent_flow_config}（agent_id + client_id + owner_id = 他）：
+     * 有归他的那一条 = 绑过；没有 = 没绑，拦下并引导他去绑。
+     *
+     * <p>只对「平台默认智能体」调用：他自己搭的智能体已由
+     * {@link #checkAgentChain(String, String)} 保证链路都是他本人的，不需要再要求"绑定"。
+     *
+     * @param agentId 智能体 id
+     * @param ownerId 期望的归属（普通用户自己的 userId）
+     * @return null = 通过；否则返回给用户看的提示
+     */
+    public String checkBindingRequired(String agentId, String ownerId) {
+        if (!StringUtils.hasText(agentId) || !StringUtils.hasText(ownerId)) {
+            return null;
+        }
+        if (!aiAgentFlowConfigDao.queryEnabledByAgentIdAndOwner(agentId, ownerId).isEmpty()) {
+            return null;
+        }
+        return "该智能体还没有绑定你自己的模型 Key：平台默认 Key 只给管理员使用，"
+                + "请到「客户端 API 管理」配置你的 base_url 与 API Key 并绑定这个智能体";
+    }
+
     /** 归属必须**正好是他的**：公共（owner 为空）与别人的都算借道 */
     private boolean isOwnedBy(String ownerId, String currentUserId) {
         return StringUtils.hasText(ownerId) && ownerId.equals(currentUserId);

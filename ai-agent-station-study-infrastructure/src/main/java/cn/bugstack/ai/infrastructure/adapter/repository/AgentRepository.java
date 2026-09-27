@@ -471,9 +471,16 @@ public class AgentRepository implements IAgentRepository {
 
     @Override
     public Map<String, AiAgentClientFlowConfigVO> queryAiAgentClientFlowConfig(String aiAgentId) {
+        // 不传 owner：等价于「系统默认链路」，用于定时任务等没有用户上下文的场景
+        return queryAiAgentClientFlowConfig(aiAgentId, null);
+    }
+
+    @Override
+    public Map<String, AiAgentClientFlowConfigVO> queryAiAgentClientFlowConfig(String aiAgentId, String ownerId) {
         try {
-            // 只加载 status=1 的有效流程配置，避免已禁用的占位节点（如 agent_id='1' 的 2101~2103）参与执行
-            List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentId(aiAgentId);
+            // 只加载 status=1 的有效流程配置，避免已禁用的占位节点（如 agent_id='1' 的 2101~2103）参与执行。
+            // 归属优先：用户绑定过自己的 Key 就走他的链路（否则一直用管理员的 Key，绑了等于白绑），没绑过回落系统默认
+            List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentIdPreferOwner(aiAgentId, ownerId);
             Map<String, AiAgentClientFlowConfigVO> result = new HashMap<>();
 
             for (AiAgentFlowConfig flowConfig : flowConfigs) {
@@ -528,10 +535,19 @@ public class AgentRepository implements IAgentRepository {
      */
     @Override
     public List<AiAgentClientFlowConfigVO> queryAiAgentClientsByAgentId(String aiAgentId) {
+        // 不传 owner：装配场景要把该智能体的**全部**流程配置都注册成 Bean
+        // （系统默认那份 + 各用户绑定时写入的私有那份），运行期再按用户取用，见 ArmoryService
+        return queryAiAgentClientsByAgentId(aiAgentId, null);
+    }
+
+    @Override
+    public List<AiAgentClientFlowConfigVO> queryAiAgentClientsByAgentId(String aiAgentId, String ownerId) {
         List<AiAgentClientFlowConfigVO> aiAgentClientFlowConfigVOS = new ArrayList<>();
 
         // 只加载 status=1 的有效流程配置：本方法同时服务于 FixedAgentExecuteStrategy 执行与 Armory 装配
-        List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentId(aiAgentId);
+        List<AiAgentFlowConfig> flowConfigs = (ownerId == null || ownerId.isBlank())
+                ? aiAgentFlowConfigDao.queryEnabledByAgentId(aiAgentId)
+                : aiAgentFlowConfigDao.queryEnabledByAgentIdPreferOwner(aiAgentId, ownerId);
         for (AiAgentFlowConfig flowConfig : flowConfigs) {
             AiAgentClientFlowConfigVO configVO = AiAgentClientFlowConfigVO.builder()
                     .clientId(flowConfig.getClientId())

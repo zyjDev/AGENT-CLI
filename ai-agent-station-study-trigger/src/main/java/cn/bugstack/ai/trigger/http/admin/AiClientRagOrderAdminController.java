@@ -53,6 +53,9 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             aiClientRagOrder.setCreateTime(LocalDateTime.now());
             aiClientRagOrder.setUpdateTime(LocalDateTime.now());
             
+            // 归属：普通用户建的就是他自己的（管理员建的留空 = 平台默认，人人可用）
+            OwnerGuard.stampOwnerOnCreate(aiClientRagOrder);
+
             int result = aiClientRagOrderDao.insert(aiClientRagOrder);
             
             return Response.<Boolean>builder()

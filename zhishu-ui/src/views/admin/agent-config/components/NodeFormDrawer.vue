@@ -66,7 +66,8 @@ async function loadOptions(type: DrawNodeType): Promise<Option[]> {
       // 智能体以「名称」为引用值（后端按 agentName 建 ai_agent 记录）
       const { AgentApi } = await import('@/api/agent')
       const list = await AgentApi.queryAvailableAgents()
-      options = (list ?? []).map((item) => ({ label: `${item.agentName}（agentId=${item.agentId}）`, value: item.agentName }))
+      // 只显示名称：id 是内部标识，对使用者没有意义
+      options = (list ?? []).map((item) => ({ label: item.agentName || item.agentId, value: item.agentName }))
     } else if (type === 'client') {
       const list = await AiClientApi.queryAll()
       clientRawCache.value = (list ?? []).map((item) => ({ clientId: item.clientId, clientName: item.clientName }))

@@ -2,10 +2,17 @@
 /**
  * 客户端 API 管理：模型供应商的接入地址与密钥。
  * 注意：本模块 update-by-id 后端为 PUT，已在 api 层纠正（旧实现误用 POST）。
+ *
+ * 本页除了 CRUD，还承担「把自己的密钥绑定到智能体」：
+ * 平台默认密钥只给管理员用，普通用户要用平台默认智能体，必须配好自己的 base_url + api_key 并绑定它；
+ * 绑定后运行时优先走他自己的链路（后端 AiClientApiBindingAdminController 负责自动接线与装配）。
  */
+import { ref } from 'vue'
+import { Button, Empty, Modal, Select, Spin, message } from 'ant-design-vue'
 import CrudPage from '@/components/admin/CrudPage.vue'
 import type { CrudDescriptor } from '@/components/admin/types'
-import { AiClientApiApi, type AiClientApiItem } from '@/api/ai-client-api'
+import { AiClientApiApi, type AiClientApiBoundAgent, type AiClientApiItem } from '@/api/ai-client-api'
+import { AgentApi } from '@/api/agent'
 
 const STATUS_OPTIONS = [
   { label: '启用', value: 1 },
@@ -48,7 +55,15 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
       placeholder: '如：https://api.deepseek.com（需以 http:// 或 https:// 开头）',
     },
     { name: 'completionsPath', label: '对话路径', type: 'input', required: true, placeholder: 'v1/chat/completions' },
-    { name: 'embeddingsPath', label: '嵌入路径', type: 'input', required: true, placeholder: 'v1/embeddings' },
+    {
+      name: 'embeddingsPath',
+      label: '嵌入路径',
+      type: 'input',
+      // 选填：只有知识库/向量化才会用到，留空后端补 v1/embeddings
+      required: false,
+      placeholder: '留空默认 v1/embeddings',
+      extra: '仅知识库 / 向量化（embedding）需要；只做对话可以留空。',
+    },
     { name: 'apiKey', label: 'API 密钥', type: 'password', required: true, full: true, placeholder: 'sk-...' },
     { name: 'status', label: '状态', type: 'select', required: true, options: STATUS_OPTIONS },
   ],
@@ -58,7 +73,96 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
     update: (payload) => AiClientApiApi.updateById(payload),
     remove: (record) => AiClientApiApi.deleteById(record.id),
   },
-  notice: '接口按 PUT 提交更新；密钥以明文返回，请勿在公共环境截图或分享。',
+  rowActions: [
+    {
+      label: '绑定智能体',
+      run: (record) => openBind(record),
+    },
+  ],
+  notice: '接口按 PUT 提交更新；密钥以明文返回，请勿在公共环境截图或分享。绑定智能体后，该智能体将改用你的密钥运行。',
+}
+
+/* ---------------- 绑定智能体 ---------------- */
+
+const bindOpen = ref(false)
+const bindSubmitting = ref(false)
+const bindApiId = ref('')
+const bindApiLabel = ref('')
+const bindAgentId = ref<string | undefined>(undefined)
+const agentOptions = ref<{ label: string; value: string }[]>([])
+const agentLoading = ref(false)
+const boundAgents = ref<AiClientApiBoundAgent[]>([])
+const boundLoading = ref(false)
+
+async function openBind(record: AiClientApiItem): Promise<void> {
+  bindApiId.value = record.apiId
+  bindApiLabel.value = record.baseUrl ? `${record.apiId}（${record.baseUrl}）` : record.apiId
+  bindAgentId.value = undefined
+  bindOpen.value = true
+  await Promise.all([loadAgentOptions(), loadBoundAgents()])
+}
+
+/** 可选智能体 = 后端给的「我能用的」（平台默认 + 我自己搭的） */
+async function loadAgentOptions(): Promise<void> {
+  if (agentOptions.value.length) return
+  agentLoading.value = true
+  try {
+    const agents = await AgentApi.queryAvailableAgents()
+    // 只显示名称（id 是内部标识，不展示）；名称缺失时才退回 id，避免出现空白项
+    agentOptions.value = (agents ?? []).map((item) => ({
+      label: item.agentName || item.agentId,
+      value: item.agentId,
+    }))
+  } catch (error) {
+    console.error('[ai-client-api] 获取可用智能体失败', error)
+  } finally {
+    agentLoading.value = false
+  }
+}
+
+async function loadBoundAgents(): Promise<void> {
+  boundLoading.value = true
+  try {
+    boundAgents.value = (await AiClientApiApi.queryBoundAgents(bindApiId.value)) ?? []
+  } catch (error) {
+    console.error('[ai-client-api] 查询已绑定智能体失败', error)
+  } finally {
+    boundLoading.value = false
+  }
+}
+
+async function submitBind(): Promise<void> {
+  if (!bindAgentId.value) {
+    message.warning('请先选择要绑定的智能体')
+    return
+  }
+  bindSubmitting.value = true
+  try {
+    await AiClientApiApi.bindAgent(bindApiId.value, bindAgentId.value)
+    message.success('绑定成功：该智能体将使用你的模型密钥')
+    bindAgentId.value = undefined
+    await loadBoundAgents()
+  } catch (error) {
+    // 失败原因已由请求层提示
+    console.error('[ai-client-api] 绑定失败', error)
+  } finally {
+    bindSubmitting.value = false
+  }
+}
+
+function unbind(agentId: string): void {
+  Modal.confirm({
+    title: '确认解绑？',
+    content: '解绑后该智能体不再可用（平台默认密钥只给管理员使用），需要重新绑定才能继续使用。',
+    okText: '确认解绑',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      await AiClientApiApi.unbindAgent(bindApiId.value, agentId)
+      message.success('已解绑')
+      await loadBoundAgents()
+    },
+  })
 }
 </script>
 
@@ -66,25 +170,84 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
   <div class="space-y-3">
     <!--
       面向普通用户的配置引导。
-      为什么放在这一页：普通用户"用平台默认智能体"不需要任何配置，
-      但"自己搭智能体"必须自带模型 Key，而 Key 就是在这里填的 —— 所以在入口处把路说清，
-      别等他保存编排时才被拦下来、还不知道去哪儿配。
+      为什么放在这一页：普通用户"用平台默认智能体"必须配自己的 Key 并绑定（平台 Key 只给管理员用），
+      而 Key 就是在这里填的 —— 所以在入口处把路说清，别等他保存编排或对话时才被拦下来、还不知道去哪儿配。
     -->
     <div class="rounded-xl border border-[#E7EAF6] bg-[#F7F8FE] px-4 py-3 text-[12.5px] leading-6 text-ink-600">
       <p class="font-medium text-ink-900">要用自己的模型跑智能体？在这里配</p>
       <p class="mt-1 text-ink-400">
-        平台默认智能体（管理员提供的）拿来即用，无需配置；但你<strong>自己搭建</strong>的智能体必须使用你自己的模型，
-        否则保存或运行时会被拦下。步骤：
+        平台默认密钥只给管理员使用：普通用户要用智能体（包括那些平台默认的），
+        必须配好自己的 <strong>base_url + API 密钥</strong> 并绑定给它。步骤：
       </p>
       <ol class="mt-2 list-decimal space-y-1 pl-5">
         <li>本页「新增」一条 API：<strong>基础URL</strong> 填你供应商的地址（如 <span class="font-mono">https://api.deepseek.com</span>），<strong>API 密钥</strong> 填你的 Key；</li>
-        <li>到「模型管理」新增模型：<strong>API 选上一步那条</strong>，模型名填供应商的模型名（如 <span class="font-mono">deepseek-chat</span>）；</li>
-        <li>到「客户端管理」新增客户端，把上面这个模型挂上去；</li>
-        <li>回到「智能体编排」，把客户端 / 模型节点换成你自己这几个，保存就能用。</li>
+        <li>保存后点这一行的 <strong>「绑定智能体」</strong>，选择要用它的智能体（平台默认的、你自己搭的都可以）；</li>
+        <li>绑定成功即可直接用那个智能体对话 —— 后端会自动为你建好模型与客户端，你不需要懂中间那几层。</li>
       </ol>
-      <p class="mt-1 text-ink-400">你自己的资源只有你自己能看见和修改；平台默认资源仍然可以直接用，互不影响。</p>
+      <p class="mt-1 text-ink-400">
+        绑定会自动生成属于你的模型与客户端：如果你要自己拖拽搭建智能体，在编排里直接选这两个自己的资源即可（引用平台默认模型会被拦下）。
+        同一智能体重复绑定会覆盖上一次；解绑后该智能体对你不再可用。
+      </p>
     </div>
 
     <CrudPage :descriptor="descriptor" />
+
+    <Modal
+      v-model:open="bindOpen"
+      :title="`绑定智能体：${bindApiLabel}`"
+      :confirm-loading="bindSubmitting"
+      ok-text="绑定"
+      cancel-text="关闭"
+      @ok="submitBind"
+    >
+      <p class="text-[12.5px] leading-6 text-ink-600">
+        选择要用这条密钥的智能体。绑定后运行时优先走你自己的链路（不会再用平台默认密钥）；
+        同一智能体重复绑定会覆盖上一次。
+      </p>
+      <Select
+        v-model:value="bindAgentId"
+        class="mt-3 w-full"
+        show-search
+        option-filter-prop="label"
+        placeholder="选择智能体（可搜索）"
+        :options="agentOptions"
+        :loading="agentLoading"
+      />
+
+      <div class="mt-4">
+        <p class="text-[12.5px] font-medium text-ink-900">已绑定我的密钥的智能体</p>
+        <Spin :spinning="boundLoading">
+          <Empty
+            v-if="!boundAgents.length"
+            :image="Empty.PRESENTED_IMAGE_SIMPLE"
+            description="还没有绑定任何智能体"
+          />
+          <ul v-else class="mt-2 space-y-1.5">
+            <li
+              v-for="item in boundAgents"
+              :key="item.agentId"
+              class="flex items-center justify-between rounded-lg border border-line px-3 py-2"
+            >
+              <span class="text-[12.5px] text-ink-900">
+                {{ item.agentName }}
+                <span
+                  v-if="item.platformDefault"
+                  class="ml-1.5 rounded bg-[#EEF2FF] px-1.5 py-0.5 text-[11px] text-brand"
+                  >平台默认</span
+                >
+              </span>
+              <button
+                type="button"
+                class="cursor-pointer text-[12.5px] text-err hover:underline"
+                @click="unbind(item.agentId)"
+              >
+                解绑
+              </button>
+            </li>
+          </ul>
+        </Spin>
+        <p class="mt-2 text-[12px] text-ink-400">解绑后该智能体对你不可用，需要重新绑定。</p>
+      </div>
+    </Modal>
   </div>
 </template>

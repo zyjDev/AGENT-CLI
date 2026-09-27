@@ -77,4 +77,13 @@ public class AiAgentDrawConfigResponseDTO implements Serializable {
      */
     private Date updateTime;
 
+    /**
+     * 是否平台默认资源（owner_id 为空）。
+     * <p>
+     * 前端据此展示「平台默认」标识并隐藏编辑 / 删除：普通用户能看到默认智能体的信息，
+     * 但不能改（后端写入也会被 OwnerGuard 拦下，这里只是别给出会失败的按钮）。
+     * 刻意不直接暴露 owner_id —— 前端只需要"是不是平台默认"这一个判断。
+     */
+    private Boolean platformDefault;
+
 }

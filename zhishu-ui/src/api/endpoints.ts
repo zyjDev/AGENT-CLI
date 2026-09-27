@@ -70,6 +70,13 @@ export const ENDPOINTS = {
       `${ADMIN_BASE.AI_AGENT_DRAW}/delete-config/${encodeURIComponent(configId)}`,
   },
 
+  /** 用户自己的模型密钥 ↔ 智能体 绑定（自动接线 + 解绑 + 查询已绑定） */
+  AI_CLIENT_API_BINDING: {
+    BIND_AGENT: `${ADMIN_BASE.AI_CLIENT_API}/bind-agent`,
+    UNBIND_AGENT: `${ADMIN_BASE.AI_CLIENT_API}/unbind-agent`,
+    BOUND_AGENTS: `${ADMIN_BASE.AI_CLIENT_API}/bound-agents`,
+  },
+
   /** 知识库文件上传（multipart：name / tag / files） */
   RAG_UPLOAD: `${ADMIN_BASE.AI_CLIENT_RAG_ORDER}/file/upload`,
 

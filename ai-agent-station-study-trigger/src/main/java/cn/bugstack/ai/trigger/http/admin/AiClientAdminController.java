@@ -45,6 +45,9 @@ public class AiClientAdminController implements IAiClientAdminService {
             aiClient.setCreateTime(LocalDateTime.now());
             aiClient.setUpdateTime(LocalDateTime.now());
             
+            // 归属：普通用户建的就是他自己的（管理员建的留空 = 平台默认，人人可用）
+            OwnerGuard.stampOwnerOnCreate(aiClient);
+
             int result = aiClientDao.insert(aiClient);
             
             return Response.<Boolean>builder()

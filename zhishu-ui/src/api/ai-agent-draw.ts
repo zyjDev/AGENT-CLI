@@ -15,6 +15,8 @@ export interface AiAgentDrawConfigItem {
   configData?: string
   version?: number
   status?: number
+  /** 是否平台默认资源（owner 为空）：普通用户可见只读，前端据此隐藏编辑/删除 */
+  platformDefault?: boolean
   createBy?: string
   updateBy?: string
   createTime?: string

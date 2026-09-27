@@ -102,6 +102,8 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
             for (AiAgentDrawConfig config : configs) {
                 AiAgentDrawConfigResponseDTO dto = new AiAgentDrawConfigResponseDTO();
                 BeanUtils.copyProperties(config, dto);
+                // 平台默认（owner 为空）的配置：普通用户可见只读，前端据此隐藏编辑/删除
+                dto.setPlatformDefault(config.getOwnerId() == null);
                 responseDTOs.add(dto);
             }
 
@@ -222,14 +224,17 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         //    注意 ai_agent.agent_id 上有唯一索引 uk_agent_id，更新场景绝不能重复 insert
         AiAgent existingAgent = aiAgentDao.queryByAgentId(agentId);
         if (existingAgent == null) {
-            aiAgentDao.insert(AiAgent.builder()
+            AiAgent newAgent = AiAgent.builder()
                     .agentId(agentId)
                     .agentName(agentName)
                     .channel(channel)
                     .strategy(strategy)
                     .status(1)
                     .description(description)
-                    .build());
+                    .build();
+            // 归属：普通用户拖拽出来的智能体归他自己；管理员建的留空 = 平台默认
+            OwnerGuard.stampOwnerOnCreate(newAgent);
+            aiAgentDao.insert(newAgent);
         } else {
             // 只更新元信息，不动 status —— 编辑流程图不应隐式把已禁用的智能体重置为启用
             AiAgent updateAgent = new AiAgent();
@@ -262,6 +267,7 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
             drawConfig.setVersion(1); // 默认版本号
             drawConfig.setCreateTime(LocalDateTime.now());
             drawConfig.setUpdateTime(LocalDateTime.now());
+            OwnerGuard.stampOwnerOnCreate(drawConfig);
             result = aiAgentDrawConfigDao.insert(drawConfig);
             log.info("创建流程图配置，configId: {}, result: {}", configId, result);
         }
@@ -300,6 +306,7 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                 if (existingConfigs.isEmpty()) {
                     // 设置扩展参数，记录来源配置ID
                     config.setExtParam("{\"configId\":\"" + configId + "\"}");
+                    OwnerGuard.stampOwnerOnCreate(config);
                     aiClientConfigDao.insert(config);
                     log.debug("插入新的配置关系: sourceType={}, sourceId={}, targetType={}, targetId={}",
                             config.getSourceType(), config.getSourceId(), config.getTargetType(), config.getTargetId());
@@ -317,6 +324,8 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         //    同时「新配置里没有 client 节点」时会整个跳过清理，导致旧流程配置残留。
         aiAgentFlowConfigDao.deleteByAgentId(agentId);
         for (AiAgentFlowConfig flowConfig : agentFlowConfigs) {
+            // 归属：普通用户自己的编排，装配关系也归他 —— 阶段 3 的"已绑定自己的 Key"就是查这条
+            OwnerGuard.stampOwnerOnCreate(flowConfig);
             aiAgentFlowConfigDao.insert(flowConfig);
         }
         log.info("成功保存{}条agent-client关系数据", agentFlowConfigs.size());

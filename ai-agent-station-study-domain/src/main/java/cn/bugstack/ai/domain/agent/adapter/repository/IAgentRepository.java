@@ -33,9 +33,27 @@ public interface IAgentRepository {
 
     Map<String, AiAgentClientFlowConfigVO> queryAiAgentClientFlowConfig(String aiAgentId);
 
+    /**
+     * 运行期取流程配置（按归属优先）：优先 ownerId 自己绑定的那份，没有则回落系统默认（owner 为空）。
+     * <p>
+     * ownerId 为空或该用户没绑定过时，退化为「系统默认链路」，与单参版本行为一致（除不再串别人的私有配置）。
+     *
+     * @param aiAgentId 智能体ID
+     * @param ownerId   调用者 userId（来自 ExecuteCommandEntity，不能依赖 ThreadLocal：执行链路切了线程池）
+     */
+    Map<String, AiAgentClientFlowConfigVO> queryAiAgentClientFlowConfig(String aiAgentId, String ownerId);
+
     AiAgentVO queryAiAgentByAgentId(String aiAgentId);
 
     List<AiAgentClientFlowConfigVO> queryAiAgentClientsByAgentId(String aiAgentId);
+
+    /**
+     * 取智能体的客户端流程配置（按归属优先），供固定流程执行链路使用。
+     *
+     * @param aiAgentId 智能体ID
+     * @param ownerId   调用者 userId
+     */
+    List<AiAgentClientFlowConfigVO> queryAiAgentClientsByAgentId(String aiAgentId, String ownerId);
 
     List<AiAgentTaskScheduleVO> queryAllValidTaskSchedule();
 

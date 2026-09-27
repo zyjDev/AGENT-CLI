@@ -3,6 +3,10 @@
  * 智能体列表：编排配置的查询 / 装配 / 删除。
  * 只读列表（配置本身在编排画布中创建与保存），所以 descriptor.readonly = true，
  * 仅保留「装配」行操作与删除。
+ *
+ * 列表里会混着两类行：平台默认（owner 为空，如 6 个基础智能体 + 示例 RAG 智能体）与「我的」。
+ * 普通用户对平台默认行**可见但不可改**：不显示「修改」与删除按钮，
+ * 只能「查看」（只读画布）与「装配」。后端 OwnerGuard 也会拦写入，这里只是别给出会失败的按钮。
  */
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
@@ -23,12 +27,15 @@ const descriptor: CrudDescriptor<AiAgentDrawConfigItem> = {
   columns: [
     { title: '配置ID', dataIndex: 'configId', width: 170, render: 'mono' },
     { title: '配置名称', dataIndex: 'configName', width: 200 },
+    { title: '来源', dataIndex: 'platformDefault', width: 100, render: 'platform-default' },
     { title: '描述', dataIndex: 'description', render: 'truncate' },
     { title: '智能体ID', dataIndex: 'agentId', width: 110, render: 'mono' },
     { title: '版本', dataIndex: 'version', width: 80, render: 'mono' },
     { title: '状态', dataIndex: 'status', width: 90, render: 'status' },
     { title: '更新时间', dataIndex: 'updateTime', width: 160, render: 'time' },
   ],
+  // 平台默认行不给删除（后端也会拦，这里先把按钮收掉）
+  canRemoveRow: (record) => !record.platformDefault,
   // 只读列表：descriptor 不提供 create / update，因此只渲染「装配」等行操作与删除；
   // 配置本身由编排画布创建与保存
   formFields: [],
@@ -45,6 +52,8 @@ const descriptor: CrudDescriptor<AiAgentDrawConfigItem> = {
     },
     {
       label: '修改',
+      // 平台默认配置只有管理员能改：普通用户不给入口，免得点了再吃一个"无权修改"
+      visible: (record) => !record.platformDefault,
       run: (record) => {
         void router.push({ path: '/admin/agent-config', query: { configId: record.configId } })
       },
@@ -66,7 +75,9 @@ const descriptor: CrudDescriptor<AiAgentDrawConfigItem> = {
       },
     },
   ],
-  notice: '「装配」会把该配置关联到运行中的智能体（POST /v1/agent/armory_agent）；修改流程后需重新装配才会生效。',
+  notice:
+    '「平台默认」的智能体由管理员维护，你可以查看（只读画布）与装配，但不能修改或删除；' +
+    '「装配」会把该配置关联到运行中的智能体（POST /v1/agent/armory_agent），修改流程后需重新装配才会生效。',
 }
 </script>
 

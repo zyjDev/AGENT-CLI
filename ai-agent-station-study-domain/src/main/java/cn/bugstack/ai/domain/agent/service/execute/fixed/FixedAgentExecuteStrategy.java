@@ -56,7 +56,9 @@ public class FixedAgentExecuteStrategy implements IExecuteStrategy {
     @Override
     public void execute(ExecuteCommandEntity requestParameter, ResponseBodyEmitter emitter) throws Exception {
         // 1. 获取配置客户端
-        List<AiAgentClientFlowConfigVO> aiAgentClientList = repository.queryAiAgentClientsByAgentId(requestParameter.getAiAgentId());
+        // 按归属取流程配置：用户绑定过自己的 Key 就走他的链路，否则回落系统默认（userId 显式传，见 RootNode 注释）
+        List<AiAgentClientFlowConfigVO> aiAgentClientList =
+                repository.queryAiAgentClientsByAgentId(requestParameter.getAiAgentId(), requestParameter.getUserId());
 
         // 2. 循环执行客户端
         String content = "";

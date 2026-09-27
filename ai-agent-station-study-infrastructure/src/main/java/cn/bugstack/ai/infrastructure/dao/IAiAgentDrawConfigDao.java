@@ -55,11 +55,18 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
     }
 
     default List<AiAgentDrawConfig> queryByConfigName(String configName) {
-        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>visibleWrapper().like("config_name", configName).orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>usableWrapper().like("config_name", configName).orderByDesc("create_time"));
     }
 
+    /**
+     * 编排配置列表。
+     * <p>
+     * ⚠️ 这里用「可用」口径（系统默认 + 本人）而不是 visibleWrapper：产品要求普通用户
+     * **能看到默认智能体的信息（只读）**，只是不能改 —— 列表藏起来他连"平台给了什么"都不知道。
+     * 写入仍然要靠 {@code OwnerGuard.writable}（公共资源只有管理员能改），所以放开可见不等于放开可改。
+     */
     default List<AiAgentDrawConfig> queryAll() {
-        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>visibleWrapper().orderByDesc("create_time"));
+        return selectList(OwnerQuerySupport.<AiAgentDrawConfig>usableWrapper().orderByDesc("create_time"));
     }
 
 }

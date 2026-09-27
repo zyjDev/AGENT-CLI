@@ -8,12 +8,15 @@ import cn.bugstack.ai.api.dto.AutoAgentRequestDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentVO;
+import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
 import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IArmoryService;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
 import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
+import cn.bugstack.ai.infrastructure.dao.IAiAgentFlowConfigDao;
 import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
+import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
 import cn.bugstack.ai.trigger.support.OwnModelGuard;
 import cn.bugstack.ai.types.common.OwnerScope;
@@ -23,6 +26,7 @@ import com.alibaba.fastjson.JSON;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
@@ -64,6 +68,11 @@ public class AiAgentController implements IAiAgentService {
     // 「普通用户自建智能体必须自带模型 Key」校验用
     @Resource
     private OwnModelGuard ownModelGuard;
+    // 绑定关系（ai_agent_flow_config）与用户级链路补装用
+    @Resource
+    private IAiAgentFlowConfigDao aiAgentFlowConfigDao;
+    @Resource
+    private ApplicationContext applicationContext;
 
     /**
      * 当前用户是否可用该智能体。
@@ -127,6 +136,63 @@ public class AiAgentController implements IAiAgentService {
     }
 
     /**
+     * 「平台默认智能体必须先绑定自己的 Key」校验。
+     *
+     * <p>产品规则：平台默认 Key 只给管理员用。普通用户要跑平台默认智能体（6 个基础智能体那类），
+     * 必须先在「客户端 API 管理」配好自己的 base_url + api_key 并绑定它。
+     * 只校验平台默认智能体 —— 他自己搭的智能体已由 {@link #findOwnModelProblem(String)}
+     * 保证链路都是他本人的，不需要再要求"绑定"。
+     *
+     * @return null = 通过；否则返回给用户看的提示
+     */
+    private String findBindingProblem(String agentId) {
+        if (UserContext.isAdmin()) {
+            return null;
+        }
+        String userId = UserContext.userId();
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
+        String agentOwner = agent == null ? null : agent.getOwnerId();
+        if (agentOwner != null && !agentOwner.isEmpty()) {
+            // 自己的智能体走链路校验；别人的私有智能体已由 canUseAgent 拦下
+            return null;
+        }
+        return ownModelGuard.checkBindingRequired(agentId, userId);
+    }
+
+    /**
+     * 用户级链路「补装」。
+     *
+     * <p>后端重启后，用户绑定自己 Key 时注册的那套 Bean（{@code ai_client_<他的clientId>} 等）会丢，
+     * 直接对话会报「找不到 Bean」。这里在对话前检查一次，缺了就重新装配 ——
+     * 用户不需要知道"装配"是什么，他只是发现绑过之后一直能用。
+     */
+    private void ensureUserChainAssembled(String agentId) {
+        String userId = UserContext.userId();
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        List<AiAgentFlowConfig> myBindings = aiAgentFlowConfigDao.queryEnabledByAgentIdAndOwner(agentId, userId);
+        for (AiAgentFlowConfig binding : myBindings) {
+            String beanName = AiAgentEnumVO.AI_CLIENT.getBeanName(binding.getClientId());
+            if (applicationContext.containsBean(beanName)) {
+                continue;
+            }
+            log.info("用户级链路 Bean 缺失，自动补装：agentId={}, userId={}, clientId={}",
+                    agentId, userId, binding.getClientId());
+            try {
+                // 装配会把该智能体的全部流程配置（含他这条）都注册成 Bean，装一次即可
+                armoryService.acceptArmoryAgent(agentId);
+            } catch (Exception e) {
+                log.warn("自动补装失败（本次对话可能因缺少 Bean 而失败）：agentId={}, userId={}", agentId, userId, e);
+            }
+            return;
+        }
+    }
+
+    /**
      *  AutoAgent 流式执行
      * @param request
      * @param response
@@ -157,6 +223,16 @@ public class AiAgentController implements IAiAgentService {
                 log.warn("拒绝调用：自建智能体借道了非本人资源，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
                 return sseError(ownModelProblem, ResponseCode.NEED_OWN_MODEL_KEY.getCode());
             }
+
+            // 0.2 绑定校验：平台默认智能体必须绑过用户自己的 Key（平台 Key 只给管理员用）
+            String bindingProblem = findBindingProblem(request.getAiAgentId());
+            if (bindingProblem != null) {
+                log.warn("拒绝调用：普通用户未绑定自己的 Key，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
+                return sseError(bindingProblem, ResponseCode.NEED_OWN_MODEL_KEY.getCode());
+            }
+
+            // 0.3 用户级链路补装：后端重启后他的 Bean 会丢，首次对话时自动装回来
+            ensureUserChainAssembled(request.getAiAgentId());
 
             // 1. 创建流式输出对象
             ResponseBodyEmitter emitter = new ResponseBodyEmitter(sseTimeoutMillis);
@@ -230,6 +306,17 @@ public class AiAgentController implements IAiAgentService {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
                         .info(ownModelProblem)
+                        .data(false)
+                        .build();
+            }
+
+            // 绑定校验：平台默认智能体必须绑过用户自己的 Key（平台 Key 只给管理员用）
+            String bindingProblem = findBindingProblem(request.getAgentId());
+            if (bindingProblem != null) {
+                log.warn("拒绝装配：普通用户未绑定自己的 Key，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
+                        .info(bindingProblem)
                         .data(false)
                         .build();
             }

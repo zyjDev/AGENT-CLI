@@ -44,7 +44,16 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setCreateTime(LocalDateTime.now());
             aiClientApi.setUpdateTime(LocalDateTime.now());
-            
+
+            // 嵌入路径选填：只配对话模型的用户不该被这个字段卡住（embeddings 只在知识库/向量化时用）。
+            // 该列是 NOT NULL，所以留空就补默认值；填了的原样保留。
+            if (!StringUtils.hasText(aiClientApi.getEmbeddingsPath())) {
+                aiClientApi.setEmbeddingsPath("v1/embeddings");
+            }
+
+            // 归属：普通用户建的就是他自己的（管理员建的留空 = 平台默认，人人可用）
+            OwnerGuard.stampOwnerOnCreate(aiClientApi);
+
             int result = aiClientApiDao.insert(aiClientApi);
             
             return Response.<Boolean>builder()

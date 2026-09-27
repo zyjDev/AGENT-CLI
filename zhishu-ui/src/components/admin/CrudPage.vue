@@ -12,7 +12,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import FormModal from './FormModal.vue'
 import QueryForm from './QueryForm.vue'
 import TablePager from './TablePager.vue'
-import type { CellRender, CrudDescriptor } from './types'
+import type { CellRender, CrudDescriptor, RowAction } from './types'
 
 type Row = Record<string, any>
 
@@ -40,6 +40,17 @@ const modalInitial = ref<Row>({})
 const canCreate = computed(() => !props.descriptor.readonly && Boolean(props.descriptor.api.create))
 const canEdit = computed(() => props.allowEdit && !props.descriptor.readonly && Boolean(props.descriptor.api.update))
 const canRemove = computed(() => !props.descriptor.readonly && Boolean(props.descriptor.api.remove))
+
+/** 该行可见的行操作：rowActions 可用 visible 按行隐藏（如平台默认资源不给「修改」） */
+function visibleRowActions(record: Row): RowAction[] {
+  return (props.descriptor.rowActions ?? []).filter((action) => action.visible?.(record) ?? true)
+}
+
+/** 该行能否删除：模块级允许 + 描述符按行判定（列表里混着只读的平台默认资源时用） */
+function canRemoveRow(record: Row): boolean {
+  if (!canRemove.value) return false
+  return props.descriptor.canRemoveRow ? props.descriptor.canRemoveRow(record) : true
+}
 const showActionColumn = computed(
   () => canEdit.value || canRemove.value || Boolean(props.descriptor.rowActions?.length),
 )
@@ -246,7 +257,7 @@ defineExpose({ reload: load })
           <template v-if="column.key === '__actions'">
             <div class="flex items-center justify-end gap-3">
               <button
-                v-for="action in descriptor.rowActions ?? []"
+                v-for="action in visibleRowActions(record as Row)"
                 :key="action.label"
                 type="button"
                 class="cursor-pointer text-[12.5px] text-brand hover:underline"
@@ -265,7 +276,7 @@ defineExpose({ reload: load })
               </button>
 
               <Popconfirm
-                v-if="canRemove"
+                v-if="canRemoveRow(record as Row)"
                 title="确认删除该记录？"
                 description="删除后不可恢复，且可能影响已引用它的编排节点。"
                 ok-text="确认删除"
@@ -283,6 +294,12 @@ defineExpose({ reload: load })
             <Tag :color="record[column.key as string] === 1 ? 'success' : 'default'">
               {{ record[column.key as string] === 1 ? '启用' : '停用' }}
             </Tag>
+          </template>
+
+          <!-- 来源列：平台默认（owner 为空）人人可见但只有管理员能改，普通用户的行标「我的」 -->
+          <template v-else-if="renderKindMap[column.key as string] === 'platform-default'">
+            <Tag v-if="record[column.key as string]" color="blue">平台默认</Tag>
+            <span v-else class="text-[12px] text-ink-400">我的</span>
           </template>
 
           <template v-else-if="renderKindMap[column.key as string] === 'time'">

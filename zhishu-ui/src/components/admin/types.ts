@@ -36,7 +36,7 @@ export interface FormField {
   full?: boolean
 }
 
-export type CellRender = 'text' | 'mono' | 'status' | 'time' | 'truncate'
+export type CellRender = 'text' | 'mono' | 'status' | 'time' | 'truncate' | 'platform-default'
 
 export interface ColumnDef {
   title: string
@@ -51,6 +51,12 @@ export interface ColumnDef {
 export interface RowAction<T = CrudRow> {
   label: string
   danger?: boolean
+  /**
+   * 该行是否显示这个操作。不写 = 全都显示。
+   * 典型场景：平台默认（owner 为空）的编排配置对普通用户只读 —— 编辑/删除按钮直接不给，
+   * 而不是让他点了再吃一个"无权修改"的报错。
+   */
+  visible?(record: T): boolean
   run(record: T): Promise<void> | void
 }
 
@@ -87,6 +93,11 @@ export interface CrudDescriptor<T = CrudRow> {
   generateIdField?: string
   /** 只读模块：隐藏新增/编辑/删除（如 agent-list 由编排页创建） */
   readonly?: boolean
+  /**
+   * 按行决定能否删除。不写 = 沿用 {@link readonly} 与 api.remove 的判断。
+   * 典型场景：列表里混着平台默认资源（只读）和自己的资源（可删）。
+   */
+  canRemoveRow?(record: T): boolean
   rowActions?: RowAction<T>[]
   /** 表格上方提示 */
   notice?: string

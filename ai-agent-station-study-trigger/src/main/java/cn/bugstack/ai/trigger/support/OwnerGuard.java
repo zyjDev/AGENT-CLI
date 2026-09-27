@@ -46,4 +46,42 @@ public final class OwnerGuard {
                 .data(null)
                 .build();
     }
+
+    /**
+     * 新建时给实体盖上归属（各 Controller 的 create 入口，插库前调用一次）。
+     *
+     * <p>规则与产品确认的一致：<b>普通用户新建 → 归自己；管理员新建 → 留空（平台默认，人人可用）；
+     * 无用户上下文（装配 / 定时任务 / 异步线程）→ 留空</b>。
+     *
+     * <p>为什么不靠 MyBatis-Plus 的 {@code MetaObjectHandler} 自动填充：
+     * 项目里虽然有 {@code TimeMetaObjectHandler}，但运行态实测**从未生效**
+     * （新建行的 owner_id 一直是 NULL，MP 的 insertFill 门槛与实体注解都满足、方法本身也验证过是对的），
+     * 排查成本已经超过收益 —— 关键创建路径改为在这里显式盖章，填充器保留作为兜底。
+     *
+     * <p>用反射取 {@code ownerId} 而不是让 12 个模块各写一遍 set：既省事，也不会漏。
+     * 没有 ownerId 字段的实体（如 admin_user）直接跳过。
+     *
+     * @param entity 待插入的 PO
+     */
+    public static void stampOwnerOnCreate(Object entity) {
+        if (entity == null) {
+            return;
+        }
+        org.apache.ibatis.reflection.MetaObject metaObject =
+                org.apache.ibatis.reflection.SystemMetaObject.forObject(entity);
+        if (!metaObject.hasSetter("ownerId")) {
+            return;
+        }
+        if (metaObject.getValue("ownerId") != null) {
+            return;
+        }
+        if (UserContext.isAdmin()) {
+            return;
+        }
+        String userId = UserContext.userId();
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        metaObject.setValue("ownerId", userId);
+    }
 }
