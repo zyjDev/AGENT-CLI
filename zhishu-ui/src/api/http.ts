@@ -74,7 +74,9 @@ instance.interceptors.response.use(
     if (error.code === 'ECONNABORTED') {
       info = '请求超时，请稍后重试'
     } else if (status) {
-      info = `请求失败（HTTP ${status}）`
+      // 拒绝类响应（403 等）后端会带 { code, info }，优先展示业务文案而不是干巴巴的状态码
+      const body = error.response?.data as { info?: string } | undefined
+      info = body?.info || `请求失败（HTTP ${status}）`
     } else {
       info = '网络异常，请确认后端服务已启动（默认 8099）'
     }

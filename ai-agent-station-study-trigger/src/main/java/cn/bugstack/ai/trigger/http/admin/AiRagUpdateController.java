@@ -2,6 +2,7 @@ package cn.bugstack.ai.trigger.http.admin;
 
 import cn.bugstack.ai.api.dto.*;
 import cn.bugstack.ai.api.response.Response;
+import cn.bugstack.ai.domain.agent.adapter.repository.IRagUpdateRepository;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.domain.agent.service.IAsyncRagUpdateService;
 import cn.bugstack.ai.domain.agent.service.IRagUpdateService;
@@ -41,6 +42,28 @@ public class AiRagUpdateController {
 
     @Resource
     private IRollbackService rollbackService;
+
+    /** 任务 → 知识库 的反查：取消 / 重试任务时用来校验归属 */
+    @Resource
+    private IRagUpdateRepository ragUpdateRepository;
+
+    /**
+     * 异步任务归属校验：任务覆盖的每个知识库都必须是「本人可写」的
+     * （系统默认知识库仅管理员可写，他人私有的连看都看不到）
+     */
+    private boolean writableTask(String taskId) {
+        List<String> ragIds = ragUpdateRepository.queryTaskRagIds(taskId);
+        if (ragIds == null || ragIds.isEmpty()) {
+            return false;
+        }
+        for (String ragId : ragIds) {
+            AiClientRagOrderResponseDTO order = ragUpdateService.queryRagOrderById(ragId);
+            if (order == null || !OwnerGuard.writable(order.getOwnerId())) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /**
      * 查询待更新文档
@@ -154,6 +177,9 @@ public class AiRagUpdateController {
     @PostMapping("/cancel-task")
     public Response<Boolean> cancelTask(@RequestParam("taskId") String taskId) {
         log.info("取消任务: taskId={}", taskId);
+        if (!writableTask(taskId)) {
+            return OwnerGuard.deny("任务");
+        }
         boolean result = asyncRagUpdateService.cancelTask(taskId);
         return result ? Response.success(true) : Response.error("取消失败");
     }
@@ -166,6 +192,9 @@ public class AiRagUpdateController {
     @PostMapping("/retry-task")
     public Response<Boolean> retryFailedTask(@RequestParam("taskId") String taskId) {
         log.info("重试失败任务: taskId={}", taskId);
+        if (!writableTask(taskId)) {
+            return OwnerGuard.deny("任务");
+        }
         boolean result = asyncRagUpdateService.retryFailedTask(taskId);
         return result ? Response.success(true) : Response.error("重试失败");
     }

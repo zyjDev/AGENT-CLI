@@ -5,12 +5,16 @@ import cn.bugstack.ai.api.dto.DataStatisticsResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.service.metrics.AgentRequestMetrics;
 import cn.bugstack.ai.infrastructure.dao.*;
+import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
 import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 数据统计
@@ -54,18 +58,22 @@ public class AiAgentDataStatisticsAdminController implements IAiAgentDataStatist
 
         // 各类配置数量：一律走 selectCount，不再用 queryAll().size()
         // —— 后者会把整表数据（含大字段）拉进 JVM 只为取一个长度，数据量上来必然拖慢首页。
-        // 口径与列表页一致：公共资源 + 本人私有（别人私有的资源不该出现在我的首页统计里）
-        long agentCount = aiAgentDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long clientCount = aiClientDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long mcpToolCount = aiClientToolMcpDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long systemPromptCount = aiClientSystemPromptDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long ragOrderCount = aiClientRagOrderDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long advisorCount = aiClientAdvisorDao.selectCount(OwnerQuerySupport.visibleWrapper());
-        long modelCount = aiClientModelDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        //
+        // 口径 = 「我能用的」：系统默认（owner_id 为空，如 6 个基础智能体与基础客户端）+ 本人私有。
+        // 为什么不用 visibleWrapper（列表口径）：系统默认资源在管理端列表里对普通用户「不可见」，
+        // 但对话页能选到、装配时也会用；统计若按列表口径，普通用户看到的永远是 0（实测确认），
+        // 看起来像功能坏了。别人的私有资源依然不计入（usableWrapper 不含别人）。
+        // 「活跃智能体」额外加了 status = 1：卡片写的是"活跃"，就得只数启用的。
+        long agentCount = aiAgentDao.selectCount(OwnerQuerySupport.<AiAgent>usableWrapper().eq("status", 1));
+        long clientCount = aiClientDao.selectCount(OwnerQuerySupport.usableWrapper());
+        long mcpToolCount = aiClientToolMcpDao.selectCount(OwnerQuerySupport.usableWrapper());
+        long systemPromptCount = aiClientSystemPromptDao.selectCount(OwnerQuerySupport.usableWrapper());
+        long ragOrderCount = aiClientRagOrderDao.selectCount(OwnerQuerySupport.usableWrapper());
+        long advisorCount = aiClientAdvisorDao.selectCount(OwnerQuerySupport.usableWrapper());
+        long modelCount = aiClientModelDao.selectCount(OwnerQuerySupport.usableWrapper());
 
-        // 运行中任务 = 已启用的调度任务数（ai_agent_task_schedule.status = 1）。
-        // 该表是 cron 配置表，项目里没有任务运行态表，故这是能做到的最接近口径。
-        long runningTaskCount = aiAgentTaskScheduleDao.countEnabledTasks();
+        // 运行中任务 = 已启用的调度任务数（ai_agent_task_schedule.status = 1）
+        long runningTaskCount = countRunningTasks();
 
         // 今日请求数 / 成功率：来自内存指标组件。
         // 原先是写死的 0 和 95.5（假数据），而项目自有表里没有任何请求日志表，无法从库里统计。
@@ -95,6 +103,33 @@ public class AiAgentDataStatisticsAdminController implements IAiAgentDataStatist
                 .info(ResponseCode.SUCCESS.getInfo())
                 .data(responseDTO)
                 .build();
+    }
+
+    /**
+     * 运行中任务数 = 「我能用的智能体」下已启用（status = 1）的调度任务数。
+     *
+     * <p>ai_agent_task_schedule <b>没有 owner_id 列</b>（这张 cron 配置表不由本项目写入 ——
+     * 代码里只有按 agentId 删除、没有 insert），所以任务归属只能顺着 agent_id 找它的智能体：
+     * 我能用的智能体（系统默认 + 本人私有）名下的任务才算我的，否则普通用户会看到别人的任务数。
+     *
+     * <p>刻意不用 join：项目 DAO 全程只用 Wrapper（无 XML），这里分两步查 ——
+     * 先取「我能用」的 agentId，再按 agentId 计数。
+     */
+    private long countRunningTasks() {
+        // agentId 在 PO 里是 String（底层列是 bigint，MyBatis-Plus 直接映射成字符串），
+        // 所以这里必须是 List<String>，别再写成 List<Long> —— 类型不匹配只会得到一个
+        // `Unresolved compilation problem` 的运行时错误，排查起来很费劲。
+        List<String> usableAgentIds = aiAgentDao
+                .selectList(OwnerQuerySupport.<AiAgent>usableWrapper().select("agent_id"))
+                .stream()
+                .map(AiAgent::getAgentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        // ⚠️ 空集合不能直接丢给 in()：MyBatis-Plus 会忽略空条件，那就退化成「全表计数」了
+        if (usableAgentIds.isEmpty()) {
+            return 0;
+        }
+        return aiAgentTaskScheduleDao.countEnabledTasks(usableAgentIds);
     }
 
 }

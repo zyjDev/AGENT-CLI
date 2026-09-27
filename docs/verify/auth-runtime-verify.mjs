@@ -45,14 +45,25 @@ export const __harness = { getToasts: () => __toasts };
 const tmp = path.join(os.tmpdir(), `auth-verify-${Date.now()}.ts`);
 fs.writeFileSync(tmp, prelude + stripped + epilogue, 'utf8');
 
-// ---- 桩：localStorage / window ----
-const store = new Map();
-globalThis.localStorage = {
-  getItem: (k) => (store.has(k) ? store.get(k) : null),
-  setItem: (k, v) => store.set(k, String(v)),
-  removeItem: (k) => store.delete(k),
-  clear: () => store.clear(),
-};
+// ---- 桩：sessionStorage / localStorage / window ----
+const mkStore = (map) => ({
+  getItem: (k) => (map.has(k) ? map.get(k) : null),
+  setItem: (k, v) => map.set(k, String(v)),
+  removeItem: (k) => map.delete(k),
+  clear: () => map.clear(),
+});
+
+/**
+ * 登录态存储：auth.ts 现在只写 sessionStorage（关掉浏览器就要重新登录）。
+ * 下面所有 store.* 断言指的都是它 —— 变量名沿用旧脚本，省得逐条改。
+ */
+const sessionStore = new Map();
+/** 「记住账号密码」用的存储：要跨浏览器会话，所以是 localStorage */
+const localStore = new Map();
+const store = sessionStore;
+
+globalThis.sessionStorage = mkStore(sessionStore);
+globalThis.localStorage = mkStore(localStore);
 
 /** 与 zhishu-ui 的 auth.ts 保持一致的 key（带 zhishu: 前缀，避免与其他本地应用互相污染） */
 const K = { token: 'zhishu:token', userInfo: 'zhishu:userInfo', loggedIn: 'zhishu:isLoggedIn' };
@@ -77,8 +88,13 @@ const {
   isTokenExpired,
   isAuthenticated,
   clearAuth,
+  setAuth,
+  getToken,
   handleUnauthorized,
   installFetchUnauthorizedInterceptor,
+  saveRememberedAccount,
+  getRememberedAccount,
+  clearRememberedAccount,
 } = mod;
 const harness = mod.__harness;
 
@@ -224,6 +240,28 @@ await new Promise((r) => setTimeout(r, 3400));
 store.clear(); setAll(makeJwt({ exp: nowSec() - 1 }));
 D.mod.handleUnauthorized();
 check('★ 3s 后锁已释放（否则后续 401 被永久静默吞掉）', store.size, 0);
+
+console.log('\n--- 登录态存储位置（会话内有效 / 不写 localStorage）---');
+sessionStore.clear(); localStore.clear();
+setAuth('t', { username: 'admin', userId: '10001', userRole: 'admin', loginTime: '' });
+check('★ 登录态写进 sessionStorage（关浏览器即失效）', sessionStore.has(K.token), true);
+check('★ 登录态不写 localStorage（否则「启动就自动进了上次的账号」）', localStore.has(K.token), false);
+check('getToken 能读回', getToken(), 't');
+clearAuth();
+check('clearAuth 把两个存储都清掉', `${sessionStore.size},${localStore.size}`, '0,0');
+
+console.log('\n--- 记住账号密码（登录页预填用）---');
+localStore.clear(); sessionStore.clear();
+check('初始没有记住的账号', getRememberedAccount(), null);
+saveRememberedAccount({ username: 'admin', password: 'p@ss word 中文!@#' });
+const acc = getRememberedAccount();
+check('★ 存取一致（含中文与特殊字符）', acc ? `${acc.username}/${acc.password}` : 'null', 'admin/p@ss word 中文!@#');
+check('★ 没有把密码明文写进 localStorage', JSON.stringify([...localStore.values()]).includes('p@ss word'), false);
+localStore.set('zhishu:rememberedAccount', 'not-valid-base64!!!');
+check('内容损坏 → 当作没记住', getRememberedAccount(), null);
+check('损坏内容被顺手清掉', localStore.has('zhishu:rememberedAccount'), false);
+clearRememberedAccount();
+check('清除后为空', getRememberedAccount(), null);
 
 console.log(`\n==== ${pass} passed, ${fail} failed ====`);
 fs.unlinkSync(tmp);

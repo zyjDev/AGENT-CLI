@@ -37,7 +37,7 @@ const configs = ref<AiAgentDrawConfigItem[]>([])
 const configsLoading = ref(false)
 
 const primaryCards = computed(() => [
-  { label: '活跃智能体', value: statistics.value.activeAgentCount, hint: '已装配且状态为启用' },
+  { label: '活跃智能体', value: statistics.value.activeAgentCount, hint: '状态为启用（含系统默认）' },
   { label: '客户端数', value: statistics.value.clientCount, hint: '对话客户端总数' },
   { label: '接入模型数', value: statistics.value.modelCount, hint: '含对话与嵌入模型' },
   { label: '今日对话调用', value: statistics.value.todayRequestCount, hint: '自当日 00:00 起' },
@@ -117,7 +117,7 @@ onMounted(refreshAll)
       <div>
         <h1 class="text-[20px] font-semibold tracking-tight">数据总览</h1>
         <p class="mt-1 text-[12px] text-ink-400">
-          统计口径来自后端实时聚合接口，数值随资源变更即时变化
+          统计口径：系统默认资源（人人可用）＋ 我名下的资源；数值随资源变更即时变化
         </p>
       </div>
       <Button class="!h-8 text-[12.5px]" :loading="loading || configsLoading" @click="refreshAll">

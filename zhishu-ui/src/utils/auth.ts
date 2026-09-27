@@ -19,6 +19,36 @@ import { message } from 'ant-design-vue'
 const TOKEN_KEY = 'zhishu:token'
 const USER_INFO_KEY = 'zhishu:userInfo'
 const LOGGED_IN_KEY = 'zhishu:isLoggedIn'
+/** 「记住账号密码」的键：与登录态分开存，见文件末尾 */
+const REMEMBERED_ACCOUNT_KEY = 'zhishu:rememberedAccount'
+
+/**
+ * 登录态只写 sessionStorage：关掉浏览器就要重新登录。
+ *
+ * 为什么不写 localStorage：那样「下次启动前端」会直接以上次的账号进去（用户明确不要这种），
+ * 他要的是「停在登录页、账号密码已填好、点一下就能进」—— 那是文件末尾
+ * saveRememberedAccount 的职责。两者刻意分开，互不牵连。
+ */
+const readItem = (key: string): string | null => {
+  try {
+    return sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 清 key：登录态在两个存储里都清。
+ * 老版本把登录态写在 localStorage，留着既会被误读、也会让"退出了还像没退"。
+ */
+const removeItem = (key: string): void => {
+  try {
+    sessionStorage.removeItem(key)
+    localStorage.removeItem(key)
+  } catch {
+    // 隐私模式 / 沙箱环境拿不到 storage：忽略，不影响当前会话
+  }
+}
 
 /** 登录页路径 */
 export const LOGIN_PATH = '/login'
@@ -64,10 +94,10 @@ export const isTokenExpired = (token: string): boolean => {
   }
 }
 
-export const getToken = (): string => localStorage.getItem(TOKEN_KEY) ?? ''
+export const getToken = (): string => readItem(TOKEN_KEY) ?? ''
 
 export const getUserInfo = (): StoredUserInfo | null => {
-  const raw = localStorage.getItem(USER_INFO_KEY)
+  const raw = readItem(USER_INFO_KEY)
   if (!raw) return null
   try {
     return JSON.parse(raw) as StoredUserInfo
@@ -77,26 +107,35 @@ export const getUserInfo = (): StoredUserInfo | null => {
   }
 }
 
-/** 写入登录态（三个 key 必须一起写，缺一个路由守卫就会误判） */
+/**
+ * 写入登录态（三个 key 必须一起写，缺一个路由守卫就会误判）。
+ * 只写 sessionStorage：本次浏览器会话有效，关掉浏览器即需重新登录（届时靠预填一键进入）。
+ */
 export const setAuth = (token: string, userInfo: StoredUserInfo): void => {
-  localStorage.setItem(TOKEN_KEY, token)
-  localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo))
-  localStorage.setItem(LOGGED_IN_KEY, 'true')
+  // 先清干净：避免历史遗留的 localStorage 登录态与本次写入混在一起，读到过期的那份
+  clearAuth()
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token)
+    sessionStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo))
+    sessionStorage.setItem(LOGGED_IN_KEY, 'true')
+  } catch {
+    // 拿不到 storage（隐私模式）时不抛：内存里的 store 仍能支撑本次会话
+  }
 }
 
-/** 清除登录态（三个 key 必须一起清） */
+/** 清除登录态（三个 key 必须一起清，两个存储都清） */
 export const clearAuth = (): void => {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(USER_INFO_KEY)
-  localStorage.removeItem(LOGGED_IN_KEY)
+  removeItem(TOKEN_KEY)
+  removeItem(USER_INFO_KEY)
+  removeItem(LOGGED_IN_KEY)
 }
 
 /** 是否已登录：三个 key 齐全 且 token 未过期 */
 export const isAuthenticated = (): boolean => {
-  if (typeof localStorage === 'undefined') return false
-  const token = localStorage.getItem(TOKEN_KEY)
-  const userInfo = localStorage.getItem(USER_INFO_KEY)
-  const isLoggedIn = localStorage.getItem(LOGGED_IN_KEY)
+  if (typeof window === 'undefined') return false
+  const token = readItem(TOKEN_KEY)
+  const userInfo = readItem(USER_INFO_KEY)
+  const isLoggedIn = readItem(LOGGED_IN_KEY)
   if (!token || !userInfo || !isLoggedIn) return false
   return !isTokenExpired(token)
 }
@@ -173,5 +212,60 @@ export const installFetchUnauthorizedInterceptor = (): void => {
       handleUnauthorized()
     }
     return response
+  }
+}
+
+/* ------------------------------------------------------------------
+ * 「记住账号密码」：下次打开登录页自动填好，点一下「登录」即可
+ * ------------------------------------------------------------------ */
+
+export interface RememberedAccount {
+  username: string
+  password: string
+}
+
+/**
+ * 这里只做一次可逆编码（Base64），**不是加密**。
+ *
+ * 说清风险：能读到这台浏览器 localStorage 的人（或任意一段同源 XSS）都能还原出密码。
+ * 之所以仍然这么做，是因为要的体验就是「下次点一下就能登录」，而这必然要在本地留下凭据。
+ * 想真正安全：应由后端下发长期 refresh token、前端只存 token —— 那需要后端新增刷新接口。
+ */
+const encodeAccount = (text: string): string => btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+const decodeAccount = (text: string): string =>
+  new TextDecoder().decode(Uint8Array.from(atob(text), (char) => char.charCodeAt(0)))
+
+/** 记住一组账号密码（登录 / 注册成功后调用） */
+export const saveRememberedAccount = (account: RememberedAccount): void => {
+  try {
+    localStorage.setItem(REMEMBERED_ACCOUNT_KEY, encodeAccount(JSON.stringify(account)))
+  } catch (error) {
+    // 存不进去（隐私模式）就退化为「不记住」，绝不能因此让登录失败
+    console.warn('[auth] 记住账号密码失败，已忽略', error)
+  }
+}
+
+/** 取记住的账号密码：没记住 / 内容损坏都返回 null */
+export const getRememberedAccount = (): RememberedAccount | null => {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_ACCOUNT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(decodeAccount(raw)) as RememberedAccount
+    if (!parsed?.username) return null
+    return { username: parsed.username, password: parsed.password ?? '' }
+  } catch (error) {
+    // 内容被改坏：当作没记住并清掉，免得每次进登录页都报错
+    console.warn('[auth] 本地记住的账号密码解析失败，已清除', error)
+    clearRememberedAccount()
+    return null
+  }
+}
+
+/** 清除记住的账号密码（不勾选就登录时调用） */
+export const clearRememberedAccount = (): void => {
+  try {
+    localStorage.removeItem(REMEMBERED_ACCOUNT_KEY)
+  } catch {
+    // 隐私模式拿不到 storage：忽略
   }
 }

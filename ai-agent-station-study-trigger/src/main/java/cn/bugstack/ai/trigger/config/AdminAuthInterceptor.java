@@ -49,6 +49,24 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
 
         // 落地当前用户：数据按用户隔离后，Controller 要靠它拿到 owner_id
         UserContext.set(loginUser);
+
+        // 账号管理接口整段归管理员：登录 / 注册 / 校验 / 改自己密码 四个入口除外。
+        // 放在拦截器而不是每个 Controller 方法里，避免以后新增账号接口时漏加。
+        String uri = request.getRequestURI();
+        if (uri.startsWith("/api/v1/admin/admin-user/")
+                && !uri.endsWith("/login")
+                && !uri.endsWith("/register")
+                && !uri.endsWith("/validate-login")
+                // 改密码是"任何登录用户"的权利，只是不能改别人的（服务端只认 JWT 里的 userId）
+                && !uri.endsWith("/change-password")
+                && !UserContext.isAdmin()) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(JSON.toJSONString(Response.error("该操作仅管理员可用")));
+            return false;
+        }
+
         return true;
     }
 

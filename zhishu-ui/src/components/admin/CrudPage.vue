@@ -85,8 +85,20 @@ const renderKindMap = computed<Record<string, CellRender>>(() =>
 )
 
 /** 业务 ID 用 8 位随机数字生成，与旧实现保持一致的观感 */
+/**
+ * 生成与后端同格式的雪花 ID 字符串（19 位纯数字）。
+ * 后端 MyBatis-Plus IdWorker 的起始纪元是 2010-11-04，这里保持一致，产出同一量级的值。
+ * ⚠️ 必须用 BigInt 拼接：19 位数字远超 Number.MAX_SAFE_INTEGER（16 位），
+ *    用 number 运算会丢精度、生成重复 ID，插入时直接撞唯一索引。
+ */
+const SNOWFLAKE_EPOCH = 1288834974657n
+let snowflakeSequence = 0n
+
 function generateBusinessId(): string {
-  return String(Math.floor(10000000 + Math.random() * 89999999))
+  const timestamp = BigInt(Date.now()) - SNOWFLAKE_EPOCH
+  snowflakeSequence = (snowflakeSequence + 1n) % 4096n
+  // 41 位时间戳 + 10 位机器位 + 12 位序列，与雪花算法布局一致
+  return ((timestamp << 22n) | (1n << 12n) | snowflakeSequence).toString()
 }
 
 function formatTime(value: unknown): string {

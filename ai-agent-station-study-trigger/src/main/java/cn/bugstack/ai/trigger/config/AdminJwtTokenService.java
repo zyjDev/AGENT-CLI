@@ -22,6 +22,7 @@ public class AdminJwtTokenService {
     private static final Logger log = LoggerFactory.getLogger(AdminJwtTokenService.class);
 
     private final Algorithm algorithm;
+    /** token 有效期（分钟）。默认 720 分钟（12 小时）—— 「下次不用输账号密码」由前端预填实现，不靠长效 token */
     private final long expireMinutes;
 
     public AdminJwtTokenService(

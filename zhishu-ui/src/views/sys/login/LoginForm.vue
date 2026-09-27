@@ -6,8 +6,9 @@
  * 注册即登录：后端 /register 直接签发 token，因此成功后走的是同一条 emit('success') 路径，
  * 用户不会被要求"注册完再登录一次"。
  */
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Button, Checkbox, Form, Input, type FormInstance } from 'ant-design-vue'
+import { clearRememberedAccount, getRememberedAccount, saveRememberedAccount } from '@/utils/auth'
 import { useUserStore } from '@/store/modules/user'
 
 const emit = defineEmits<{ (e: 'success'): void }>()
@@ -24,8 +25,34 @@ const formState = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  remember: true,
+  // 默认不勾：不替用户做主保存密码；已记住过账号的会在下面自动勾上
+  remember: false,
 })
+
+/**
+ * 打开登录页先把记住的账号密码填好 —— 「下次不用再输、点一下就能进」就是靠这一处。
+ * 只预填、**不自动提交**：免得又变成「启动就直接以某个账号进去了」。
+ */
+onMounted(() => {
+  const saved = getRememberedAccount()
+  if (!saved) return
+  formState.username = saved.username
+  formState.password = saved.password
+  formState.remember = true
+})
+
+/**
+ * 切换账号：框里填着的密码属于上一个账号，直接清掉，免得「点登录却报密码错」。
+ * 勾选状态不动 —— 登录成功后会用新账号覆盖记住的那组。
+ */
+watch(
+  () => formState.username,
+  (value) => {
+    const saved = getRememberedAccount()
+    if (!saved || value === saved.username) return
+    formState.password = ''
+  },
+)
 
 /** 两次密码一致性校验：注册场景最容易输错的就是这里 */
 const validateConfirmPassword = async (_rule: unknown, value: string): Promise<void> => {
@@ -68,9 +95,10 @@ async function submit(): Promise<void> {
 
   try {
     await formRef.value?.validate()
-  } catch (error) {
-    // 校验失败：antd 已在字段下方内联提示，这里只记录不打扰用户
-    console.error('[login] 表单校验未通过', error)
+  } catch {
+    // 校验失败：antd 已在字段下方内联提示。
+    // 刻意不打印 error —— antd 的校验异常里带 errorFields(values)，会把明文密码带进控制台。
+    console.warn('[login] 表单校验未通过')
     return
   }
 
@@ -85,21 +113,20 @@ async function submit(): Promise<void> {
     } else {
       await userStore.login({ username: formState.username, password: formState.password })
     }
+    // 勾了就记住这组账号密码（下次预填），没勾就把之前记住的清掉
+    if (formState.remember) {
+      saveRememberedAccount({ username: formState.username, password: formState.password })
+    } else {
+      clearRememberedAccount()
+    }
     emit('success')
   } catch (error) {
     errorText.value = isRegister.value ? '注册失败：账号可能已被占用，或密码不符合要求' : '账号或密码错误，请重试'
-    console.error('[login] 提交失败', error)
+    // 同样只打消息：axios 的 error.config.data 里是含明文密码的请求体，整体打印等于把密码写进控制台
+    console.warn('[login] 提交失败：', error instanceof Error ? error.message : String(error))
   } finally {
     loading.value = false
   }
-}
-
-/** 快捷登录：演示账号 admin / 123456 */
-function quickLogin(): void {
-  switchMode('login')
-  formState.username = 'admin'
-  formState.password = '123456'
-  void submit()
 }
 
 defineExpose({ submit })
@@ -151,7 +178,7 @@ defineExpose({ submit })
     </Form.Item>
 
     <div class="mb-4 flex items-center justify-between">
-      <Checkbox v-model:checked="formState.remember" class="text-[12.5px] text-ink-600">记住登录状态</Checkbox>
+      <Checkbox v-model:checked="formState.remember" class="text-[12.5px] text-ink-600">记住账号密码</Checkbox>
       <span
         class="cursor-pointer text-[12.5px] text-brand hover:underline"
         @click="switchMode(isRegister ? 'login' : 'register')"
@@ -167,20 +194,15 @@ defineExpose({ submit })
     </Button>
   </Form>
 
-  <div class="my-6 flex items-center gap-3 text-[11.5px] text-ink-400">
-    <span class="h-px flex-1 bg-line"></span>或<span class="h-px flex-1 bg-line"></span>
-  </div>
-
-  <Button block class="!h-10 !rounded-lg text-[13px]" :disabled="loading" @click="quickLogin">使用 admin 账号快捷登录</Button>
-
   <div class="mt-5 rounded-lg bg-page px-3.5 py-2.5 text-[11.5px] leading-5 text-ink-400">
     <template v-if="isRegister">
       注册后即刻登录，账号仅用于你自己：<span class="text-ink-600">智能体、客户端 / API Key、模型、知识库</span>
       都按账号隔离，彼此不可见。
     </template>
     <template v-else>
-      演示账号：<span class="font-mono text-ink-600">admin</span> / 密码 <span class="font-mono text-ink-600">123456</span>。
-      登录后同一账号即可访问智能对话与管理后台，无需二次输入密码。
+      登录后同一账号即可访问智能对话与管理后台，无需二次输入密码。<br />
+      勾选「记住账号密码」后，下次打开登录页会自动填好，点一下「立即登录」即可。<br />
+      没有账号请点上方「没有账号？注册」自助开户。
     </template>
   </div>
 

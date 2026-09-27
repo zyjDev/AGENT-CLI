@@ -48,12 +48,33 @@ public interface IAiAgentTaskScheduleDao extends BaseMapper<AiAgentTaskSchedule>
     }
 
     /**
-     * 统计启用的调度任务数（status = 1）。
+     * 统计启用的调度任务数（status = 1），**全表口径**。
      * <p>
      * 用 selectCount 而不是 queryEnabledTasks().size() —— 后者会把整表数据拉进 JVM 只为取个长度。
+     * <p>
+     * 注意：这是不分用户的全局口径，只适合全局视角与校验程序
+     * （docs/verify/DaoCountSqlVerify 用它和 queryEnabledTasks().size() 对账）；
+     * 面向某个用户的统计请用 {@link #countEnabledTasks(List)}，否则会把别人的任务数算进来。
      */
     default long countEnabledTasks() {
         return selectCount(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1));
+    }
+
+    /**
+     * 统计指定智能体下启用的调度任务数（status = 1）。
+     * <p>
+     * 为什么要传 agentIds：本表**没有 owner_id 列**（任务不是在本项目里创建的，只有 cron 配置），
+     * 归属只能顺着 agent_id 找智能体。调用方按「我能用的智能体」过滤，避免跨用户统计。
+     * <p>
+     * 参数用 {@code List<String>}：{@code AiAgentTaskSchedule.agentId} 在 PO 里是 String
+     * （底层列是 bigint，MyBatis-Plus 直接映射为字符串），其它 DAO 也有按 Long 传的写法，
+     * 这里跟随 PO 的类型，避免调用方再转换一次。
+     */
+    default long countEnabledTasks(List<String> agentIds) {
+        if (agentIds == null || agentIds.isEmpty()) {
+            return 0;
+        }
+        return selectCount(new QueryWrapper<AiAgentTaskSchedule>().eq("status", 1).in("agent_id", agentIds));
     }
 
     default List<Long> queryAllInvalidTaskScheduleIds() {

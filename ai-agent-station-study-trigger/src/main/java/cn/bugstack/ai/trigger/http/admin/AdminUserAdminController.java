@@ -2,6 +2,7 @@ package cn.bugstack.ai.trigger.http.admin;
 
 import cn.bugstack.ai.api.IAdminUserAdminService;
 import cn.bugstack.ai.api.dto.AdminUserLoginRequestDTO;
+import cn.bugstack.ai.api.dto.AdminUserChangePasswordRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRequestDTO;
@@ -14,6 +15,7 @@ import cn.bugstack.ai.trigger.config.AdminJwtTokenService;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.common.PasswordUtil;
+import cn.bugstack.ai.types.common.SnowflakeId;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -92,7 +94,8 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             }
 
             AdminUser adminUser = AdminUser.builder()
-                    .userId(UUID.randomUUID().toString())
+                    // userId 用雪花（纯数字字符串）：它是业务表 owner_id 的取值，格式统一便于排查
+                    .userId(SnowflakeId.nextIdStr())
                     .username(username)
                     .password(PasswordUtil.encode(request.getPassword()))
                     .status(1)
@@ -131,6 +134,98 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     }
 
     @Override
+    @PostMapping("/change-password")
+    public Response<Boolean> changePassword(@RequestBody AdminUserChangePasswordRequestDTO request) {
+        try {
+            // 身份只认 JWT：请求体里没有 userId，从根上杜绝「改别人密码」
+            String currentUserId = UserContext.userId();
+            if (!StringUtils.hasText(currentUserId)) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("未登录或登录已过期")
+                        .data(false)
+                        .build();
+            }
+            if (request == null || !StringUtils.hasText(request.getOldPassword())
+                    || !StringUtils.hasText(request.getNewPassword())) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("原密码和新密码不能为空")
+                        .data(false)
+                        .build();
+            }
+            if (request.getNewPassword().length() < 6) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("新密码至少 6 位")
+                        .data(false)
+                        .build();
+            }
+            // 两次新密码一致：前端已校验，服务端必须再校验一次（不能只信前端）
+            if (StringUtils.hasText(request.getConfirmPassword())
+                    && !request.getNewPassword().equals(request.getConfirmPassword())) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("两次输入的新密码不一致")
+                        .data(false)
+                        .build();
+            }
+            if (request.getNewPassword().equals(request.getOldPassword())) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("新密码不能与原密码相同")
+                        .data(false)
+                        .build();
+            }
+
+            AdminUser adminUser = adminUserDao.queryByUserId(currentUserId);
+            if (adminUser == null) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("账号不存在")
+                        .data(false)
+                        .build();
+            }
+            // 必须先验原密码：否则 token 一旦泄露就能直接改密码接管账号
+            if (!passwordMatches(request.getOldPassword(), adminUser.getPassword())) {
+                log.warn("修改密码失败：原密码不正确，userId={}", currentUserId);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("原密码不正确")
+                        .data(false)
+                        .build();
+            }
+
+            // 只更新密码与更新时间（MyBatis-Plus 默认忽略 null 字段），避免整行覆盖
+            AdminUser update = new AdminUser();
+            update.setId(adminUser.getId());
+            update.setPassword(PasswordUtil.encode(request.getNewPassword()));
+            update.setUpdateTime(LocalDateTime.now());
+            if (adminUserDao.updateById(update) <= 0) {
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.UN_ERROR.getCode())
+                        .info("修改失败，请稍后重试")
+                        .data(false)
+                        .build();
+            }
+
+            log.info("用户修改密码成功，userId={}", currentUserId);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.SUCCESS.getCode())
+                    .info(ResponseCode.SUCCESS.getInfo())
+                    .data(true)
+                    .build();
+        } catch (Exception e) {
+            log.error("修改密码失败，userId={}", UserContext.userId(), e);
+            return Response.<Boolean>builder()
+                    .code(ResponseCode.UN_ERROR.getCode())
+                    .info(ResponseCode.UN_ERROR.getInfo())
+                    .data(false)
+                    .build();
+        }
+    }
+
+    @Override
     @PostMapping("/create")
     public Response<Boolean> createAdminUser(@RequestBody AdminUserRequestDTO request) {
         try {
@@ -154,7 +249,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             AdminUser adminUser = convertToAdminUser(request);
             adminUser.setPassword(PasswordUtil.encode(request.getPassword()));
             if (!StringUtils.hasText(adminUser.getUserId())) {
-                adminUser.setUserId(UUID.randomUUID().toString());
+                adminUser.setUserId(SnowflakeId.nextIdStr());
             }
             if (adminUser.getStatus() == null) {
                 adminUser.setStatus(1);

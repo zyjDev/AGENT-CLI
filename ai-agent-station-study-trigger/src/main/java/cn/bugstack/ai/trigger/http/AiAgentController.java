@@ -12,7 +12,9 @@ import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IArmoryService;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
 import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
+import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
+import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
 import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
@@ -52,9 +54,12 @@ public class AiAgentController implements IAiAgentService {
     // 注入装配服务
     @Resource
     private IArmoryService armoryService;
-    // 智能体归属校验用（公共资源 owner 为空，人人可用；私有资源只有 owner 本人可用）
+    // 智能体归属校验用（系统默认资源 owner 为空，人人可用；私有资源只有 owner 本人可用）
     @Resource
     private IAiAgentDao aiAgentDao;
+    // API 通道归属校验用
+    @Resource
+    private IAiClientApiDao aiClientApiDao;
 
     /**
      * 当前用户是否可用该智能体。
@@ -261,6 +266,17 @@ public class AiAgentController implements IAiAgentService {
                         .build();
             }
             
+            // 归属校验：只能装配「自己」的 API 通道（系统默认的通道仅管理员可重新装配）
+            AiClientApi api = aiClientApiDao.queryByApiId(request.getApiId());
+            if (api == null || !OwnerScope.canWrite(api.getOwnerId(), UserContext.userId(), UserContext.isAdmin())) {
+                log.warn("拒绝装配无权限的 API 通道，apiId={}, userId={}", request.getApiId(), UserContext.userId());
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("API 通道不存在或无权操作")
+                        .data(false)
+                        .build();
+            }
+
             // 调用装配服务
             armoryService.acceptArmoryAgentClientModelApi(request.getApiId());
             

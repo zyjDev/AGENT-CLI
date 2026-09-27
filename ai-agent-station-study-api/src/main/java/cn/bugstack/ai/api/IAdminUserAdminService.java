@@ -1,5 +1,6 @@
 package cn.bugstack.ai.api;
 
+import cn.bugstack.ai.api.dto.AdminUserChangePasswordRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserLoginRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
@@ -26,6 +27,16 @@ public interface IAdminUserAdminService {
      * @return 用户信息（含 token）
      */
     Response<AdminUserResponseDTO> registerAdminUser(AdminUserRegisterRequestDTO request);
+
+    /**
+     * 修改<b>当前登录用户自己</b>的密码（需要登录，任意角色可用）。
+     * <p>
+     * 身份取自 JWT，请求体里不接受 userId —— 否则普通用户就能改别人的密码。
+     *
+     * @param request 原密码 + 新密码 + 确认新密码
+     * @return 操作结果
+     */
+    Response<Boolean> changePassword(AdminUserChangePasswordRequestDTO request);
 
     /**
      * 创建管理员用户

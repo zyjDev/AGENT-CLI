@@ -1,5 +1,6 @@
 package cn.bugstack.ai.infrastructure.dao.support;
 
+import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -38,6 +39,52 @@ public final class OwnerQuerySupport {
     public static <T> QueryWrapper<T> visibleWrapper() {
         QueryWrapper<T> wrapper = new QueryWrapper<>();
         String ownerId = UserContext.userId();
+        boolean admin = UserContext.isAdmin();
+        if (ownerId == null || ownerId.isBlank()) {
+            // 无登录上下文：管理员态只能看系统默认；普通/无上下文看不到任何私有资源
+            if (admin) {
+                wrapper.isNull(OWNER_COLUMN);
+            } else {
+                wrapper.eq(OWNER_COLUMN, "-");
+            }
+        } else if (admin) {
+            // 管理员：自己的 + 系统默认（别人的私有资源依然不可见）
+            wrapper.and(w -> w.isNull(OWNER_COLUMN).or().eq(OWNER_COLUMN, ownerId));
+        } else {
+            // 普通用户：只看自己的。系统默认资源"可用但不可见"，所以这里刻意不过滤进来
+            wrapper.eq(OWNER_COLUMN, ownerId);
+        }
+        return wrapper;
+    }
+
+    /** 方法引用版本（配合 {@code LambdaQueryWrapper}），口径同 {@link #visibleWrapper()} */
+    public static <T> LambdaQueryWrapper<T> visibleLambdaWrapper(SFunction<T, ?> ownerGetter) {
+        LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
+        String ownerId = UserContext.userId();
+        boolean admin = UserContext.isAdmin();
+        if (ownerId == null || ownerId.isBlank()) {
+            if (admin) {
+                wrapper.isNull(ownerGetter);
+            } else {
+                wrapper.eq(ownerGetter, "-");
+            }
+        } else if (admin) {
+            wrapper.and(w -> w.isNull(ownerGetter).or().eq(ownerGetter, ownerId));
+        } else {
+            wrapper.eq(ownerGetter, ownerId);
+        }
+        return wrapper;
+    }
+
+    /**
+     * 「可用」口径（对话、装配、以及各个"引用资源"下拉）：系统默认（owner 为空）+ 本人私有。
+     * <p>
+     * 与 {@link #visibleWrapper()} 的区别就是这一个字：系统默认智能体人人可用，
+     * 但普通用户在管理端列表里看不到、也改不了。
+     */
+    public static <T> QueryWrapper<T> usableWrapper() {
+        QueryWrapper<T> wrapper = new QueryWrapper<>();
+        String ownerId = UserContext.userId();
         if (ownerId == null || ownerId.isBlank()) {
             wrapper.isNull(OWNER_COLUMN);
         } else {
@@ -46,8 +93,8 @@ public final class OwnerQuerySupport {
         return wrapper;
     }
 
-    /** 方法引用版本（配合 {@code LambdaQueryWrapper}） */
-    public static <T> LambdaQueryWrapper<T> visibleLambdaWrapper(SFunction<T, ?> ownerGetter) {
+    /** 方法引用版本的「可用」口径，口径同 {@link #usableWrapper()} */
+    public static <T> LambdaQueryWrapper<T> usableLambdaWrapper(SFunction<T, ?> ownerGetter) {
         LambdaQueryWrapper<T> wrapper = new LambdaQueryWrapper<>();
         String ownerId = UserContext.userId();
         if (ownerId == null || ownerId.isBlank()) {
@@ -58,8 +105,13 @@ public final class OwnerQuerySupport {
         return wrapper;
     }
 
-    /** 资源是否对当前登录用户可见（公共 或 本人） */
+    /** 资源对当前登录用户是否「可用」（系统默认 或 本人） */
     public static boolean visibleToCurrentUser(String ownerId) {
-        return cn.bugstack.ai.types.common.OwnerScope.isVisible(ownerId, UserContext.userId());
+        return OwnerScope.isVisible(ownerId, UserContext.userId());
+    }
+
+    /** 资源对当前登录用户是否「在列表可见」（本人；管理员额外可见系统默认） */
+    public static boolean listVisibleToCurrentUser(String ownerId) {
+        return OwnerScope.isVisibleInList(ownerId, UserContext.userId(), UserContext.isAdmin());
     }
 }

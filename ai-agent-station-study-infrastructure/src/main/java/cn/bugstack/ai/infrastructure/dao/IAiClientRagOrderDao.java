@@ -49,7 +49,8 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
     }
 
     default List<AiClientRagOrder> queryEnabledRagOrders() {
-        return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
+        // 「可用」口径：系统默认知识库 + 本人私有（用户端知识库下拉、对话检索都走这里）
+        return selectList(OwnerQuerySupport.usableLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .eq(AiClientRagOrder::getStatus, 1)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
     }

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import cn.bugstack.ai.types.common.SnowflakeId;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -57,7 +58,8 @@ public class RagService implements IRagService {
                 //    不带 ragId —— 导致「初次上传」这批 chunk 永远匹配不到删除条件，后续更新只能不断叠加
                 //    新知识，旧知识永久残留在向量库中（向量检索会同时召回新旧两版内容）。
                 //    ragId 由这里生成并显式传给 createTagOrder（其内部已支持使用调用方传入的值）。
-                String ragId = UUID.randomUUID().toString();
+                // ragId 统一改用雪花（纯数字字符串，同一格式便于排查与排序）
+                String ragId = SnowflakeId.nextIdStr();
 
                 // 添加知识库标签和元数据
                 int chunkTotal = documentList.size();

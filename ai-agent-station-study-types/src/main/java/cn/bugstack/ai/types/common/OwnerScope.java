@@ -39,9 +39,10 @@ public final class OwnerScope {
     }
 
     /**
-     * 资源对指定用户是否可见：公共资源人人可见；私有资源只有 owner 本人可见。
+     * 资源对指定用户是否<b>可用</b>（对话 / 装配 / 引用下拉）：
+     * 系统默认（owner 为空，如 6 个基础智能体）人人可用；私有资源只有 owner 本人可用。
      *
-     * @param ownerId       资源归属（为空 = 公共）
+     * @param ownerId       资源归属（为空 = 系统默认）
      * @param currentUserId 当前登录用户 id
      */
     public static boolean isVisible(String ownerId, String currentUserId) {
@@ -49,6 +50,20 @@ public final class OwnerScope {
             return true;
         }
         return hasText(currentUserId) && ownerId.equals(currentUserId);
+    }
+
+    /**
+     * 资源是否出现在<b>管理端列表</b>里：
+     * <ul>
+     *   <li>普通用户：只看到自己的（系统默认资源"可用但不可见"，列表里不出现）；</li>
+     *   <li>管理员：自己的 + 系统默认（别人的私有资源同样不可见）。</li>
+     * </ul>
+     */
+    public static boolean isVisibleInList(String ownerId, String currentUserId, boolean admin) {
+        if (hasText(currentUserId) && currentUserId.equals(ownerId)) {
+            return true;
+        }
+        return admin && isPublic(ownerId);
     }
 
     /** 向量 metadata 用的归属值：公共资源转成 {@link #PUBLIC_OWNER}，私有资源原样用 userId */

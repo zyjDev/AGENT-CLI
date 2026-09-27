@@ -28,6 +28,7 @@ import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import cn.bugstack.ai.types.common.SnowflakeId;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -147,11 +148,12 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         // 2. 解析配置ID，并据此判定本次是「新建」还是「更新」
         String configId = StringUtils.hasText(request.getConfigId())
                 ? request.getConfigId()
-                : UUID.randomUUID().toString().replace("-", "");
+                : SnowflakeId.nextIdStr();
         AiAgentDrawConfig existingConfig = aiAgentDrawConfigDao.queryByConfigId(configId);
 
-        // 越权保护：保存是"有则更新"，configId 若指向别人的私有配置，会把对方画布覆盖掉
-        if (existingConfig != null && !OwnerScope.isVisible(existingConfig.getOwnerId(), UserContext.userId())) {
+        // 越权保护：保存是"有则更新"，configId 若指向别人的私有配置，会把对方画布覆盖掉。
+        // 系统默认配置（owner 为空）普通用户同样不可改，只有管理员可以
+        if (existingConfig != null && !OwnerGuard.writable(existingConfig.getOwnerId())) {
             log.warn("拒绝保存无权限的编排配置，configId={}, owner={}, userId={}",
                     configId, existingConfig.getOwnerId(), UserContext.userId());
             return Response.<String>builder()
@@ -290,18 +292,16 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
     }
 
     /**
-     * 生成一个未被占用的 8 位数字 agentId
+     * 生成一个未被占用的雪花 agentId（19 位纯数字字符串）。
      * <p>
-     * 原实现为 {@code String.format("%08d", System.currentTimeMillis() % 100000000L)}：
-     * 取模后约 <b>27.8 小时回绕一次</b>，且同一毫秒内的并发请求会得到相同值，
-     * 而 {@code ai_agent.agent_id} 上有唯一索引 {@code uk_agent_id}，重复会直接抛 DuplicateKeyException。
-     * <p>
-     * 这里保留 8 位数字格式（{@code ai_agent_task_schedule.agent_id} 是 bigint，不能改用 UUID），
-     * 改为「随机取值 + 存在性校验 + 有限重试」。
+     * 历史实现是「当前毫秒 % 1e8」的 8 位随机数：约 27.8 小时回绕一次，同毫秒并发还会拿到相同值，
+     * 只能靠存在性校验兜底。现统一改用雪花（全局唯一、趋势递增），
+     * 且**必须保持纯数字** —— {@code ai_agent_task_schedule.agent_id} 是 bigint，存不了 UUID。
+     * 存在性校验保留：冲突概率极低，但一旦撞上唯一索引就要付出一次事务回滚的代价。
      */
     private String generateUniqueAgentId() {
         for (int i = 0; i < 5; i++) {
-            String candidate = String.format("%08d", ThreadLocalRandom.current().nextInt(100_000_000));
+            String candidate = SnowflakeId.nextIdStr();
             if (aiAgentDao.queryByAgentId(candidate) == null) {
                 return candidate;
             }

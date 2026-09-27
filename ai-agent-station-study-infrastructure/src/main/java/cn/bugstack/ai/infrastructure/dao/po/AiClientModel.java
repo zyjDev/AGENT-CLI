@@ -27,7 +27,7 @@ public class AiClientModel {
     /**
      * 自增主键ID
      */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**

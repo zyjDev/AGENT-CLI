@@ -56,6 +56,8 @@ export const ENDPOINTS = {
     VALIDATE_LOGIN: `${ADMIN_BASE.ADMIN_USER}/validate-login`,
     /** 自助注册：注册成功直接返回 token（无需再登录） */
     REGISTER: `${ADMIN_BASE.ADMIN_USER}/register`,
+    /** 修改当前登录用户自己的密码（身份取自 JWT，请求体不带 userId） */
+    CHANGE_PASSWORD: `${ADMIN_BASE.ADMIN_USER}/change-password`,
   },
 
   /** 智能体编排配置（画布） */

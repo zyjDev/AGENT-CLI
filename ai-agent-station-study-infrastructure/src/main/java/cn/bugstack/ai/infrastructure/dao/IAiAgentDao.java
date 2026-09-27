@@ -46,8 +46,9 @@ public interface IAiAgentDao extends BaseMapper<AiAgent> {
     }
 
     default List<AiAgent> queryEnabledAgents() {
-        // 归属过滤：公共资源（owner_id 为空，如 6 个基础智能体）+ 本人私有
-        return selectList(OwnerQuerySupport.<AiAgent>visibleWrapper().eq("status", 1).orderByDesc("create_time"));
+        // 「可用」口径：系统默认（owner_id 为空，如 6 个基础智能体）+ 本人私有。
+        // ⚠️ 这里刻意不用 visibleWrapper（列表口径），否则普通用户对话页就选不到默认智能体了
+        return selectList(OwnerQuerySupport.<AiAgent>usableWrapper().eq("status", 1).orderByDesc("create_time"));
     }
 
     default List<AiAgent> queryByChannel(String channel) {
