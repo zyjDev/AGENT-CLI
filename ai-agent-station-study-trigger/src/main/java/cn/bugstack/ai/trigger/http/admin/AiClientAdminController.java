@@ -7,6 +7,7 @@ import cn.bugstack.ai.api.dto.AiClientResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClient;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -79,6 +80,11 @@ public class AiClientAdminController implements IAiClientAdminService {
             AiClient aiClient = convertToAiClient(request);
             aiClient.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
+            AiClient existing = aiClientDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("客户端");
+            }
             int result = aiClientDao.updateById(aiClient);
             
             return Response.<Boolean>builder()
@@ -114,6 +120,10 @@ public class AiClientAdminController implements IAiClientAdminService {
             AiClient aiClient = convertToAiClient(request);
             aiClient.setUpdateTime(LocalDateTime.now());
             
+            AiClient existing = aiClientDao.queryByClientId(aiClient.getClientId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("客户端");
+            }
             int result = aiClientDao.updateByClientId(aiClient);
             
             return Response.<Boolean>builder()
@@ -137,6 +147,10 @@ public class AiClientAdminController implements IAiClientAdminService {
         try {
             log.info("根据ID删除AI客户端配置请求：{}", id);
             
+            AiClient existing = aiClientDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("客户端");
+            }
             int result = aiClientDao.deleteById(id);
             
             return Response.<Boolean>builder()
@@ -160,6 +174,10 @@ public class AiClientAdminController implements IAiClientAdminService {
         try {
             log.info("根据客户端ID删除AI客户端配置请求：{}", clientId);
             
+            AiClient existing = aiClientDao.queryByClientId(clientId);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("客户端");
+            }
             int result = aiClientDao.deleteByClientId(clientId);
             
             return Response.<Boolean>builder()

@@ -2,6 +2,7 @@ package cn.bugstack.ai.trigger.http.admin;
 
 import cn.bugstack.ai.api.dto.*;
 import cn.bugstack.ai.api.response.Response;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.domain.agent.service.IAsyncRagUpdateService;
 import cn.bugstack.ai.domain.agent.service.IRagUpdateService;
 import cn.bugstack.ai.domain.agent.service.IRollbackService;
@@ -92,6 +93,13 @@ public class AiRagUpdateController {
             @RequestParam(value = "updateReason", required = false) String updateReason) {
         log.info("更新知识库文档: ragId={}, fileCount={}, updateReason={}",
                 ragId, files == null ? 0 : files.size(), updateReason);
+
+        // 写权限：本人知识库本人可维护；公共知识库仅管理员；他人私有库不可动
+        AiClientRagOrderResponseDTO order = ragUpdateService.queryRagOrderById(ragId);
+        if (order == null || !OwnerGuard.writable(order.getOwnerId())) {
+            return OwnerGuard.deny("知识库");
+        }
+
         boolean result = ragUpdateService.updateRagDocuments(ragId, files, updateReason);
         return result ? Response.success(true) : Response.error("更新失败");
     }
@@ -108,6 +116,17 @@ public class AiRagUpdateController {
     @PostMapping("/async-batch-update")
     public Response<String> asyncBatchUpdateRag(@RequestBody BatchUpdateRequestDTO request) {
         log.info("提交异步批量更新任务: ragIds={}, updateReason={}", request.getRagIds(), request.getUpdateReason());
+
+        // 异步任务同样要逐个校验归属：否则可以借别人的 ragId 触发重建
+        if (request.getRagIds() != null) {
+            for (String ragId : request.getRagIds()) {
+                AiClientRagOrderResponseDTO order = ragUpdateService.queryRagOrderById(ragId);
+                if (order == null || !OwnerGuard.writable(order.getOwnerId())) {
+                    return OwnerGuard.deny("知识库");
+                }
+            }
+        }
+
         String taskId = asyncRagUpdateService.submitBatchUpdateTask(request.getRagIds(), request.getUpdateReason());
         return Response.success(taskId);
     }
@@ -159,6 +178,11 @@ public class AiRagUpdateController {
     @PostMapping("/rollback")
     public Response<Boolean> rollbackRagVersion(@RequestBody RollbackRequestDTO request) {
         log.info("回滚版本: ragId={}, targetVersion={}", request.getRagId(), request.getTargetVersion());
+
+        AiClientRagOrderResponseDTO order = ragUpdateService.queryRagOrderById(request.getRagId());
+        if (order == null || !OwnerGuard.writable(order.getOwnerId())) {
+            return OwnerGuard.deny("知识库");
+        }
 
         // 验证回滚可行性：不可行属于「业务上不允许」，返回错误响应而非抛异常
         IRollbackService.RollbackValidationResult validation = rollbackService.validateRollback(

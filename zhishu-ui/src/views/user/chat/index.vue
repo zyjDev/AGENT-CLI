@@ -123,9 +123,11 @@ const agentOptions = computed(() => {
 const presetOptions = computed(() => PRESETS.map((item) => ({ value: item.label, label: item.label })))
 
 const knowledgeOptions = computed(() =>
+  // 只展示知识库名称：knowledgeTag 落库时带 <userId>: 作用域前缀（防同名串库），
+  // 对用户无意义，没必要暴露在选择项里
   knowledgeBases.value.map((item) => ({
     value: item.ragId,
-    label: `${item.ragName}（${item.knowledgeTag}）`,
+    label: item.ragName,
   })),
 )
 

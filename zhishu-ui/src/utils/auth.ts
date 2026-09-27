@@ -31,6 +31,8 @@ export interface StoredUserInfo {
    * 丢了会导致换账号后仍读同一份本地会话。
    */
   userId: string
+  /** 角色：admin=管理员（可维护公共资源），user=普通用户（只能改自己的资源） */
+  userRole: string
   loginTime: string
 }
 

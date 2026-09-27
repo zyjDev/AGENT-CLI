@@ -51,6 +51,12 @@ public class AdminUser {
     private Integer status;
 
     /**
+     * 角色：admin=管理员（可改公共资源、可管理账号），user=普通用户（只能改自己的资源）。
+     * 见迁移脚本 2026-09-26-add-user-role.sql
+     */
+    private String userRole;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

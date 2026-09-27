@@ -7,6 +7,7 @@ import cn.bugstack.ai.api.dto.AiClientToolMcpResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientToolMcpDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientToolMcp;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -77,6 +78,11 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
             AiClientToolMcp aiClientToolMcp = convertToAiClientToolMcp(request);
             aiClientToolMcp.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
+            AiClientToolMcp existing = aiClientToolMcpDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("MCP 工具");
+            }
             int result = aiClientToolMcpDao.updateById(aiClientToolMcp);
             
             return Response.<Boolean>builder()
@@ -135,6 +141,10 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
         try {
             log.info("根据ID删除MCP客户端配置：{}", id);
             
+            AiClientToolMcp existing = aiClientToolMcpDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("MCP 工具");
+            }
             int result = aiClientToolMcpDao.deleteById(id);
             
             return Response.<Boolean>builder()

@@ -18,7 +18,14 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const isAdmin = computed(() => props.context === 'admin')
+/** 当前所处的端（用户端 / 管理端），只影响菜单里展示哪个切换入口 */
+const inAdminContext = computed(() => props.context === 'admin')
+
+/**
+ * 账号角色（与后端 admin_user.user_role 一致）。
+ * 权限差别：管理员可以修改「公共资源」，普通用户只能改自己的资源。
+ */
+const isRoleAdmin = computed(() => userStore.userRole === 'admin')
 
 async function goChat(): Promise<void> {
   await router.push('/chat')
@@ -45,17 +52,28 @@ async function handleLogout(): Promise<void> {
         {{ userStore.initials }}
       </span>
       <span class="text-[12.5px] text-ink-600">{{ userStore.displayName }}</span>
+      <span
+        class="rounded px-1.5 py-0.5 text-[10.5px]"
+        :class="isRoleAdmin ? 'bg-[#EEF0FE] text-brand' : 'bg-[#F2F4FB] text-ink-400'"
+      >
+        {{ isRoleAdmin ? '管理员' : '普通用户' }}
+      </span>
       <ChevronDown :size="13" class="text-ink-400" />
     </button>
 
     <template #overlay>
-      <Menu class="min-w-[188px]">
+      <Menu class="min-w-[220px]">
         <MenuItem key="info" disabled>
           <span class="text-[12.5px] font-medium">{{ userStore.displayName }}</span>
-          <span class="ml-2 text-[11px] text-ink-400">{{ isAdmin ? '管理后台' : '智能对话' }}</span>
+          <span class="ml-2 text-[11px] text-ink-400">{{ inAdminContext ? '管理后台' : '智能对话' }}</span>
+        </MenuItem>
+        <MenuItem key="scope" disabled>
+          <span class="text-[11px] text-ink-400">
+            {{ isRoleAdmin ? '可维护公共资源与账号' : '只能修改自己创建的资源' }}
+          </span>
         </MenuItem>
         <MenuDivider />
-        <MenuItem v-if="!isAdmin" key="to-admin" @click="goAdmin">
+        <MenuItem v-if="!inAdminContext" key="to-admin" @click="goAdmin">
           <span class="flex items-center gap-2"><LayoutDashboard :size="14" />进入管理后台</span>
         </MenuItem>
         <MenuItem v-else key="to-chat" @click="goChat">

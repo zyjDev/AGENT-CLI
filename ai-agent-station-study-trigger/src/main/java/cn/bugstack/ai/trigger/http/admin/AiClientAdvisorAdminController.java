@@ -7,6 +7,7 @@ import cn.bugstack.ai.api.dto.AiClientAdvisorResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientAdvisorDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientAdvisor;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -79,6 +80,11 @@ public class AiClientAdvisorAdminController implements IAiClientAdvisorAdminServ
             AiClientAdvisor aiClientAdvisor = convertToAiClientAdvisor(request);
             aiClientAdvisor.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
+            AiClientAdvisor existing = aiClientAdvisorDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("顾问");
+            }
             int result = aiClientAdvisorDao.updateById(aiClientAdvisor);
             
             return Response.<Boolean>builder()
@@ -137,6 +143,10 @@ public class AiClientAdvisorAdminController implements IAiClientAdvisorAdminServ
         try {
             log.info("根据ID删除顾问配置请求：{}", id);
             
+            AiClientAdvisor existing = aiClientAdvisorDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("顾问");
+            }
             int result = aiClientAdvisorDao.deleteById(id);
             
             return Response.<Boolean>builder()

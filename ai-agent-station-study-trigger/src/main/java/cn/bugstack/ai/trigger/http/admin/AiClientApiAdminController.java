@@ -7,6 +7,7 @@ import cn.bugstack.ai.api.dto.AiClientApiResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -79,6 +80,11 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
+            AiClientApi existing = aiClientApiDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("API 通道");
+            }
             int result = aiClientApiDao.updateById(aiClientApi);
             
             return Response.<Boolean>builder()
@@ -114,6 +120,11 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setUpdateTime(LocalDateTime.now());
             
+            // 同上：按业务ID改也走同一套归属校验（apiKey 属敏感凭据）
+            AiClientApi existing = aiClientApiDao.queryByApiId(aiClientApi.getApiId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("API 通道");
+            }
             int result = aiClientApiDao.updateByApiId(aiClientApi);
             
             return Response.<Boolean>builder()
@@ -137,6 +148,10 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
         try {
             log.info("根据ID删除AI客户端API配置请求：{}", id);
             
+            AiClientApi existing = aiClientApiDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("API 通道");
+            }
             int result = aiClientApiDao.deleteById(id);
             
             return Response.<Boolean>builder()
@@ -160,6 +175,10 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
         try {
             log.info("根据API ID删除AI客户端API配置请求：{}", apiId);
             
+            AiClientApi existing = aiClientApiDao.queryByApiId(apiId);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("API 通道");
+            }
             int result = aiClientApiDao.deleteByApiId(apiId);
             
             return Response.<Boolean>builder()

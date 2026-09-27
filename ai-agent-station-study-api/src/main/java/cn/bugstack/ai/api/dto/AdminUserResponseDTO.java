@@ -45,6 +45,11 @@ public class AdminUserResponseDTO implements Serializable {
     private Integer status;
 
     /**
+     * 角色：admin=管理员，user=普通用户（前端据此决定「公共资源」上的修改/删除按钮是否可用）
+     */
+    private String userRole;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;

@@ -45,6 +45,10 @@ export const useUserStore = defineStore('user', {
     userId(state): string {
       return state.userInfo?.userId ?? ''
     },
+    /** 账号角色：admin=管理员（可维护公共资源），user=普通用户（只能改自己的资源） */
+    userRole(state): string {
+      return state.userInfo?.userRole ?? 'user'
+    },
     /** 头像占位：取前两位大写 */
     initials(state): string {
       const name = state.userInfo?.username ?? ''
@@ -81,6 +85,7 @@ export const useUserStore = defineStore('user', {
       const userInfo: StoredUserInfo = {
         username: result.username,
         userId: String(result.userId ?? ''),
+        userRole: String(result.userRole ?? 'user'),
         loginTime: new Date().toISOString(),
       }
       this.token = result.token

@@ -11,6 +11,8 @@ export interface AdminUserLoginParams {
 }
 
 export interface AdminUserInfo {
+  /** 角色：admin=管理员（可维护公共资源），user=普通用户 */
+  userRole?: string
   id?: number
   userId?: string
   username: string

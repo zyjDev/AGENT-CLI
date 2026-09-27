@@ -7,6 +7,7 @@ import cn.bugstack.ai.api.dto.AiClientSystemPromptResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientSystemPromptDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientSystemPrompt;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -79,6 +80,11 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
             AiClientSystemPrompt aiClientSystemPrompt = convertToAiClientSystemPrompt(request);
             aiClientSystemPrompt.setUpdateTime(LocalDateTime.now());
             
+            // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
+            AiClientSystemPrompt existing = aiClientSystemPromptDao.queryById(request.getId());
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("系统提示词");
+            }
             int result = aiClientSystemPromptDao.updateById(aiClientSystemPrompt);
             
             return Response.<Boolean>builder()
@@ -137,6 +143,10 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
         try {
             log.info("根据ID删除系统提示词配置：{}", id);
             
+            AiClientSystemPrompt existing = aiClientSystemPromptDao.queryById(id);
+            if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
+                return OwnerGuard.deny("系统提示词");
+            }
             int result = aiClientSystemPromptDao.deleteById(id);
             
             return Response.<Boolean>builder()

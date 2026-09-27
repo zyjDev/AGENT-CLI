@@ -11,6 +11,8 @@ import cn.bugstack.ai.infrastructure.dao.IAdminUserDao;
 import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.trigger.config.AdminJwtTokenService;
+import cn.bugstack.ai.trigger.support.OwnerGuard;
+import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.common.PasswordUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -94,6 +96,8 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                     .username(username)
                     .password(PasswordUtil.encode(request.getPassword()))
                     .status(1)
+                    // 自助注册一律是普通用户：管理员账号只能由管理员在管理端创建 / 或由 DBA 改库
+                    .userRole(UserContext.ROLE_USER)
                     .createTime(LocalDateTime.now())
                     .updateTime(LocalDateTime.now())
                     .build();
@@ -108,7 +112,8 @@ public class AdminUserAdminController implements IAdminUserAdminService {
 
             // 注册即登录：直接签发 token，前端不必再走一次登录
             AdminUserResponseDTO responseDTO = convertToAdminUserResponseDTO(adminUser);
-            responseDTO.setToken(adminJwtTokenService.createToken(adminUser.getUserId(), adminUser.getUsername()));
+            responseDTO.setToken(adminJwtTokenService.createToken(
+                    adminUser.getUserId(), adminUser.getUsername(), adminUser.getUserRole()));
 
             return Response.<AdminUserResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -157,6 +162,10 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             adminUser.setCreateTime(LocalDateTime.now());
             adminUser.setUpdateTime(LocalDateTime.now());
 
+            // 账号管理是管理员专属能力（普通用户走 /register 自助开户）
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             int result = adminUserDao.insert(adminUser);
             
             return Response.<Boolean>builder()
@@ -193,6 +202,10 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             applyPasswordIfProvided(adminUser, request.getPassword());
             adminUser.setUpdateTime(LocalDateTime.now());
 
+            // 账号管理是管理员专属能力：普通用户不得改动任何账号（包括自己）的角色与状态
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             int result = adminUserDao.updateById(adminUser);
             if (result <= 0) {
                 return Response.<Boolean>builder()
@@ -266,6 +279,9 @@ public class AdminUserAdminController implements IAdminUserAdminService {
         try {
             log.info("根据ID删除管理员用户请求：{}", id);
             
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             int result = adminUserDao.deleteById(id);
             
             return Response.<Boolean>builder()
@@ -575,7 +591,9 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             upgradePlaintextPasswordIfNeeded(adminUser, request.getPassword());
 
             AdminUserResponseDTO responseDTO = convertToAdminUserResponseDTO(adminUser);
-            responseDTO.setToken(adminJwtTokenService.createToken(adminUser.getUserId(), adminUser.getUsername()));
+            // 角色写进 token：决定能否修改「公共资源」。角色调整后需重新登录才生效
+            responseDTO.setToken(adminJwtTokenService.createToken(
+                    adminUser.getUserId(), adminUser.getUsername(), adminUser.getUserRole()));
             
             return Response.<AdminUserResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())

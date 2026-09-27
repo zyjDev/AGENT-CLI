@@ -5,6 +5,7 @@ import cn.bugstack.ai.api.dto.DataStatisticsResponseDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.service.metrics.AgentRequestMetrics;
 import cn.bugstack.ai.infrastructure.dao.*;
+import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -53,13 +54,14 @@ public class AiAgentDataStatisticsAdminController implements IAiAgentDataStatist
 
         // 各类配置数量：一律走 selectCount，不再用 queryAll().size()
         // —— 后者会把整表数据（含大字段）拉进 JVM 只为取一个长度，数据量上来必然拖慢首页。
-        long agentCount = aiAgentDao.selectCount(null);
-        long clientCount = aiClientDao.selectCount(null);
-        long mcpToolCount = aiClientToolMcpDao.selectCount(null);
-        long systemPromptCount = aiClientSystemPromptDao.selectCount(null);
-        long ragOrderCount = aiClientRagOrderDao.selectCount(null);
-        long advisorCount = aiClientAdvisorDao.selectCount(null);
-        long modelCount = aiClientModelDao.selectCount(null);
+        // 口径与列表页一致：公共资源 + 本人私有（别人私有的资源不该出现在我的首页统计里）
+        long agentCount = aiAgentDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long clientCount = aiClientDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long mcpToolCount = aiClientToolMcpDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long systemPromptCount = aiClientSystemPromptDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long ragOrderCount = aiClientRagOrderDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long advisorCount = aiClientAdvisorDao.selectCount(OwnerQuerySupport.visibleWrapper());
+        long modelCount = aiClientModelDao.selectCount(OwnerQuerySupport.visibleWrapper());
 
         // 运行中任务 = 已启用的调度任务数（ai_agent_task_schedule.status = 1）。
         // 该表是 cron 配置表，项目里没有任务运行态表，故这是能做到的最接近口径。

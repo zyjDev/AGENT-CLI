@@ -78,6 +78,9 @@ docs/dev-ops/mysql/*
 # 例外：Docker 中间件初始化脚本必须入库，丢失后无法重建环境（2026-09-20 事故）
 # 该例外必须写在 *.sql 之后 —— git 规则后写的覆盖先写的
 !docs/dev-ops/pgvector/sql/init.sql
+# 例外：按用户隔离的库结构迁移脚本必须入库 —— 新环境没有它就连 owner_id / user_role 列都没有，
+# 应用启动即报错。仓库历史上已有过「SQL 只在本机、丢失后无法重建」的教训（2026-09-20）。
+!docs/migrations/*.sql
 /docs/RAG-Knowledge-Base-Update-Requirements.md
 
 ### 编辑器临时/备份文件 ###
