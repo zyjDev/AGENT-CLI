@@ -2,7 +2,7 @@
 /**
  * 最终结果面板：Markdown 渲染 + 全文复制 + 生成信息。
  */
-import { message } from 'ant-design-vue'
+import { Button, message } from 'ant-design-vue'
 import { Copy, FileText, Loader2 } from 'lucide-vue-next'
 import MarkdownView from './MarkdownView.vue'
 
@@ -11,10 +11,17 @@ const props = defineProps<{
   loading: boolean
   /** 出错时的提示（有值时优先展示错误态） */
   error?: string
+  /** 错误码：0004 = 需要先配置自己的模型 Key，此时给出「去配置」出口 */
+  errorCode?: string
   /** 生成信息：步骤数与耗时 */
   stepCount?: number
   durationMs?: number
 }>()
+
+const emit = defineEmits<{ (e: 'goto-config'): void }>()
+
+/** 后端 ResponseCode.NEED_OWN_MODEL_KEY —— 唯一当前需要"给出口"的错误 */
+const NEED_OWN_MODEL_KEY_CODE = '0004'
 
 async function copyAll(): Promise<void> {
   if (!props.content) return
@@ -61,6 +68,16 @@ const formatDuration = (ms?: number): string => {
         <div>
           <p class="text-[13px] font-medium text-err">本次执行未完成</p>
           <p class="mt-1 text-[12.5px] leading-6 text-ink-600">{{ error }}</p>
+          <!-- 需要自己的模型 Key 时给个能点的出口，否则用户读完报错也不知道去哪儿配 -->
+          <Button
+            v-if="errorCode === NEED_OWN_MODEL_KEY_CODE"
+            size="small"
+            type="primary"
+            class="mt-2"
+            @click="emit('goto-config')"
+          >
+            去配置我的模型 Key
+          </Button>
         </div>
       </div>
 

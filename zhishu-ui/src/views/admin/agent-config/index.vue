@@ -18,11 +18,12 @@ import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import LogicFlow from '@logicflow/core'
 import '@logicflow/core/dist/style/index.css'
-import { Button, Input, message, Spin, Tooltip } from 'ant-design-vue'
+import { Button, Input, message, Modal, Spin, Tooltip } from 'ant-design-vue'
 import { ArrowLeft, Maximize2, Minus, Plus, Redo2, Save, Undo2, Zap } from 'lucide-vue-next'
 import { AgentApi } from '@/api/agent'
 import { AiAgentDrawApi } from '@/api/ai-agent-draw'
 import { useUserStore } from '@/store/modules/user'
+import { BusinessError } from '@/types/api'
 import type { DrawConfigJson, DrawEdge, DrawNode, DrawNodeType } from '@/types/draw'
 import NodeFormDrawer from './components/NodeFormDrawer.vue'
 import {
@@ -613,6 +614,7 @@ async function handleSave(): Promise<void> {
     message.success(`保存成功，配置ID：${configId || meta.configId}`)
   } catch (error) {
     console.error('[agent-config] 保存失败', error)
+    offerOwnModelKeyGuide(error)
   } finally {
     saving.value = false
   }
@@ -629,6 +631,7 @@ async function handleArmory(): Promise<void> {
     message.success('装配成功，流程图已生效')
   } catch (error) {
     console.error('[agent-config] 装配失败', error)
+    offerOwnModelKeyGuide(error)
   } finally {
     arming.value = false
   }
@@ -636,6 +639,28 @@ async function handleArmory(): Promise<void> {
 
 function goBack(): void {
   void router.push('/admin/agent-list')
+}
+
+/** 后端在「普通用户自建智能体借道了非本人模型」时返回这个码（ResponseCode.NEED_OWN_MODEL_KEY） */
+const NEED_OWN_MODEL_KEY_CODE = '0004'
+
+/**
+ * 保存 / 装配被"自带模型 Key"拦下时，给一个能点的出口。
+ * 只弹一句错误文案的话，用户并不知道该去哪儿配 —— 而"去哪儿配"正是他卡住的地方。
+ */
+function offerOwnModelKeyGuide(error: unknown): void {
+  if (!(error instanceof BusinessError) || error.code !== NEED_OWN_MODEL_KEY_CODE) {
+    return
+  }
+  Modal.confirm({
+    title: '需要先配置你自己的模型 Key',
+    content: error.message,
+    okText: '去配置',
+    cancelText: '知道了',
+    onOk: () => {
+      void router.push('/admin/ai-client-api-management')
+    },
+  })
 }
 
 onMounted(async () => {

@@ -63,5 +63,28 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
 </script>
 
 <template>
-  <CrudPage :descriptor="descriptor" />
+  <div class="space-y-3">
+    <!--
+      面向普通用户的配置引导。
+      为什么放在这一页：普通用户"用平台默认智能体"不需要任何配置，
+      但"自己搭智能体"必须自带模型 Key，而 Key 就是在这里填的 —— 所以在入口处把路说清，
+      别等他保存编排时才被拦下来、还不知道去哪儿配。
+    -->
+    <div class="rounded-xl border border-[#E7EAF6] bg-[#F7F8FE] px-4 py-3 text-[12.5px] leading-6 text-ink-600">
+      <p class="font-medium text-ink-900">要用自己的模型跑智能体？在这里配</p>
+      <p class="mt-1 text-ink-400">
+        平台默认智能体（管理员提供的）拿来即用，无需配置；但你<strong>自己搭建</strong>的智能体必须使用你自己的模型，
+        否则保存或运行时会被拦下。步骤：
+      </p>
+      <ol class="mt-2 list-decimal space-y-1 pl-5">
+        <li>本页「新增」一条 API：<strong>基础URL</strong> 填你供应商的地址（如 <span class="font-mono">https://api.deepseek.com</span>），<strong>API 密钥</strong> 填你的 Key；</li>
+        <li>到「模型管理」新增模型：<strong>API 选上一步那条</strong>，模型名填供应商的模型名（如 <span class="font-mono">deepseek-chat</span>）；</li>
+        <li>到「客户端管理」新增客户端，把上面这个模型挂上去；</li>
+        <li>回到「智能体编排」，把客户端 / 模型节点换成你自己这几个，保存就能用。</li>
+      </ol>
+      <p class="mt-1 text-ink-400">你自己的资源只有你自己能看见和修改；平台默认资源仍然可以直接用，互不影响。</p>
+    </div>
+
+    <CrudPage :descriptor="descriptor" />
+  </div>
 </template>

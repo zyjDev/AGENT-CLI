@@ -11,6 +11,7 @@ import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
 import cn.bugstack.ai.trigger.http.admin.util.DrawConfigParser;
+import cn.bugstack.ai.trigger.support.OwnModelGuard;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
@@ -52,6 +53,9 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
     private IAiAgentDao aiAgentDao;
     @Resource
     private IAiAgentFlowConfigDao aiAgentFlowConfigDao;
+    // 「普通用户自建智能体必须自带模型 Key」校验用
+    @Resource
+    private OwnModelGuard ownModelGuard;
 
     @Override
     @PostMapping("/query-list")
@@ -172,6 +176,41 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                 : generateUniqueAgentId();
         request.setAgentId(agentId);
 
+        // 先把引用解析出来（纯计算、不写库）：既供下面的"自带模型 Key"校验，落库时也复用这两份结果
+        List<AiAgentFlowConfig> agentFlowConfigs = parseClientInfoFromJson(request.getConfigData(), agentId);
+        List<AiClientConfig> configRelations = DrawConfigParser.parseConfigData(request.getConfigData());
+
+        // 「自带模型 Key」校验 —— 必须在任何写库之前：
+        // 本方法带 @Transactional，但**提前 return 是正常返回、事务会 COMMIT**，
+        // 万一写到一半才拦，已经写进去的 ai_agent 就留下了。
+        // 规则：普通用户自己建的智能体，引用的客户端 / 模型必须都是他自己的资源；
+        //      平台默认资源（owner 为空）与别人的资源都算"借道"（等于白嫖管理员的额度）。
+        if (!UserContext.isAdmin()) {
+            List<String> refClientIds = new ArrayList<>();
+            for (AiAgentFlowConfig flowConfig : agentFlowConfigs) {
+                if (StringUtils.hasText(flowConfig.getClientId())) {
+                    refClientIds.add(flowConfig.getClientId());
+                }
+            }
+            List<String> refModelIds = new ArrayList<>();
+            for (AiClientConfig relation : configRelations) {
+                if ("model".equals(relation.getTargetType()) && StringUtils.hasText(relation.getTargetId())) {
+                    refModelIds.add(relation.getTargetId());
+                }
+            }
+            String ownModelProblem = ownModelGuard.checkClients(refClientIds, UserContext.userId());
+            if (ownModelProblem == null) {
+                ownModelProblem = ownModelGuard.checkModels(refModelIds, UserContext.userId());
+            }
+            if (ownModelProblem != null) {
+                log.warn("拒绝保存：自建智能体借道了非本人资源，configId={}, userId={}", configId, UserContext.userId());
+                return Response.<String>builder()
+                        .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
+                        .info(ownModelProblem)
+                        .build();
+            }
+        }
+
         // 4. 解析JSON中的agent信息
         String[] agentInfo = parseAgentInfoFromJson(request.getConfigData());
         String agentName = agentInfo[0];
@@ -238,7 +277,6 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         // 7. 重建 ai_client_config 关系
         //    不再用 try/catch 吞异常 —— 关系写失败说明配置不完整，必须让整个事务回滚，
         //    否则会产生「接口返回成功、但流程缺客户端」的半成品配置。
-        List<AiClientConfig> configRelations = DrawConfigParser.parseConfigData(request.getConfigData());
         if (!configRelations.isEmpty()) {
             // 【注意】此处原本有一段「更新时先删旧关系」的逻辑：aiClientConfigDao.deleteBySourceId(configId)。
             // 它其实是一条**无效清理**：ai_client_config 没有 config_id 列，其 source_id / target_id 存的是
@@ -277,7 +315,6 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
         //    先按 agentId 清空旧数据再重建。原实现在更新分支执行 deleteByAgentId(新生成的 agentId)，
         //    而该 agentId 是刚生成的、必然查不到任何旧数据 —— 等于没清理；
         //    同时「新配置里没有 client 节点」时会整个跳过清理，导致旧流程配置残留。
-        List<AiAgentFlowConfig> agentFlowConfigs = parseClientInfoFromJson(request.getConfigData(), agentId);
         aiAgentFlowConfigDao.deleteByAgentId(agentId);
         for (AiAgentFlowConfig flowConfig : agentFlowConfigs) {
             aiAgentFlowConfigDao.insert(flowConfig);

@@ -103,4 +103,10 @@ export interface SseMessage {
   completed: boolean
   timestamp: number
   sessionId: string
+  /**
+   * 业务错误码（仅 type=error 时后端可能带上）。
+   * 有了它前端才能针对特定错误给出可操作的动作，
+   * 例如缺少自己的模型 Key（0004）时弹「去配置」按钮，而不是只丢一句文案。
+   */
+  code?: string | null
 }

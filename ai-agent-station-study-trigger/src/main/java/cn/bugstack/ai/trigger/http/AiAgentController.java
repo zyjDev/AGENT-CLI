@@ -15,6 +15,7 @@ import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
 import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
+import cn.bugstack.ai.trigger.support.OwnModelGuard;
 import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
@@ -60,6 +61,9 @@ public class AiAgentController implements IAiAgentService {
     // API 通道归属校验用
     @Resource
     private IAiClientApiDao aiClientApiDao;
+    // 「普通用户自建智能体必须自带模型 Key」校验用
+    @Resource
+    private OwnModelGuard ownModelGuard;
 
     /**
      * 当前用户是否可用该智能体。
@@ -77,11 +81,22 @@ public class AiAgentController implements IAiAgentService {
 
     /** 以 SSE 事件的形式回错误（必须是合法 JSON，前端按 data: {type,content} 解析） */
     private ResponseBodyEmitter sseError(String message) {
+        return sseError(message, null);
+    }
+
+    /**
+     * 以 SSE 事件的形式回错误，并带上业务错误码。
+     * <p>
+     * 带码是为了让前端能针对特定错误给出可操作的动作（例如缺少自己的模型 Key 时弹「去配置」按钮），
+     * 而不是只丢一句文案让用户自己猜去哪儿配。
+     */
+    private ResponseBodyEmitter sseError(String message, String code) {
         ResponseBodyEmitter errorEmitter = new ResponseBodyEmitter(sseTimeoutMillis);
         try {
             java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("type", "error");
             payload.put("subType", null);
+            payload.put("code", code);
             payload.put("content", message);
             errorEmitter.send("data: " + JSON.toJSONString(payload) + "\n\n");
             errorEmitter.complete();
@@ -89,6 +104,26 @@ public class AiAgentController implements IAiAgentService {
             log.error("发送错误信息失败：{}", ex.getMessage(), ex);
         }
         return errorEmitter;
+    }
+
+    /**
+     * 普通用户「自建智能体必须自带模型 Key」校验。
+     *
+     * @return null = 通过；否则返回给用户看的提示
+     */
+    private String findOwnModelProblem(String agentId) {
+        if (UserContext.isAdmin()) {
+            return null;
+        }
+        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
+        String userId = UserContext.userId();
+        String agentOwner = agent == null ? null : agent.getOwnerId();
+        boolean mine = agentOwner != null && !agentOwner.isEmpty() && agentOwner.equals(userId);
+        if (!mine) {
+            // 平台默认智能体（owner 为空）：普通用户就是允许用平台 Key 跑它，不校验
+            return null;
+        }
+        return ownModelGuard.checkAgentChain(agentId, userId);
     }
 
     /**
@@ -113,6 +148,14 @@ public class AiAgentController implements IAiAgentService {
             if (!canUseAgent(request.getAiAgentId())) {
                 log.warn("拒绝调用无权限的智能体，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
                 return sseError("智能体不存在或无权访问");
+            }
+
+            // 0.1 自带 Key 校验：普通用户自建的智能体必须用自己的模型（公共/别人的都算借道）。
+            //     在这里也拦一道，避免绕过前端直接调接口白嫖平台 Key。
+            String ownModelProblem = findOwnModelProblem(request.getAiAgentId());
+            if (ownModelProblem != null) {
+                log.warn("拒绝调用：自建智能体借道了非本人资源，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
+                return sseError(ownModelProblem, ResponseCode.NEED_OWN_MODEL_KEY.getCode());
             }
 
             // 1. 创建流式输出对象
@@ -179,6 +222,18 @@ public class AiAgentController implements IAiAgentService {
                         .data(false)
                         .build();
             }
+
+            // 自带 Key 校验：普通用户自己建的智能体，链路上的客户端/模型必须都是他自己的
+            String ownModelProblem = findOwnModelProblem(request.getAgentId());
+            if (ownModelProblem != null) {
+                log.warn("拒绝装配：自建智能体借道了非本人资源，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
+                        .info(ownModelProblem)
+                        .data(false)
+                        .build();
+            }
+
             
             // 调用装配服务
             armoryService.acceptArmoryAgent(request.getAgentId());

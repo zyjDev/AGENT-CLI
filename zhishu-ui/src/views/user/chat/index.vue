@@ -14,6 +14,7 @@ import { RefreshCw, Send, Square } from 'lucide-vue-next'
 import { AgentApi, type AvailableAgent } from '@/api/agent'
 import { AiClientRagOrderApi, type AiClientRagOrderItem } from '@/api/ai-client-rag-order'
 import { streamAutoAgent, type SseHandle } from '@/composables/useSse'
+import { useRouter } from 'vue-router'
 import { reloadSessionsForCurrentUser, useSessions } from '@/composables/useSessions'
 import { SseMessageType, SseSubType, type SseMessage } from '@/enums/sse'
 import type { ChatMessage, ChatPreset, ChatRound } from '@/types/chat'
@@ -72,11 +73,15 @@ const knowledgeLoading = ref(false)
 const selectedRagId = ref<string | undefined>()
 const selectedPreset = ref<string | undefined>(undefined)
 
+const router = useRouter()
+
 const inputText = ref('')
 const streaming = ref(false)
 const liveMessages = ref<ChatMessage[]>([])
 const liveResult = ref('')
 const liveError = ref('')
+/** 错误码：用于识别"需要先配置自己的模型 Key"（0004）这类可操作错误 */
+const liveErrorCode = ref('')
 const liveDurationMs = ref(0)
 
 let activeSessionId = ''
@@ -99,6 +104,13 @@ const displayMessages = computed<ChatMessage[]>(() =>
 )
 const displayResult = computed(() => (isLiveRound.value ? liveResult.value : (currentRound.value?.result ?? '')))
 const displayError = computed(() => (isLiveRound.value ? liveError.value : (currentRound.value?.error ?? '')))
+// 历史轮次只存了错误文案（没存码），所以按钮只对本轮实时错误生效
+const displayErrorCode = computed(() => (isLiveRound.value ? liveErrorCode.value : ''))
+
+/** 缺模型 Key 时按钮的落点：客户端 API 管理（在那里填 base_url + Key） */
+function goConfigureOwnKey(): void {
+  void router.push('/admin/ai-client-api-management')
+}
 const displayLoading = computed(() => streaming.value && isLiveRound.value)
 
 const displayStepCount = computed(() => {
@@ -215,6 +227,7 @@ function handleMessage(msg: SseMessage): void {
 
   if (msg.type === SseMessageType.Error && content.trim()) {
     liveError.value = content.trim()
+    liveErrorCode.value = msg.code ?? ''
   }
 
   // 兜底快照：长时间流式期间刷新页面不至于全丢
@@ -251,6 +264,7 @@ function send(): void {
   liveMessages.value = []
   liveResult.value = ''
   liveError.value = ''
+  liveErrorCode.value = ''
   liveDurationMs.value = 0
   activeSessionId = session.id
   activeRoundId = id
@@ -408,8 +422,10 @@ onMounted(() => {
           :content="displayResult"
           :loading="displayLoading"
           :error="displayError"
+          :error-code="displayErrorCode"
           :step-count="displayStepCount"
           :duration-ms="displayDurationMs"
+          @goto-config="goConfigureOwnKey"
         />
       </div>
 
