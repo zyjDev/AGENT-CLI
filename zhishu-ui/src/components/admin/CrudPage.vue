@@ -55,6 +55,19 @@ const showActionColumn = computed(
   () => canEdit.value || canRemove.value || Boolean(props.descriptor.rowActions?.length),
 )
 
+/**
+ * 操作列宽度：按实际按钮个数算。
+ *
+ * 原来固定 170px，只够「编辑 + 删除」两个；像客户端 API 那种带一个行操作
+ * （绑定智能体 + 编辑 + 删除）就会挤成两三行，看起来很脏。
+ * 每个操作按「图标 + 最多 5 个汉字」预留 76px，另留 28px 左右内边距。
+ */
+const actionColumnWidth = computed(() => {
+  const actionCount =
+    (props.descriptor.rowActions?.length ?? 0) + (canEdit.value ? 1 : 0) + (canRemove.value ? 1 : 0)
+  return 28 + Math.max(actionCount, 1) * 76
+})
+
 const tableColumns = computed<TableColumnType[]>(() => {
   const columns: TableColumnType[] = props.descriptor.columns.map((column) => ({
     title: column.title,
@@ -69,7 +82,7 @@ const tableColumns = computed<TableColumnType[]>(() => {
       title: '操作',
       dataIndex: '__actions',
       key: '__actions',
-      width: 170,
+      width: actionColumnWidth.value,
       ellipsis: false,
       fixed: 'right' as const,
     })
@@ -85,7 +98,7 @@ const tableColumns = computed<TableColumnType[]>(() => {
  */
 const tableMinWidth = computed(() => {
   const fixed = props.descriptor.columns.reduce((sum, column) => sum + (column.width ?? 200), 0)
-  return fixed + (showActionColumn.value ? 170 : 0)
+  return fixed + (showActionColumn.value ? actionColumnWidth.value : 0)
 })
 
 const renderKindMap = computed<Record<string, CellRender>>(() =>
@@ -232,7 +245,12 @@ defineExpose({ reload: load })
         </div>
 
         <div class="flex items-center gap-2">
-          <Button v-if="canCreate" type="primary" class="btn-grad !h-8 text-[12.5px]" @click="openCreate">
+          <Button
+            v-if="canCreate"
+            type="primary"
+            class="btn-grad !h-8 shrink-0 whitespace-nowrap text-[12.5px]"
+            @click="openCreate"
+          >
             <Plus :size="13" class="mr-1" />
             新增{{ descriptor.title }}
           </Button>
@@ -255,12 +273,12 @@ defineExpose({ reload: load })
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === '__actions'">
-            <div class="flex items-center justify-end gap-3">
+            <div class="flex items-center justify-end gap-3 whitespace-nowrap">
               <button
                 v-for="action in visibleRowActions(record as Row)"
                 :key="action.label"
                 type="button"
-                class="cursor-pointer text-[12.5px] text-brand hover:underline"
+                class="shrink-0 cursor-pointer whitespace-nowrap text-[12.5px] text-brand hover:underline"
                 @click="action.run(record as Row)"
               >
                 {{ action.label }}
@@ -269,7 +287,7 @@ defineExpose({ reload: load })
               <button
                 v-if="canEdit"
                 type="button"
-                class="flex cursor-pointer items-center gap-1 text-[12.5px] text-brand hover:underline"
+                class="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap text-[12.5px] text-brand hover:underline"
                 @click="openEdit(record as Row)"
               >
                 <Pencil :size="12" />编辑
@@ -283,7 +301,10 @@ defineExpose({ reload: load })
                 cancel-text="取消"
                 @confirm="handleRemove(record as Row)"
               >
-                <button type="button" class="flex cursor-pointer items-center gap-1 text-[12.5px] text-err hover:underline">
+                <button
+                  type="button"
+                  class="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap text-[12.5px] text-err hover:underline"
+                >
                   <Trash2 :size="12" />删除
                 </button>
               </Popconfirm>
@@ -306,8 +327,18 @@ defineExpose({ reload: load })
             <span class="font-mono text-[12px] text-ink-400">{{ formatTime(record[column.key as string]) }}</span>
           </template>
 
+          <!--
+            mono 列放的都是机器串（雪花 ID、URL 路径）：
+            19 位 ID 在窄列里会被折成两三行，很难看。这里改成单行 + 省略号，
+            完整值挂在 title 上，鼠标悬停仍可看全。
+          -->
           <template v-else-if="renderKindMap[column.key as string] === 'mono'">
-            <span class="font-mono text-[12.5px] text-ink-600">{{ record[column.key as string] ?? '—' }}</span>
+            <span
+              class="block truncate font-mono text-[12.5px] text-ink-600"
+              :title="String(record[column.key as string] ?? '')"
+            >
+              {{ record[column.key as string] ?? '—' }}
+            </span>
           </template>
 
           <template v-else>

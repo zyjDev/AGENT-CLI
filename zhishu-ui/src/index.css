@@ -42,7 +42,8 @@
 
   /* ---------- 按钮 ---------- */
   .btn-grad {
-    @apply border-0 font-medium text-white transition-all duration-200;
+    /* whitespace-nowrap：按钮文字绝不该折行（窄容器里曾被挤成两行） */
+    @apply border-0 whitespace-nowrap font-medium text-white transition-all duration-200;
     background-image: linear-gradient(135deg, var(--brand) 0%, var(--brand-violet) 100%);
   }
   .btn-grad:not(:disabled):hover {

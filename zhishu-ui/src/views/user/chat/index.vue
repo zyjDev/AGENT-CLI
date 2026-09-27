@@ -18,8 +18,7 @@ import { useRouter } from 'vue-router'
 import { reloadSessionsForCurrentUser, useSessions } from '@/composables/useSessions'
 import { SseMessageType, SseSubType, type SseMessage } from '@/enums/sse'
 import type { ChatMessage, ChatPreset, ChatRound } from '@/types/chat'
-import ProcessPanel from './components/ProcessPanel.vue'
-import ResultPanel from './components/ResultPanel.vue'
+import ChatTranscript from './components/ChatTranscript.vue'
 import SessionList from './components/SessionList.vue'
 
 const MAX_STEP_OPTIONS = [1, 2, 3, 5, 10, 20, 50]
@@ -202,6 +201,9 @@ function finalize(aborted: boolean): void {
   streaming.value = false
   liveDurationMs.value = startedAt ? Date.now() - startedAt : 0
 
+  // 落库前先把「按帧合并」里挂着的答案刷出来，否则最后一段会丢
+  flushPendingResult()
+
   updateRound(activeSessionId, activeRoundId, {
     messages: liveMessages.value.map((item) => ({ ...item })),
     result: liveResult.value,
@@ -212,23 +214,76 @@ function finalize(aborted: boolean): void {
   handle = null
 }
 
+/**
+ * 答案写入做一层「按帧合并」。
+ *
+ * 流式增量帧每秒可能来十几条，每条都直接改 liveResult 会让 Markdown 全量重渲染
+ * （marked + highlight.js + DOMPurify）把主线程顶满，反而卡。这里攒到下一帧渲染时落地一次，
+ * 视觉上仍是逐字出现。
+ */
+let pendingResult: string | null = null
+let resultFrame = 0
+
+function flushPendingResult(): void {
+  if (resultFrame) {
+    cancelAnimationFrame(resultFrame)
+    resultFrame = 0
+  }
+  if (pendingResult !== null) {
+    liveResult.value = pendingResult
+    pendingResult = null
+  }
+}
+
+function applyResult(text: string): void {
+  if (!text) return
+  pendingResult = text
+  if (resultFrame) return
+  resultFrame = requestAnimationFrame(() => {
+    resultFrame = 0
+    if (pendingResult !== null) {
+      liveResult.value = pendingResult
+      pendingResult = null
+    }
+  })
+}
+
 function handleMessage(msg: SseMessage): void {
   const content = msg.content ?? ''
-  liveMessages.value.push({
-    id: `${activeRoundId}_${msg.step ?? 0}_${msg.timestamp ?? Date.now()}_${liveMessages.value.length}`,
-    type: msg.type,
-    subType: msg.subType ?? null,
-    step: msg.step ?? null,
-    content,
-    timestamp: msg.timestamp ?? Date.now(),
-  })
 
-  // 最终结果来源：summary_overview 为主线；complete 若带正文也并入（后端完成帧）
-  const isSummaryOverview = msg.type === SseMessageType.Summary && msg.subType === SseSubType.SummaryOverview
-  const isCompleteWithContent = msg.type === SseMessageType.Complete && Boolean(content.trim())
-  if ((isSummaryOverview || isCompleteWithContent) && content.trim()) {
-    liveResult.value = liveResult.value ? `${liveResult.value}\n\n${content}` : content
+  /**
+   * 最终答案来源（一律「替换」，不再拼接）：
+   *   1) summary_delta —— 流式增量帧，content 是「到目前为止的全文」；重试重发也不会变成重复段落；
+   *   2) summary 且无 subType —— 正常结尾的整段帧，或总结超时后的本地兜底报告（同样应覆盖前面的半截内容）。
+   * 各**分段**帧（summary_overview / completed_work / suggestions …）只作为过程展示，不并入答案：
+   * 旧实现把它们拼起来，实际只会拿到第一段，答案区经常是空的（这就是"结果面板老是暂无结果"的原因）。
+   */
+  const isSummaryDelta = msg.type === SseMessageType.Summary && msg.subType === SseSubType.SummaryDelta
+  const isWholeSummary = msg.type === SseMessageType.Summary && !msg.subType && Boolean(content.trim())
+  const isComplete = msg.type === SseMessageType.Complete
+
+  /*
+   * 增量帧与完成帧不记进过程列表：
+   *   · 增量帧每次带的是「到目前为止的全文」，存下来就是十几条几乎一样的条目（重载后满屏重复的"总结阶段"）；
+   *   · 完成帧的正文只是「执行完成」这类状态文案，页脚已经表达了"已完成"。
+   * 答案本身单独存在 round.result 里，不依赖这两类帧。
+   */
+  if (!isSummaryDelta && !isComplete) {
+    liveMessages.value.push({
+      id: `${activeRoundId}_${msg.step ?? 0}_${msg.timestamp ?? Date.now()}_${liveMessages.value.length}`,
+      type: msg.type,
+      subType: msg.subType ?? null,
+      step: msg.step ?? null,
+      content,
+      timestamp: msg.timestamp ?? Date.now(),
+    })
   }
+
+  if (isSummaryDelta || isWholeSummary) {
+    applyResult(content)
+  }
+  // ⚠️ complete 帧**不**并入答案：后端完成帧的 content 是「执行完成」这类状态文案，
+  // 并进去会把刚流式出来的答案整段覆盖掉（实测踩到过，答案区只剩四个字）。
 
   if (msg.type === SseMessageType.Error && content.trim()) {
     liveError.value = content.trim()
@@ -434,19 +489,17 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 双栏 -->
-      <div class="grid min-h-0 flex-1 grid-cols-1 divide-x divide-line xl:grid-cols-2">
-        <ProcessPanel :messages="displayMessages" :loading="displayLoading" />
-        <ResultPanel
-          :content="displayResult"
-          :loading="displayLoading"
-          :error="displayError"
-          :error-code="displayErrorCode"
-          :step-count="displayStepCount"
-          :duration-ms="displayDurationMs"
-          @goto-config="goConfigureOwnKey"
-        />
-      </div>
+      <!-- 输出区：过程与答案合成一条自上而下的流水（原左右双栏已合并，见 ChatTranscript 注释） -->
+      <ChatTranscript
+        :messages="displayMessages"
+        :content="displayResult"
+        :loading="displayLoading"
+        :error="displayError"
+        :error-code="displayErrorCode"
+        :step-count="displayStepCount"
+        :duration-ms="displayDurationMs"
+        @goto-config="goConfigureOwnKey"
+      />
 
       <!-- 输入区 -->
       <div class="border-t border-line bg-white px-4 py-3">

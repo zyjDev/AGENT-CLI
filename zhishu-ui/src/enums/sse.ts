@@ -43,6 +43,12 @@ export enum SseSubType {
   IncompleteReasons = 'incomplete_reasons',
   Evaluation = 'evaluation',
   SummaryOverview = 'summary_overview',
+  /**
+   * 最终答案的**增量帧**：后端流式生成时按节奏推送，
+   * content 是「到目前为止的全文」（不是片段），前端按替换语义渲染 ——
+   * 这样即便治理层重试导致重发，也不会出现重复段落。
+   */
+  SummaryDelta = 'summary_delta',
 
   /* ---- 节点治理事件（NodeTraceNotifier 实测输出） ---- */
   NodeStart = 'node_start',

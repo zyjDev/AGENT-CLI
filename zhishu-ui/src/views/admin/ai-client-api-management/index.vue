@@ -29,13 +29,14 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
     { name: 'status', label: '状态', type: 'select', options: STATUS_OPTIONS, width: 130 },
   ],
   columns: [
-    { title: 'ID', dataIndex: 'id', width: 80, render: 'mono' },
-    { title: 'API ID', dataIndex: 'apiId', width: 120, render: 'mono' },
+    // 不展示数据库主键：19 位雪花 ID 对用户没有任何意义，只会把表格挤到折行
+    // 宽度按 19 位数字的实际宽度给足，配合 CrudPage 的单行省略，保证不折行
+    { title: 'API ID', dataIndex: 'apiId', width: 200, render: 'mono' },
     { title: '基础URL', dataIndex: 'baseUrl', width: 260, render: 'truncate' },
-    { title: '对话路径', dataIndex: 'completionsPath', width: 180, render: 'mono' },
-    { title: '嵌入路径', dataIndex: 'embeddingsPath', width: 170, render: 'mono' },
+    { title: '对话路径', dataIndex: 'completionsPath', width: 170, render: 'mono' },
+    { title: '嵌入路径', dataIndex: 'embeddingsPath', width: 160, render: 'mono' },
     { title: '状态', dataIndex: 'status', width: 90, render: 'status' },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, render: 'time' },
+    { title: '创建时间', dataIndex: 'createTime', width: 150, render: 'time' },
   ],
   formFields: [
     {
@@ -176,17 +177,14 @@ function unbind(agentId: string): void {
     <div class="rounded-xl border border-[#E7EAF6] bg-[#F7F8FE] px-4 py-3 text-[12.5px] leading-6 text-ink-600">
       <p class="font-medium text-ink-900">要用自己的模型跑智能体？在这里配</p>
       <p class="mt-1 text-ink-400">
-        平台默认密钥只给管理员使用：普通用户要用智能体（包括那些平台默认的），
-        必须配好自己的 <strong>base_url + API 密钥</strong> 并绑定给它。步骤：
+        平台默认密钥只给管理员使用。普通用户要用智能体（含平台默认的那些），需配好自己的
+        <strong>base_url + API 密钥</strong> 并绑定它：
+        <strong>①</strong> 本页「新增」填基础URL与API密钥 →
+        <strong>②</strong> 点该行「绑定智能体」选择目标 →
+        <strong>③</strong> 即可用它对话（模型与客户端由后端自动建好）。
       </p>
-      <ol class="mt-2 list-decimal space-y-1 pl-5">
-        <li>本页「新增」一条 API：<strong>基础URL</strong> 填你供应商的地址（如 <span class="font-mono">https://api.deepseek.com</span>），<strong>API 密钥</strong> 填你的 Key；</li>
-        <li>保存后点这一行的 <strong>「绑定智能体」</strong>，选择要用它的智能体（平台默认的、你自己搭的都可以）；</li>
-        <li>绑定成功即可直接用那个智能体对话 —— 后端会自动为你建好模型与客户端，你不需要懂中间那几层。</li>
-      </ol>
       <p class="mt-1 text-ink-400">
-        绑定会自动生成属于你的模型与客户端：如果你要自己拖拽搭建智能体，在编排里直接选这两个自己的资源即可（引用平台默认模型会被拦下）。
-        同一智能体重复绑定会覆盖上一次；解绑后该智能体对你不再可用。
+        绑定后运行时优先走你的密钥；同一智能体重复绑定会覆盖上一次，解绑后该智能体对你不再可用。
       </p>
     </div>
 

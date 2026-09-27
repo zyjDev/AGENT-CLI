@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * 执行总结节点
  *
@@ -22,6 +24,16 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
+
+    /** 最终答案增量帧的 subType，与前端 SseSubType.SummaryDelta 对齐 */
+    private static final String SUB_TYPE_SUMMARY_DELTA = "summary_delta";
+
+    /**
+     * 增量帧最小推送间隔（毫秒）。
+     * 模型每片都发会把前后端都打满（前端每收一帧就要全量重渲染 Markdown），
+     * 40ms 一帧肉眼已是"逐字输出"，又不会让浏览器掉帧。
+     */
+    private static final long SUMMARY_DELTA_INTERVAL_MS = 40L;
 
     @Override
     protected String doApply(ExecuteCommandEntity requestParameter, DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext) throws Exception {
@@ -85,6 +97,15 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
             // 获取对话客户端 - 使用任务分析客户端进行总结
             ChatClient chatClient = getChatClientByClientId(aiAgentClientFlowConfigVO.getClientId());
             
+            // 逐 token 流式生成最终答案。
+            //
+            // 为什么必须改这里：原先用 .call() 阻塞等整段生成完，再一次性把答案发给前端 ——
+            // 用户提问后要盯着"正在生成结果"等到总结模型全部写完才看到第一个字（实测就是这么被告知的）。
+            // 现在改成 .stream()：收到一片就推一片（按节奏限流），前端按"替换语义"渲染，
+            // 视觉上就是逐字输出；治理层的超时 / 重试 / 降级依然由 nodeGuardEngine 包着，行为不变。
+            StringBuilder streamed = new StringBuilder();
+            AtomicLong lastPushAt = new AtomicLong(0L);
+
             String summaryResult = nodeGuardEngine.execute(NodeTask.<String>builder()
                     .nodeKey(NodeGuardPolicyVO.NodeKeys.AUTO_STEP4_SUMMARY)
                     .displayName("阶段4 执行总结")
@@ -96,16 +117,34 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
                     // 为了「再总结一次」把用户已能看到的答案拖到超时，不划算。SKIP 后走本地兜底报告。
                     .degradeMode(NodeDegradeMode.SKIP)
                     .retryable(true)
-                    .callable(() -> chatClient
-                            .prompt(summaryPrompt)
-                            .advisors(a -> {
-                                a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId() + "-summary")
-                                        .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 50);
-                                if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
-                                    a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
-                                }
-                            })
-                            .call().content())
+                    .callable(() -> {
+                        chatClient.prompt(summaryPrompt)
+                                .advisors(a -> {
+                                    a.param(CHAT_MEMORY_CONVERSATION_ID_KEY, requestParameter.getMemoryConversationId() + "-summary")
+                                            .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 50);
+                                    if (requestParameter.getKnowledgeTag() != null && !requestParameter.getKnowledgeTag().trim().isEmpty()) {
+                                        a.param("knowledgeTag", requestParameter.getKnowledgeTag().trim());
+                                    }
+                                })
+                                .stream()
+                                .content()
+                                .doOnNext(chunk -> {
+                                    streamed.append(chunk);
+                                    long now = System.currentTimeMillis();
+                                    // 限流推送：逐 token 发会把前后端都打满（前端 Markdown 每次都要全量重渲染），
+                                    // 40ms 一帧在肉眼层面已经是"逐字输出"
+                                    if (now - lastPushAt.get() >= SUMMARY_DELTA_INTERVAL_MS) {
+                                        lastPushAt.set(now);
+                                        sendSummaryDelta(dynamicContext, streamed.toString(), requestParameter.getSessionId());
+                                    }
+                                })
+                                .blockLast();
+                        // 收尾补发一帧完整内容：上面的限流会把最后一段（可能不足 40ms）吞掉
+                        if (streamed.length() > 0) {
+                            sendSummaryDelta(dynamicContext, streamed.toString(), requestParameter.getSessionId());
+                        }
+                        return streamed.toString();
+                    })
                     .build()).getValue();
 
             // 显式校验：assert 依赖 -ea 参数，生产环境默认不生效，会导致 logFinalReport 内 NPE。
@@ -116,7 +155,7 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
                 logFallbackReport(dynamicContext, requestParameter.getSessionId());
                 return;
             }
-            logFinalReport(dynamicContext, summaryResult, requestParameter.getSessionId());
+            logFinalReport(dynamicContext, summaryResult, requestParameter.getSessionId(), streamed.length() > 0);
             
         } catch (Exception e) {
             log.error("生成最终总结报告时出现异常: {}", e.getMessage(), e);
@@ -154,9 +193,15 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
     }
 
     /**
-     * 输出最终总结报告
+     * 输出最终总结报告。
+     *
+     * @param streamedDelivered 答案是否已经逐字推给前端了。
+     *                          推过就不再发分段帧：那些分段本来是给"过程区"当明细用的，
+     *                          答案区已有全文，再发一遍只会让过程区重复一遍同样的内容。
+     *                          未流式（模型不支持流 / 治理层降级）时保持原行为，过程区仍能看到分段明细。
      */
-    private void logFinalReport(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext, String summaryResult, String sessionId) {
+    private void logFinalReport(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext,
+                                String summaryResult, String sessionId, boolean streamedDelivered) {
         boolean isCompleted = dynamicContext.isCompleted();
         log.info("\n📋 === {}任务最终总结报告 ===", isCompleted ? "已完成" : "未完成");
 
@@ -171,8 +216,8 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
             // 检测是否开始新的总结部分
             String newSection = detectSummarySection(line);
             if (newSection != null && !newSection.equals(currentSection)) {
-                // 发送前一个部分的内容
-                if (!sectionContent.isEmpty()) {
+                // 发送前一个部分的内容（已逐字推过答案时跳过，见 streamedDelivered）
+                if (!sectionContent.isEmpty() && !streamedDelivered) {
                     sendSummarySubResult(dynamicContext, currentSection, sectionContent.toString(), sessionId);
                 }
                 currentSection = newSection;
@@ -199,8 +244,8 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
             }
         }
         
-        // 发送最后一个部分的内容
-        if (!sectionContent.isEmpty()) {
+        // 发送最后一个部分的内容（同上：已逐字推过就跳过）
+        if (!sectionContent.isEmpty() && !streamedDelivered) {
             sendSummarySubResult(dynamicContext, currentSection, sectionContent.toString(), sessionId);
         }
         
@@ -255,6 +300,17 @@ public class Step4LogExecutionSummaryNode extends AbstractExecuteSupport {
         sendSseResult(dynamicContext, result);
     }
     
+    /**
+     * 发送最终答案的增量帧。
+     * <p>
+     * content 是「到目前为止的全文」而不是片段：前端按替换语义渲染，
+     * 于是治理层重试导致的重发、以及结尾补发的那一帧，都不会叠成重复内容。
+     */
+    private void sendSummaryDelta(DefaultAutoAgentExecuteStrategyFactory.DynamicContext dynamicContext,
+                                  String content, String sessionId) {
+        sendSummarySubResult(dynamicContext, SUB_TYPE_SUMMARY_DELTA, content, sessionId);
+    }
+
     /**
      * 发送总结阶段细分结果到流式输出
      */
