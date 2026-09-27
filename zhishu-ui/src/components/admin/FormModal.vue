@@ -34,6 +34,15 @@ function buildValues(): Record<string, unknown> {
   // 这些键必须一起提交，否则后端会因缺少业务主键返回错误。
   const values: Record<string, unknown> = { ...(props.initialValues ?? {}) }
   for (const field of props.fields) {
+    /*
+     * 密钥类字段编辑时**不回填**：后端出网关前就把 apiKey 掩码成 sk-c****xYz，
+     * 把掩码填进输入框既看不出真值，一提交还会把真密钥写成星号（通道直接坏掉）。
+     * 留空 = 不修改，由后端保持原值。
+     */
+    if (props.editing && field.type === 'password') {
+      values[field.name] = ''
+      continue
+    }
     const fromRecord = props.initialValues?.[field.name]
     if (fromRecord !== undefined && fromRecord !== null) {
       values[field.name] = fromRecord
@@ -42,6 +51,19 @@ function buildValues(): Record<string, unknown> {
     }
   }
   return values
+}
+
+/**
+ * 密钥字段的说明文案：
+ * 编辑态显示后端给的掩码（让用户知道"已经有密钥"），并说明留空即不修改；
+ * 新增态说明密钥保存后不再回显。
+ */
+function secretHint(field: FormField): string {
+  if (field.type !== 'password') return field.extra ?? ''
+  if (!props.editing) return field.extra ?? '密钥保存后不再回显明文，请确认无误再保存'
+  const masked = props.initialValues?.[field.name]
+  const shown = typeof masked === 'string' && masked ? masked : '（未设置）'
+  return `当前密钥：${shown} · 留空表示不修改`
 }
 
 watch(
@@ -62,7 +84,9 @@ function isDisabled(field: FormField): boolean {
 }
 
 function rulesOf(field: FormField) {
-  if (!field.required) return undefined
+  // 密钥类字段编辑态不必填：后端不回传真值，只回掩码，留空即"保持原密钥不变"
+  const requiredOnEdit = !(props.editing && field.type === 'password')
+  if (!field.required || !requiredOnEdit) return undefined
   const action = field.type === 'select' ? '请选择' : '请输入'
   return [{ required: true, message: `${action}${field.label}` }]
 }
@@ -98,7 +122,7 @@ function handleOk(): void {
           :name="field.name"
           :rules="rulesOf(field)"
           :class="field.full ? 'sm:col-span-2' : ''"
-          :extra="field.extra"
+          :extra="secretHint(field)"
         >
           <Select
             v-if="field.type === 'select'"
@@ -121,10 +145,17 @@ function handleOk(): void {
             :rows="field.rows ?? 4"
             :placeholder="field.placeholder ?? `请输入${field.label}`"
           />
+          <!--
+            密码 / 密钥字段：**不提供「查看明文」的眼睛按钮**（visibility-toggle=false）。
+            管理后台是多人可见的界面，点一下就能把 API Key 明文摊在屏幕上，等于把密钥写在白板上；
+            要核对就去重新填一次密钥，而不是把它显示出来。
+            代价是输入时不能点开自查（只能靠粘贴），这是刻意的取舍。
+          -->
           <Input.Password
             v-else-if="field.type === 'password'"
             v-model:value="model[field.name] as string"
             :placeholder="field.placeholder ?? `请输入${field.label}`"
+            :visibility-toggle="false"
           />
           <Input
             v-else

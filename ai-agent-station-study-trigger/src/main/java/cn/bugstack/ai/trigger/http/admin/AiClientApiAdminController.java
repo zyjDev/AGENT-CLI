@@ -88,6 +88,8 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             // DTO转PO
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setUpdateTime(LocalDateTime.now());
+            // 密钥留空 / 传回掩码 = 不修改（表单不再回填原密钥）
+            maskToNull(aiClientApi);
             
             // 写权限：本人资源本人可改；公共资源仅管理员；他人私有资源不可改
             AiClientApi existing = aiClientApiDao.queryById(request.getId());
@@ -128,6 +130,8 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             // DTO转PO
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setUpdateTime(LocalDateTime.now());
+            // 同上：密钥留空 / 传回掩码 = 不修改
+            maskToNull(aiClientApi);
             
             // 同上：按业务ID改也走同一套归属校验（apiKey 属敏感凭据）
             AiClientApi existing = aiClientApiDao.queryByApiId(aiClientApi.getApiId());
@@ -395,12 +399,49 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
     }
 
     /**
-     * PO转DTO对象
+     * PO转DTO对象。
+     * <p>
+     * ⚠️ apiKey 出网关前**一律掩码**：管理后台不显示"查看明文"按钮还不够 ——
+     * 只要明文还在响应体里，任何人按 F12 就能拿到（等于把密钥写在白板上）。
+     * 前端表单编辑时也不需要原值：留空即表示"不修改"（见 {@link #maskToNull}）。
      */
     private AiClientApiResponseDTO convertToAiClientApiResponseDTO(AiClientApi aiClientApi) {
         AiClientApiResponseDTO responseDTO = new AiClientApiResponseDTO();
         BeanUtils.copyProperties(aiClientApi, responseDTO);
+        responseDTO.setApiKey(maskApiKey(aiClientApi.getApiKey()));
         return responseDTO;
+    }
+
+    /**
+     * 密钥掩码：保留前 4 位与后 4 位，中间固定 4 个星号（不暴露真实长度）。
+     * 太短的一律只给 "****"，避免把短密钥整个还原出来。
+     */
+    private String maskApiKey(String apiKey) {
+        if (!StringUtils.hasText(apiKey)) {
+            return "";
+        }
+        String trimmed = apiKey.trim();
+        if (trimmed.length() <= 8) {
+            return "****";
+        }
+        return trimmed.substring(0, 4) + "****" + trimmed.substring(trimmed.length() - 4);
+    }
+
+    /**
+     * 更新时把 apiKey 归一化成「保留原值」。
+     * <p>
+     * 前端编辑表单不再回填原密钥，所以：
+     * <ul>
+     *   <li>留空 —— 用户没打算改密钥，返回 null，MyBatis-Plus 会跳过该字段；</li>
+     *   <li>填的正好是掩码（`sk-c****xYz`）—— 说明某处把详情里的掩码又提交了回来，
+     *       同样视为"不修改"，否则会把真密钥写成星号，把用户通道弄坏。</li>
+     * </ul>
+     */
+    private void maskToNull(AiClientApi aiClientApi) {
+        String apiKey = aiClientApi.getApiKey();
+        if (!StringUtils.hasText(apiKey) || apiKey.contains("****")) {
+            aiClientApi.setApiKey(null);
+        }
     }
 
 }

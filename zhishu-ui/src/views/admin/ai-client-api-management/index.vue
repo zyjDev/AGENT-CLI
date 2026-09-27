@@ -65,7 +65,16 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
       placeholder: '留空默认 v1/embeddings',
       extra: '仅知识库 / 向量化（embedding）需要；只做对话可以留空。',
     },
-    { name: 'apiKey', label: 'API 密钥', type: 'password', required: true, full: true, placeholder: 'sk-...' },
+    {
+      name: 'apiKey',
+      label: 'API 密钥',
+      type: 'password',
+      required: true,
+      full: true,
+      placeholder: 'sk-...',
+      // 新增必填；编辑态留空 = 保持原密钥（后端只回掩码，不回真值）
+      extra: '密钥保存后不再回显明文',
+    },
     { name: 'status', label: '状态', type: 'select', required: true, options: STATUS_OPTIONS },
   ],
   api: {
@@ -80,7 +89,8 @@ const descriptor: CrudDescriptor<AiClientApiItem> = {
       run: (record) => openBind(record),
     },
   ],
-  notice: '接口按 PUT 提交更新；密钥以明文返回，请勿在公共环境截图或分享。绑定智能体后，该智能体将改用你的密钥运行。',
+  notice:
+    '接口按 PUT 提交更新。密钥**不再回显明文**：列表/详情只返回掩码（如 sk-c****xYz），编辑时留空表示保持原密钥不变。绑定智能体后，该智能体将改用你的密钥运行。',
 }
 
 /* ---------------- 绑定智能体 ---------------- */
