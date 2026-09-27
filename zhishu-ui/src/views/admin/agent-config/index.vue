@@ -13,7 +13,7 @@
  * 由 rawNodes、rawEdges 两张表保管，保存时以 raw 为基底合并 —— 既避免 LogicFlow 深度观测，
  * 也保证未在 UI 暴露的字段不会丢。
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import LogicFlow from '@logicflow/core'
@@ -46,7 +46,11 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const canvasRef = ref<HTMLDivElement>()
-const lf = ref<LogicFlow | null>(null)
+/**
+ * LogicFlow 实例用 shallowRef：整张图是个庞大的活对象，
+ * 用 ref 会被 Vue 深拷成 Proxy（性能受损，且 LF 内部靠对象身份比较，包一层易出怪问题）。
+ */
+const lf = shallowRef<LogicFlow | null>(null)
 
 const loading = ref(false)
 const saving = ref(false)
@@ -650,10 +654,39 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
-  // 切换路由时销毁实例，避免 LogicFlow 的全局事件与 DOM 引用泄漏
-  lf.value?.destroy()
-  lf.value = null
+  teardownCanvas()
 })
+
+/**
+ * 卸载画布。
+ *
+ * ⚠️ 这里**绝不能抛异常**：onBeforeUnmount 抛错会让 Vue 的 patch 中途失败
+ * （控制台：`Cannot read properties of null (reading 'parentNode')` +
+ * Vue Router 的 `uncaught error during route navigation`），
+ * 之后**整个应用的路由导航全部失效** —— 用户看到的现象就是
+ * 「从编排页返回后，点其它菜单没反应」。
+ * ⚠️ LogicFlow 1.2.28 **没有 destroy()**（实例上只有 clearData），
+ * 原来那句 `lf.value?.destroy()` 每次离开本页都在抛「destroy is not a function」，
+ * 正是上面那串连锁故障的起点。
+ */
+function teardownCanvas(): void {
+  const instance = lf.value
+  lf.value = null
+  try {
+    // LF 1.x 只能 clearData：清掉图数据，让内部引用可被回收
+    instance?.clearData()
+  } catch (error) {
+    console.error('[agent-config] 清理画布数据失败（已忽略，不影响导航）', error)
+  }
+  try {
+    // 画布 DOM 会随组件被 Vue 移除，这里再清空一次容器，避免残留 SVG 挂在已分离的节点上
+    if (canvasRef.value) {
+      canvasRef.value.innerHTML = ''
+    }
+  } catch (error) {
+    console.error('[agent-config] 清空画布容器失败（已忽略，不影响导航）', error)
+  }
+}
 </script>
 
 <template>
