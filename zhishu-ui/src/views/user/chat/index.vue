@@ -8,7 +8,7 @@
  * 流式期性能取舍：过程中不把每条消息写回 store（避免整树重渲染 + 反复序列化），
  * 先在本地 reactive 里累积，结束时一次性落库；每 5 条做一次快照兜底刷新丢失。
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { message, Select } from 'ant-design-vue'
 import { RefreshCw, Send, Square } from 'lucide-vue-next'
 import { AgentApi, type AvailableAgent } from '@/api/agent'
@@ -88,6 +88,8 @@ let activeRoundId = ''
 let startedAt = 0
 let handle: SseHandle | null = null
 let finalized = true
+/** 组件是否已卸载：卸载触发的 abort 不应再弹「已停止本次执行」提示（用户已经离开本页） */
+let disposed = false
 
 /* ---------------------------- 展示层派生状态 ---------------------------- */
 
@@ -384,7 +386,7 @@ function send(): void {
       onMessage: handleMessage,
       onComplete: ({ aborted }) => {
         finalize(aborted)
-        if (aborted) message.info('已停止本次执行')
+        if (aborted && !disposed) message.info('已停止本次执行')
       },
       onError: (error) => {
         liveError.value = error.message
@@ -447,6 +449,28 @@ onMounted(() => {
   ensureSession(DEFAULT_AGENT_ID, 5)
   void loadAgents()
   void loadKnowledgeBases()
+})
+
+/**
+ * 卸载清理 —— 与 admin/agent-config 页同一套事故教训（该页有完整清理并写了复盘注释）。
+ *
+ * 触发场景：用户在一次流式回答**未结束时**切走路由（切会话 / 返回列表）。
+ * 不做清理时的后果：
+ *   · 那条 SSE 连接不会被 abort，会一直挂到后端超时（sse-timeout-millis 默认 600000，即最长 10 分钟）；
+ *   · 期间回调仍在写 updateRound / liveResult 等响应式状态，组件实例被闭包引用着无法被 GC；
+ *   · 反复进出会累积多条并发流，既压后端也在前端堆内存。
+ *
+ * 三件事缺一不可：
+ *   1) flushPendingResult() —— 落库前把「按帧合并」里挂着的最后一段答案刷出来，否则结尾会丢字，
+ *      顺带 cancelAnimationFrame 掉合帧用的 rAF（不能留给已卸载的组件）；
+ *   2) handle?.abort() —— 主动断开 SSE；abort 会异步触发 onComplete({aborted:true})，
+ *      由 finalize 把半截结果落库（切回来还能看到中断前的输出）；
+ *   3) 置 disposed —— 让 onComplete 知道这是「卸载导致的中断」，不再弹「已停止本次执行」提示。
+ */
+onBeforeUnmount(() => {
+  disposed = true
+  flushPendingResult()
+  handle?.abort()
 })
 </script>
 
