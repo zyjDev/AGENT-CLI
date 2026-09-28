@@ -15,9 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -50,17 +51,44 @@ public class LlmDocumentPostProcessor implements DocumentPostProcessor {
     /**
      * 共享线程池：超时控制靠 future.get(timeout) 实现，而 future 必须跑在独立线程上。
      * 用静态池是为了避免「每次调用 new 一个线程池」—— 那样在 QPS 上来后会持续创建/销毁线程。
+     * <p>
+     * <b>为什么是静态池、而不是像 {@code ThreadPoolConfig} 那样做成 Spring Bean：</b>
+     * 本类不是 Bean —— 它在 {@code AiClientAdvisorTypeEnumVO.RAG_ANSWER}（枚举静态方法）里
+     * 于装配期被 {@code new} 出来，拿不到容器。改造成 Bean 要一路改
+     * {@code AdvisorCreateContextVO} 的构造链，改动面远大于收益。
+     * 因此这里退一步，对齐 {@code ThreadPoolConfig} 的<b>核心规范</b>：有界队列 + 命名工厂 + 硬上限。
+     * <p>
+     * <b>配置取舍</b>（改造前是 {@code Executors.newCachedThreadPool}，线程数无上限：
+     * 重排遇到模型延迟抖动、任务堆积时线程数会被动飙升）：
+     * <ul>
+     *     <li>有界队列 64 + 最大 32 线程 = 硬上限，线程数不再随压力无限增长；</li>
+     *     <li>拒绝策略用 {@code AbortPolicy}，<b>不是</b> {@code CallerRunsPolicy}：后者会让
+     *         {@code submit()} 直接在调用线程上跑这次模型调用，于是 {@code future.get(timeout)}
+     *         的超时形同虚设（请求线程自身被占住，且不再有可超时的等待点）。AbortPolicy 让
+     *         {@code submit()} 抛 {@code RejectedExecutionException}，正好落进本类已有的
+     *         「精排失败 → 退回原始召回顺序」降级分支，语义更安全；</li>
+     *     <li>线程为 daemon，池存活期 = JVM 存活期，故不做 {@code shutdown}、也不配
+     *         {@code @PreDestroy}：与「JVM 生命周期单例」语义一致，JVM 退出不受阻
+     *         （这也是报告判定「无 shutdown 本身可接受」的原因）。</li>
+     * </ul>
      */
-    private static final ExecutorService TIMEOUT_POOL = Executors.newCachedThreadPool(new ThreadFactory() {
-        private final AtomicInteger seq = new AtomicInteger();
+    private static final ExecutorService TIMEOUT_POOL = new ThreadPoolExecutor(
+            4,
+            32,
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(64),
+            new ThreadFactory() {
+                private final AtomicInteger seq = new AtomicInteger();
 
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, "llm-rerank-" + seq.incrementAndGet());
-            t.setDaemon(true);
-            return t;
-        }
-    });
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "llm-rerank-" + seq.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                }
+            },
+            new ThreadPoolExecutor.AbortPolicy());
 
     private final ChatModel chatModel;
     /** 精排后最终要保留的条数（= 送进 prompt 的条数） */
@@ -112,6 +140,8 @@ public class LlmDocumentPostProcessor implements DocumentPostProcessor {
     // ------------------------------------------------------------------ 打分
 
     private Map<Integer, Double> scoreWithTimeout(String prompt, int candidateCount) throws Exception {
+        // 池满时 submit 抛 RejectedExecutionException（AbortPolicy），由 process() 的 catch 兜住并降级，
+        // 不需要在这里额外 try/catch —— 精排是可选增强，拒绝执行与超时的处理方式一致
         Future<String> future = TIMEOUT_POOL.submit((Callable<String>) () -> chatModel.call(prompt));
         try {
             String raw = future.get(timeoutMs, TimeUnit.MILLISECONDS);
