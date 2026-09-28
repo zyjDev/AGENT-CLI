@@ -239,6 +239,12 @@ public class AiClientAdminController implements IAiClientAdminService {
             log.info("根据客户端ID查询AI客户端配置请求：{}", clientId);
             
             AiClient aiClient = aiClientDao.queryByClientId(clientId);
+
+            // 读侧归属校验：queryByClientId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClient != null && !OwnerGuard.readable(aiClient.getOwnerId())) {
+                aiClient = null;
+            }
             
             if (aiClient == null) {
                 return Response.<AiClientResponseDTO>builder()
@@ -304,6 +310,11 @@ public class AiClientAdminController implements IAiClientAdminService {
             // 根据不同条件查询
             if (StringUtils.hasText(request.getClientId())) {
                 AiClient aiClient = aiClientDao.queryByClientId(request.getClientId());
+
+                // 读侧归属校验：queryByClientId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (aiClient != null && !OwnerGuard.readable(aiClient.getOwnerId())) {
+                    aiClient = null;
+                }
                 aiClients = aiClient != null ? List.of(aiClient) : List.of();
             } else if (StringUtils.hasText(request.getClientName())) {
                 aiClients = aiClientDao.queryByClientName(request.getClientName());

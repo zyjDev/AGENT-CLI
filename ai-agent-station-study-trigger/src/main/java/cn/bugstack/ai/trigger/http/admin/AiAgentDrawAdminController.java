@@ -68,11 +68,21 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
             // 条件查询
             if (StringUtils.hasText(request.getConfigId())) {
                 AiAgentDrawConfig cfg = aiAgentDrawConfigDao.queryByConfigId(request.getConfigId());
+
+                // 读侧归属校验：queryByConfigId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (cfg != null && !OwnerGuard.readable(cfg.getOwnerId())) {
+                    cfg = null;
+                }
                 configs = cfg != null ? List.of(cfg) : List.of();
             } else if (StringUtils.hasText(request.getConfigName())) {
                 configs = aiAgentDrawConfigDao.queryByConfigName(request.getConfigName());
             } else if (StringUtils.hasText(request.getAgentId())) {
                 AiAgentDrawConfig cfg = aiAgentDrawConfigDao.queryByAgentId(request.getAgentId());
+
+                // 读侧归属校验：queryByAgentId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (cfg != null && !OwnerGuard.readable(cfg.getOwnerId())) {
+                    cfg = null;
+                }
                 configs = cfg != null ? List.of(cfg) : List.of();
             } else if (request.getStatus() != null) {
                 if (request.getStatus().equals(1)) {
@@ -586,6 +596,12 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
             }
 
             AiAgentDrawConfig drawConfig = aiAgentDrawConfigDao.queryByConfigId(configId);
+
+            // 读侧归属校验：queryByConfigId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「配置不存在」分支
+            if (drawConfig != null && !OwnerGuard.readable(drawConfig.getOwnerId())) {
+                drawConfig = null;
+            }
 
             if (drawConfig == null) {
                 return Response.<AiAgentDrawConfigResponseDTO>builder()

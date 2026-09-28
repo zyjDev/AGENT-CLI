@@ -231,6 +231,12 @@ public class AiClientModelAdminController implements IAiClientModelAdminService 
             log.info("根据模型ID查询AI客户端模型配置请求：{}", modelId);
             
             AiClientModel aiClientModel = aiClientModelDao.queryByModelId(modelId);
+
+            // 读侧归属校验：queryByModelId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientModel != null && !OwnerGuard.readable(aiClientModel.getOwnerId())) {
+                aiClientModel = null;
+            }
             
             if (aiClientModel == null) {
                 return Response.<AiClientModelResponseDTO>builder()
@@ -264,7 +270,9 @@ public class AiClientModelAdminController implements IAiClientModelAdminService 
         try {
             log.info("根据API配置ID查询AI客户端模型配置列表请求：{}", apiId);
             
-            List<AiClientModel> aiClientModels = aiClientModelDao.queryByApiId(apiId);
+            // 读侧归属校验：queryByApiId 刻意不带归属过滤，请求线程必须剔除他人私有的行
+            List<AiClientModel> aiClientModels = OwnerGuard.readableOnly(
+                    aiClientModelDao.queryByApiId(apiId), AiClientModel::getOwnerId);
             
             // PO转DTO
             List<AiClientModelResponseDTO> responseDTOs = aiClientModels.stream()
@@ -353,9 +361,16 @@ public class AiClientModelAdminController implements IAiClientModelAdminService 
             // 根据不同条件查询
             if (StringUtils.hasText(request.getModelId())) {
                 AiClientModel model = aiClientModelDao.queryByModelId(request.getModelId());
+
+                // 读侧归属校验：queryByModelId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (model != null && !OwnerGuard.readable(model.getOwnerId())) {
+                    model = null;
+                }
                 aiClientModels = model != null ? List.of(model) : List.of();
             } else if (StringUtils.hasText(request.getApiId())) {
-                aiClientModels = aiClientModelDao.queryByApiId(request.getApiId());
+                // 读侧归属校验：同上，按 apiId 一次查出的多行里剔除他人私有的
+                aiClientModels = OwnerGuard.readableOnly(
+                        aiClientModelDao.queryByApiId(request.getApiId()), AiClientModel::getOwnerId);
             } else if (StringUtils.hasText(request.getModelType())) {
                 aiClientModels = aiClientModelDao.queryByModelType(request.getModelType());
             } else if (request.getStatus() != null) {

@@ -230,6 +230,12 @@ public class AiClientAdvisorAdminController implements IAiClientAdvisorAdminServ
             log.info("根据顾问ID查询顾问配置请求：{}", advisorId);
             
             AiClientAdvisor aiClientAdvisor = aiClientAdvisorDao.queryByAdvisorId(advisorId);
+
+            // 读侧归属校验：queryByAdvisorId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientAdvisor != null && !OwnerGuard.readable(aiClientAdvisor.getOwnerId())) {
+                aiClientAdvisor = null;
+            }
             
             if (aiClientAdvisor == null) {
                 return Response.<AiClientAdvisorResponseDTO>builder()
@@ -349,6 +355,11 @@ public class AiClientAdvisorAdminController implements IAiClientAdvisorAdminServ
             if (StringUtils.hasText(request.getAdvisorId())) {
                 // 如果有顾问ID，直接查询
                 AiClientAdvisor advisor = aiClientAdvisorDao.queryByAdvisorId(request.getAdvisorId());
+
+                // 读侧归属校验：queryByAdvisorId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (advisor != null && !OwnerGuard.readable(advisor.getOwnerId())) {
+                    advisor = null;
+                }
                 aiClientAdvisors = advisor != null ? List.of(advisor) : List.of();
             } else if (StringUtils.hasText(request.getAdvisorType())) {
                 // 如果有顾问类型，按类型查询

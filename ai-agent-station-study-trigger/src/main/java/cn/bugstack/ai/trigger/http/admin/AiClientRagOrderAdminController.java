@@ -245,6 +245,12 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
             log.info("根据知识库ID查询知识库配置：{}", ragId);
             
             AiClientRagOrder aiClientRagOrder = aiClientRagOrderDao.queryByRagId(ragId);
+
+            // 读侧归属校验：queryByRagId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientRagOrder != null && !OwnerGuard.readable(aiClientRagOrder.getOwnerId())) {
+                aiClientRagOrder = null;
+            }
             if (aiClientRagOrder == null) {
                 return Response.<AiClientRagOrderResponseDTO>builder()
                         .code(ResponseCode.SUCCESS.getCode())

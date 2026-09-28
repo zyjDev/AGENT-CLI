@@ -250,6 +250,12 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             log.info("根据API ID查询AI客户端API配置请求：{}", apiId);
             
             AiClientApi aiClientApi = aiClientApiDao.queryByApiId(apiId);
+
+            // 读侧归属校验：queryByApiId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientApi != null && !OwnerGuard.readable(aiClientApi.getOwnerId())) {
+                aiClientApi = null;
+            }
             
             if (aiClientApi == null) {
                 return Response.<AiClientApiResponseDTO>builder()

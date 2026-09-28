@@ -230,6 +230,12 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
             log.info("根据提示词ID查询系统提示词配置：{}", promptId);
             
             AiClientSystemPrompt aiClientSystemPrompt = aiClientSystemPromptDao.queryByPromptId(promptId);
+
+            // 读侧归属校验：queryByPromptId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientSystemPrompt != null && !OwnerGuard.readable(aiClientSystemPrompt.getOwnerId())) {
+                aiClientSystemPrompt = null;
+            }
             
             if (aiClientSystemPrompt == null) {
                 return Response.<AiClientSystemPromptResponseDTO>builder()
@@ -349,6 +355,11 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
             if (StringUtils.hasText(request.getPromptId())) {
                 // 根据提示词ID查询
                 AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(request.getPromptId());
+
+                // 读侧归属校验：queryByPromptId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (prompt != null && !OwnerGuard.readable(prompt.getOwnerId())) {
+                    prompt = null;
+                }
                 aiClientSystemPrompts = prompt != null ? List.of(prompt) : List.of();
             } else if (StringUtils.hasText(request.getPromptName())) {
                 // 根据提示词名称查询

@@ -228,6 +228,12 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
             log.info("根据MCP ID查询MCP客户端配置：{}", mcpId);
             
             AiClientToolMcp aiClientToolMcp = aiClientToolMcpDao.queryByMcpId(mcpId);
+
+            // 读侧归属校验：queryByMcpId 刻意不带归属过滤（跨线程装配链路需要），
+            // 请求线程取数返回给用户前必须补校验；他人私有 → 视同不存在，走下面的「未找到」分支
+            if (aiClientToolMcp != null && !OwnerGuard.readable(aiClientToolMcp.getOwnerId())) {
+                aiClientToolMcp = null;
+            }
             
             if (aiClientToolMcp == null) {
                 return Response.<AiClientToolMcpResponseDTO>builder()
@@ -374,6 +380,11 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
             if (StringUtils.hasText(request.getMcpId())) {
                 // 根据MCP ID查询
                 AiClientToolMcp single = aiClientToolMcpDao.queryByMcpId(request.getMcpId());
+
+                // 读侧归属校验：queryByMcpId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
+                if (single != null && !OwnerGuard.readable(single.getOwnerId())) {
+                    single = null;
+                }
                 aiClientToolMcps = single != null ? List.of(single) : List.of();
             } else if (request.getStatus() != null) {
                 // 根据状态查询
