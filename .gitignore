@@ -174,3 +174,10 @@ node_modules.*/
 !*.env.example
 .envrc
 .envrc.local
+
+### 本地工具产物（不入库，可重新生成）###
+# 2026-09-28：playwright CLI（agent-browser）的页面快照默认写在根目录
+# .playwright-cli/ 下，每跑一次实测就新增若干 page-<时间戳>.yml。
+# 属于实测中间产物而非交付物，不入库；需要留档的证据请放到
+# docs/refactor/runs/ 下（该目录同样不入库）。
+.playwright-cli/
