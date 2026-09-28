@@ -82,7 +82,7 @@ export const useUserStore = defineStore('user', {
 
     /**
      * 登录态落地（login / register 共用）：内存 + sessionStorage 同时写。
-     * 「下次不用输账号密码」靠的是登录页的预填（utils/auth 的 RememberedAccount），不是这里。
+     * 「下次不用输账号」靠的是登录页的预填（utils/auth 的 RememberedAccount，**只存用户名**），不是这里。
      */
     applyLogin(result: AdminUserInfo): void {
       const userInfo: StoredUserInfo = {

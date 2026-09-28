@@ -25,31 +25,28 @@ const formState = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  // 默认不勾：不替用户做主保存密码；已记住过账号的会在下面自动勾上
+  // 默认不勾：不替用户做主记住账号；已记住过的会在下面自动勾上
   remember: false,
 })
 
 /**
- * 打开登录页先把记住的账号密码填好 —— 「下次不用再输、点一下就能进」就是靠这一处。
+ * 打开登录页先把记住的**用户名**填好 —— 密码不保存（P2-19），需手动输入。
  * 只预填、**不自动提交**：免得又变成「启动就直接以某个账号进去了」。
  */
 onMounted(() => {
   const saved = getRememberedAccount()
   if (!saved) return
   formState.username = saved.username
-  formState.password = saved.password
   formState.remember = true
 })
 
 /**
  * 切换账号：框里填着的密码属于上一个账号，直接清掉，免得「点登录却报密码错」。
- * 勾选状态不动 —— 登录成功后会用新账号覆盖记住的那组。
+ * 勾选状态不动 —— 登录成功后会用新账号覆盖记住的那个。
  */
 watch(
   () => formState.username,
-  (value) => {
-    const saved = getRememberedAccount()
-    if (!saved || value === saved.username) return
+  () => {
     formState.password = ''
   },
 )
@@ -113,9 +110,9 @@ async function submit(): Promise<void> {
     } else {
       await userStore.login({ username: formState.username, password: formState.password })
     }
-    // 勾了就记住这组账号密码（下次预填），没勾就把之前记住的清掉
+    // 勾了就记住账号（下次预填），没勾就把之前记住的清掉。密码一律不落盘（P2-19）
     if (formState.remember) {
-      saveRememberedAccount({ username: formState.username, password: formState.password })
+      saveRememberedAccount({ username: formState.username })
     } else {
       clearRememberedAccount()
     }
@@ -178,7 +175,7 @@ defineExpose({ submit })
     </Form.Item>
 
     <div class="mb-4 flex items-center justify-between">
-      <Checkbox v-model:checked="formState.remember" class="text-[12.5px] text-ink-600">记住账号密码</Checkbox>
+      <Checkbox v-model:checked="formState.remember" class="text-[12.5px] text-ink-600">记住账号</Checkbox>
       <span
         class="cursor-pointer text-[12.5px] text-brand hover:underline"
         @click="switchMode(isRegister ? 'login' : 'register')"
@@ -201,7 +198,7 @@ defineExpose({ submit })
     </template>
     <template v-else>
       登录后同一账号即可访问智能对话与管理后台，无需二次输入密码。<br />
-      勾选「记住账号密码」后，下次打开登录页会自动填好，点一下「立即登录」即可。<br />
+      勾选「记住账号」后，下次打开登录页会自动填好账号；<span class="text-ink-600">密码出于安全考虑不保存</span>，需手动输入。<br />
       没有账号请点上方「没有账号？注册」自助开户。
     </template>
   </div>

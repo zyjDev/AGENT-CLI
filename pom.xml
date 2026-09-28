@@ -83,10 +83,13 @@
                 <artifactId>mysql-connector-java</artifactId>
                 <version>8.0.28</version>
             </dependency>
+            <!-- # fastjson 1.x 兼容构件（POM name = fastjson1-compatible），底层引擎是 com.alibaba.fastjson2
+                 # 版本下限由 P1-25 决定：fastjson2 自身 RCE 影响 <= 2.0.62，修复版本 2.0.63，此处对齐最新 2.0.65
+                 # 兼容 API 未变，全仓库 15 个 import com.alibaba.fastjson.* / 3 个 fastjson2.* 均无需改动 -->
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>
-                <version>2.0.28</version>
+                <version>2.0.65</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>

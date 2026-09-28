@@ -229,6 +229,15 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PostMapping("/create")
     public Response<Boolean> createAdminUser(@RequestBody AdminUserRequestDTO request) {
         try {
+            // ⚠️ 鉴权必须放在**第一行**（P1-9）：不能晚于任何参数校验与查库。
+            //    原实现把它放在方法末尾，导致「用户名已存在」会先于「无权限」返回 ——
+            //    任何登录用户都能据此枚举系统内用户名（两种响应可区分）；
+            //    而且谁在它之前加一句写库，就立刻变成越权写入。
+            //    注：AdminAuthInterceptor 已对 /api/v1/admin/admin-user/** 整段拦截（登录/注册/校验/改密除外），
+            //        这里是第二道闸 —— 将来若调整拦截器路径白名单，各接口仍可自保。
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
@@ -257,10 +266,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             adminUser.setCreateTime(LocalDateTime.now());
             adminUser.setUpdateTime(LocalDateTime.now());
 
-            // 账号管理是管理员专属能力（普通用户走 /register 自助开户）
-            if (!UserContext.isAdmin()) {
-                return OwnerGuard.deny("用户");
-            }
+            // 账号管理是管理员专属能力（普通用户走 /register 自助开户）—— 鉴权已前置到方法第一行
             int result = adminUserDao.insert(adminUser);
             
             return Response.<Boolean>builder()
@@ -282,6 +288,10 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PutMapping("/update-by-id")
     public Response<Boolean> updateAdminUserById(@RequestBody AdminUserRequestDTO request) {
         try {
+            // 鉴权前置（P1-9）：见 createAdminUser 的说明
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             log.info("根据ID更新管理员用户请求，id={}", request.getId());
             
             if (request.getId() == null) {
@@ -298,9 +308,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
             adminUser.setUpdateTime(LocalDateTime.now());
 
             // 账号管理是管理员专属能力：普通用户不得改动任何账号（包括自己）的角色与状态
-            if (!UserContext.isAdmin()) {
-                return OwnerGuard.deny("用户");
-            }
+            // —— 鉴权已前置到方法第一行（P1-9）
             int result = adminUserDao.updateById(adminUser);
             if (result <= 0) {
                 return Response.<Boolean>builder()
@@ -329,6 +337,13 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PutMapping("/update-by-user-id")
     public Response<Boolean> updateAdminUserByUserId(@RequestBody AdminUserRequestDTO request) {
         try {
+            // ⚠️ 补上本方法**原本完全缺失**的鉴权（P1-9 修复时一并发现）：
+            //    同文件的 create / update-by-id / delete-by-id 三处都有校验（虽在末尾），
+            //    唯独 update-by-user-id 与 delete-by-user-id 一处都没有 —— 当时仅靠
+            //    AdminAuthInterceptor 的路径前缀拦着。拦截器一旦调整白名单，这两个入口可直接改/删任意账号。
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             log.info("根据用户ID更新管理员用户请求，userId={}", request.getUserId());
             
             if (!StringUtils.hasText(request.getUserId())) {
@@ -372,11 +387,12 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @DeleteMapping("/delete-by-id/{id}")
     public Response<Boolean> deleteAdminUserById(@PathVariable("id") Long id) {
         try {
-            log.info("根据ID删除管理员用户请求：{}", id);
-            
+            // 鉴权前置（P1-9）：见 createAdminUser 的说明
             if (!UserContext.isAdmin()) {
                 return OwnerGuard.deny("用户");
             }
+            log.info("根据ID删除管理员用户请求：{}", id);
+            
             int result = adminUserDao.deleteById(id);
             
             return Response.<Boolean>builder()
@@ -398,6 +414,10 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @DeleteMapping("/delete-by-user-id/{userId}")
     public Response<Boolean> deleteAdminUserByUserId(@PathVariable("userId") String userId) {
         try {
+            // ⚠️ 补上本方法**原本完全缺失**的鉴权（P1-9 修复时一并发现），原因同 update-by-user-id
+            if (!UserContext.isAdmin()) {
+                return OwnerGuard.deny("用户");
+            }
             log.info("根据用户ID删除管理员用户请求：{}", userId);
             
             int result = adminUserDao.deleteByUserId(userId);

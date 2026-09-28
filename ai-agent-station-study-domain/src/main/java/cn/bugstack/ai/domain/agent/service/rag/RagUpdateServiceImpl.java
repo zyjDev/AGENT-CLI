@@ -13,7 +13,6 @@ import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.MessageDigest;
@@ -59,12 +58,37 @@ public class RagUpdateServiceImpl implements IRagUpdateService {
         return ragUpdateRepository.queryRagOrderById(ragId);
     }
 
+    /**
+     * 更新知识库文档（全量替换：删旧向量 → 写新向量 → 升级版本号）。
+     *
+     * <p>⚠️ **故意不加 `@Transactional`**（P1-5）：本方法跨 MySQL 与 pgvector 两个数据源，
+     * pgvector 走独立的 `pgVectorJdbcTemplate`，与 MySQL 不在同一个事务管理器上 ——
+     * 「跨库原子」在本项目物理上做不到（见审查报告 §6「有意不做」第 6 条）。
+     * 在方法上挂 `@Transactional` 不会带来任何跨库保证，只会有两个副作用：
+     * <ol>
+     *   <li>删旧向量 / 写新向量（逐批网络 IO、耗时最长）被包进 MySQL 事务，
+     *       长时间持有连接与行锁；</li>
+     *   <li>回滚只回滚 MySQL —— 向量此时已经被换掉了，回滚反而把「元数据」与「向量」
+     *       拉得更远（元数据说旧版本、向量里是新内容），比不回滚更糟。</li>
+     * </ol>
+     *
+     * <p><b>去事务后的真实失败语义（按执行顺序，必须知悉）：</b>
+     * <ol>
+     *   <li><b>写版本历史</b>（MySQL 单条 insert，独立提交）：失败则整批终止，尚未动向量，无副作用。</li>
+     *   <li><b>删旧向量 → 写新向量</b>：<b>这是唯一不可补偿的窗口</b>。此处失败则旧内容已删、
+     *       新内容只写了一半，两边都无法自动恢复（原始文件未持久化到 MySQL 或对象存储，
+     *       没有重建来源）。当前只能靠日志 + 调用方重新上传；
+     *       根治办法是引入 `vector_status`（PENDING / DONE / FAILED）中间状态 + 补偿任务，
+     *       让不一致可观测、可重试（审查报告 P1-5 建议 2，本次未做）。</li>
+     *   <li><b>更新知识库配置</b>（MySQL 单条 update，独立提交）：失败则历史表有记录、
+     *       配置版本未升级，属可对账的偏保守状态（不会把「未完成的新内容」当成「已生效」）。</li>
+     * </ol>
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public boolean updateRagDocuments(String ragId, List<MultipartFile> files, String updateReason) {
         // ⚠️ 前置校验放在 try 之外：
         //    1) 参数错误不该被下面的 catch 包装成笼统的「更新知识库文档失败」，否则调用方看不到真实原因；
-        //    2) 此时尚未做任何写入，也不必走事务回滚。
+        //    2) 此时尚未做任何写入（本方法已无方法级事务，见上方说明），失败就是干净的失败。
         //    原实现用 IllegalArgumentException，会被 catch 包成 RuntimeException，语义丢失。
         if (files == null || files.isEmpty()) {
             throw new BizException(ResponseCode.ILLEGAL_PARAMETER.getCode(),

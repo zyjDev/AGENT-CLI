@@ -19,14 +19,14 @@ import { message } from 'ant-design-vue'
 const TOKEN_KEY = 'zhishu:token'
 const USER_INFO_KEY = 'zhishu:userInfo'
 const LOGGED_IN_KEY = 'zhishu:isLoggedIn'
-/** 「记住账号密码」的键：与登录态分开存，见文件末尾 */
+/** 「记住账号」的键：与登录态分开存，见文件末尾。**只存用户名，不存密码**（P2-19） */
 const REMEMBERED_ACCOUNT_KEY = 'zhishu:rememberedAccount'
 
 /**
  * 登录态只写 sessionStorage：关掉浏览器就要重新登录。
  *
  * 为什么不写 localStorage：那样「下次启动前端」会直接以上次的账号进去（用户明确不要这种），
- * 他要的是「停在登录页、账号密码已填好、点一下就能进」—— 那是文件末尾
+ * 他要的是「停在登录页、账号已填好」—— 那是文件末尾
  * saveRememberedAccount 的职责。两者刻意分开，互不牵连。
  */
 const readItem = (key: string): string | null => {
@@ -216,52 +216,83 @@ export const installFetchUnauthorizedInterceptor = (): void => {
 }
 
 /* ------------------------------------------------------------------
- * 「记住账号密码」：下次打开登录页自动填好，点一下「登录」即可
+ * 「记住账号」：下次打开登录页自动填好**用户名**，密码一律不落盘（P2-19）
  * ------------------------------------------------------------------ */
 
 export interface RememberedAccount {
   username: string
-  password: string
 }
 
 /**
- * 这里只做一次可逆编码（Base64），**不是加密**。
+ * 这里**不再保存密码**。
  *
- * 说清风险：能读到这台浏览器 localStorage 的人（或任意一段同源 XSS）都能还原出密码。
- * 之所以仍然这么做，是因为要的体验就是「下次点一下就能登录」，而这必然要在本地留下凭据。
- * 想真正安全：应由后端下发长期 refresh token、前端只存 token —— 那需要后端新增刷新接口。
+ * 原实现把账号密码做 Base64 后写 localStorage —— Base64 是**编码不是加密**：
+ * 能读到这台浏览器 localStorage 的人（同源 XSS、共享机器的下一位使用者、
+ * 浏览器 profile 同步）都能直接还原出明文密码，而该密码往往与用户在其他站点的相同。
+ * 改为只记用户名后，体验只损失「少打一次密码」，风险归零。
+ *
+ * 存储格式：明文 JSON `{"username":"..."}`。
+ * **兼容旧数据**：老版本写的是 Base64(JSON{username,password})，读取时仍能解析出来，
+ * 并在读到的那一刻**就地重写为新格式**，把历史遗留在本地的密码一并抹掉。
  */
-const encodeAccount = (text: string): string => btoa(String.fromCharCode(...new TextEncoder().encode(text)))
-const decodeAccount = (text: string): string =>
-  new TextDecoder().decode(Uint8Array.from(atob(text), (char) => char.charCodeAt(0)))
-
-/** 记住一组账号密码（登录 / 注册成功后调用） */
-export const saveRememberedAccount = (account: RememberedAccount): void => {
+const decodeLegacyAccount = (text: string): string | null => {
   try {
-    localStorage.setItem(REMEMBERED_ACCOUNT_KEY, encodeAccount(JSON.stringify(account)))
-  } catch (error) {
-    // 存不进去（隐私模式）就退化为「不记住」，绝不能因此让登录失败
-    console.warn('[auth] 记住账号密码失败，已忽略', error)
+    return new TextDecoder().decode(Uint8Array.from(atob(text), (char) => char.charCodeAt(0)))
+  } catch {
+    return null
   }
 }
 
-/** 取记住的账号密码：没记住 / 内容损坏都返回 null */
+/** 从存储的原始文本里取出用户名：新旧两种格式都认 */
+const parseRememberedUsername = (raw: string): string | null => {
+  // 新格式是明文 JSON，旧格式是 Base64 —— 明文优先，失败再试 Base64
+  for (const text of [raw, decodeLegacyAccount(raw)]) {
+    if (!text) continue
+    try {
+      const parsed = JSON.parse(text) as { username?: unknown }
+      if (typeof parsed?.username === 'string' && parsed.username) return parsed.username
+    } catch {
+      // 这个格式解析不了，换下一种再试
+    }
+  }
+  return null
+}
+
+/** 记住用户名（登录 / 注册成功后调用） */
+export const saveRememberedAccount = (account: RememberedAccount): void => {
+  try {
+    localStorage.setItem(REMEMBERED_ACCOUNT_KEY, JSON.stringify({ username: account.username }))
+  } catch (error) {
+    // 存不进去（隐私模式）就退化为「不记住」，绝不能因此让登录失败
+    console.warn('[auth] 记住账号失败，已忽略', error)
+  }
+}
+
+/** 取记住的账号：没记住 / 内容损坏都返回 null */
 export const getRememberedAccount = (): RememberedAccount | null => {
   try {
     const raw = localStorage.getItem(REMEMBERED_ACCOUNT_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(decodeAccount(raw)) as RememberedAccount
-    if (!parsed?.username) return null
-    return { username: parsed.username, password: parsed.password ?? '' }
+
+    const username = parseRememberedUsername(raw)
+    if (!username) {
+      // 内容被改坏：当作没记住并清掉，免得每次进登录页都报错
+      console.warn('[auth] 本地记住的账号解析失败，已清除')
+      clearRememberedAccount()
+      return null
+    }
+
+    // 读到就回写一次：新格式是幂等写；旧格式则顺手把留在本地的密码抹掉（新格式已无 password 字段）
+    saveRememberedAccount({ username })
+    return { username }
   } catch (error) {
-    // 内容被改坏：当作没记住并清掉，免得每次进登录页都报错
-    console.warn('[auth] 本地记住的账号密码解析失败，已清除', error)
+    console.warn('[auth] 读取记住的账号失败，已清除', error)
     clearRememberedAccount()
     return null
   }
 }
 
-/** 清除记住的账号密码（不勾选就登录时调用） */
+/** 清除记住的账号（不勾选就登录时调用） */
 export const clearRememberedAccount = (): void => {
   try {
     localStorage.removeItem(REMEMBERED_ACCOUNT_KEY)
