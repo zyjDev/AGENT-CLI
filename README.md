@@ -232,7 +232,7 @@ function handleSSEMessage(jsonData) {
     if (type === 'summary') {
         // 显示最终结果
         displayFinalResult(content);
-    } else {        
+    } else {
         // 显示思考过程
         displayThinkingProcess(type, subType, content, step);
     }

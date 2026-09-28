@@ -72,6 +72,9 @@ docs/dev-ops/redis/*
 !docs/dev-ops/redis/redis.conf
 docs/dev-ops/mysql/*
 !docs/dev-ops/mysql/my.cnf
+# 例外：MySQL 基线建库脚本目录必须入库（P0-2 修复）——它是 docker-entrypoint-initdb.d 的全部输入，
+# 丢了新环境建不出表。注意必须先放行目录本身，再在 *.sql 段放行文件（git 不进被排除的目录）。
+!docs/dev-ops/mysql/sql/
 
 ### SQL 文件（包含敏感信息） ###
 *.sql
@@ -81,6 +84,8 @@ docs/dev-ops/mysql/*
 # 例外：按用户隔离的库结构迁移脚本必须入库 —— 新环境没有它就连 owner_id / user_role 列都没有，
 # 应用启动即报错。仓库历史上已有过「SQL 只在本机、丢失后无法重建」的教训（2026-09-20）。
 !docs/migrations/*.sql
+# 例外：MySQL 基线建库脚本（P0-2 修复）——必须写在 *.sql 之后，否则被上面的 *.sql 覆盖
+!docs/dev-ops/mysql/sql/*.sql
 /docs/RAG-Knowledge-Base-Update-Requirements.md
 
 ### 编辑器临时/备份文件 ###
@@ -156,3 +161,16 @@ dist/
 # 2026-09-20 曾因 node_modules.broken-* 未被忽略而暴露 43027 个未跟踪文件。
 node_modules/
 node_modules.*/
+
+### 环境变量文件（含凭据，仅模板入库）###
+# 2026-09-28 修复（P0-3）：此前无任何 .env 规则，下一次有人往 zhishu-ui/.env.development
+# 或 docs/dev-ops/.env 写一个 Token，就会被直接提交。现统一兜底：
+#   .env / .env.* / *.env 一律忽略；只放行显式模板（.env.example / *.env.example）。
+# 注意：规则写在文件末尾，以覆盖上面的 docs/dev-ops/* 等目录级排除（后写的规则胜出）。
+.env
+.env.*
+*.env
+!.env.example
+!*.env.example
+.envrc
+.envrc.local

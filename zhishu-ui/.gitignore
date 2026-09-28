@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# 环境变量文件（含凭据，仅模板入库）—— 2026-09-28 修复（P0-3）
+# 此前 .env.development / .env.production 已入库且无忽略规则，
+# 只要有人加一个 VITE_XXX_TOKEN 就会被提交。现只放行 .env.example。
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

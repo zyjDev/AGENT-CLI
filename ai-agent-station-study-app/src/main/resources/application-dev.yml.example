@@ -1,6 +1,15 @@
 server:
   port: 8099
 
+# 管理端登录 JWT 签名密钥 —— **必填**（2026-09-28 起）
+# 缺失 / 空白 / 少于 32 字符 / 等于历史公开默认值，都会让应用**启动失败**（AdminJwtTokenService 构造期校验）。
+# 生成： openssl rand -hex 32
+admin:
+  jwt:
+    secret: your_jwt_secret_here_generate_with_openssl_rand_hex_32
+    # token 有效期（分钟），默认 720（12 小时）
+    expire-minutes: 720
+
 # 线程池配置
 thread:
   pool:

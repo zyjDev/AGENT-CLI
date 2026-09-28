@@ -14,6 +14,27 @@
 --   维度与配置不一致时插入会报 "expected 512 dimensions, not N"。
 -- =============================================================================
 
+-- -----------------------------------------------------------------------------
+-- 库名对齐（2026-09-28 补，P0-2 修复的一部分）
+-- -----------------------------------------------------------------------------
+-- 背景：应用配置连的是 **ai-rag-knowledge**
+--   （application-dev.yml.example → jdbc:postgresql://127.0.0.1:15432/ai-rag-knowledge），
+--   但本脚本此前完全依赖容器的 POSTGRES_DB 决定「表建到哪个库」：两份 compose 历史上
+--   分别是 springai（docker-compose-environment.yml）与 ai-rag-knowledge（*-aliyun.yml）。
+--   于是用前者起库时，三张表会被建在 springai 库里，应用连 ai-rag-knowledge 找不到
+--   vector_store_openai → 启动即失败（P0-2 记录的第一个失败点）。
+--
+-- 处理：显式建库并 \connect 过去，让「表最终落在哪个库」与 POSTGRES_DB 解耦，
+--       两份 compose / 手工执行都能得到一致的库。
+-- 注意：\gexec 与 \connect 是 **psql 元命令**（psql 9.6+，pgvector 镜像自带），
+--       本段只能在 psql 中执行，用 Navicat/DBeaver 等 GUI 客户端执行会报语法错误。
+-- -----------------------------------------------------------------------------
+
+SELECT 'CREATE DATABASE "ai-rag-knowledge"'
+ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'ai-rag-knowledge')\gexec
+
+\connect "ai-rag-knowledge"
+
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Spring AI PgVectorStore 的默认表名（本项目未使用，保留以兼容框架默认行为）

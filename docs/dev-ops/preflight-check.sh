@@ -64,6 +64,17 @@ check_file "docs/dev-ops/mysql/my.cnf"          "MySQL 配置"
 check_file "docs/dev-ops/redis/redis.conf"      "Redis 配置"
 check_file "docs/dev-ops/pgvector/sql/init.sql" "pgvector 初始化 SQL"
 
+# MySQL 基线建库脚本（P0-2 修复，2026-09-28）：docker-entrypoint-initdb.d 挂的是整个 sql/ 目录，
+# 该目录为空时容器照样能起来，只是**一张业务表都没有**，故障要到应用启动才以 SQL 异常形式暴露。
+SQL_CNT="$(find docs/dev-ops/mysql/sql -mindepth 1 -maxdepth 1 -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')"
+if [ "${SQL_CNT:-0}" -gt 0 ]; then
+    ok "MySQL 初始化脚本目录（$SQL_CNT 个 *.sql）"
+else
+    bad "MySQL 初始化脚本缺失（docs/dev-ops/mysql/sql/*.sql）"
+    echo "         → /docker-entrypoint-initdb.d 为空，MySQL 容器起来后没有任何业务表"
+    FAIL=$((FAIL + 1))
+fi
+
 # ------------------------------------------------------------------------------
 echo
 echo "【2/4】核心栈 compose 的挂载源（docker-compose-environment*.yml）"
@@ -81,7 +92,11 @@ for cf in docs/dev-ops/docker-compose-environment.yml docs/dev-ops/docker-compos
             echo "         → Docker 会把它建成空目录占位，务必先补文件"
             FAIL=$((FAIL + 1))
         elif [ -d "$full" ] && [ "$(find "$full" -mindepth 1 2>/dev/null | wc -l)" -eq 0 ]; then
-            warn "挂载目录为空：$src（若本应有初始化脚本，说明已丢失）"
+            # 2026-09-28（P0-2）：由 WARN 升级为 FAIL —— 空挂载目录是 init.sql / 01-schema.sql
+            # 丢失后的确定性症状，只告警不拦截等于把故障推迟到应用启动。
+            bad "挂载目录为空：$src（若本应有初始化脚本，说明已丢失）"
+            echo "         → 空目录多半是 Docker 占位掩盖了文件丢失，补齐脚本前不要启动容器"
+            FAIL=$((FAIL + 1))
         else
             ok "挂载源存在：$src"
         fi

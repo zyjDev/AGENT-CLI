@@ -1,6 +1,14 @@
 server:
   port: 8091
 
+# 管理端 JWT 签名密钥：test profile 虽然禁用了数据源，但 AdminJwtTokenService 仍会被创建，
+# 因此这里**必须**给出一个 ≥32 字符的值（留空同样会启动失败）。
+# 本地验证用值即可，切勿用于任何对外环境。
+admin:
+  jwt:
+    secret: local-test-only-jwt-secret-please-replace-in-real-env
+    expire-minutes: 720
+
 # 线程池配置
 thread:
   pool:
