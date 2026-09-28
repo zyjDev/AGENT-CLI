@@ -4,6 +4,7 @@
  */
 import { http } from './http'
 import { ADMIN_BASE, CRUD, ENDPOINTS } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiClientRagOrderItem {
   id: number
@@ -23,7 +24,8 @@ export const RAG_MAX_FILE_SIZE_MB = 10
 const BASE = ADMIN_BASE.AI_CLIENT_RAG_ORDER
 
 export const AiClientRagOrderApi = {
-  queryList: (payload: Record<string, unknown>) => http.post<AiClientRagOrderItem[]>(CRUD.queryList(BASE), payload),
+  queryList: (payload: Record<string, unknown>) =>
+    http.post<AiClientRagOrderItem[] | PagePayload<AiClientRagOrderItem>>(CRUD.queryList(BASE), payload),
   create: (payload: Record<string, unknown>) => http.post<boolean>(CRUD.create(BASE), payload),
   updateById: (payload: Record<string, unknown>) => http.put<boolean>(CRUD.updateById(BASE), payload),
   deleteById: (id: number | string) => http.delete<boolean>(CRUD.deleteById(BASE, id)),

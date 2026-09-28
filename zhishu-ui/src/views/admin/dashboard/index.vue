@@ -13,6 +13,7 @@ import { Button, Table, Tag } from 'ant-design-vue'
 import { AlertCircle, ArrowUpRight, RefreshCw } from 'lucide-vue-next'
 import { DataStatisticsApi, type DataStatistics } from '@/api/data-statistics'
 import { AiAgentDrawApi, type AiAgentDrawConfigItem } from '@/api/ai-agent-draw'
+import { normalizePagePayload } from '@/types/api'
 
 const router = useRouter()
 
@@ -89,8 +90,9 @@ async function loadStatistics(): Promise<void> {
 async function loadConfigs(): Promise<void> {
   configsLoading.value = true
   try {
-    const list = await AiAgentDrawApi.queryList({ pageNum: 1, pageSize: 5 })
-    configs.value = Array.isArray(list) ? list : []
+    const result = await AiAgentDrawApi.queryList({ pageNum: 1, pageSize: 5 })
+    // 后端 query-list 正从裸数组迁到 { list, total }，两种形态都要吃得下
+    configs.value = normalizePagePayload(result).list
   } catch (error) {
     console.error('[dashboard] 加载编排配置失败', error)
     configs.value = []

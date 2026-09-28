@@ -3,8 +3,9 @@
  * 列表页引擎：查询条 + 操作区 + 表格 + 分页 + 新增/编辑弹窗 + 删除二次确认。
  * 10 个资源模块共用本组件，只通过 descriptor 描述差异（字段、列、接口）。
  *
- * 分页说明：后端 query-list 返回裸数组（无 total），因此分页按「本页是否取满」推断，
- * 不做总数伪装。
+ * 分页说明：后端 query-list 正从「裸数组 + 内存分页」迁到数据库物理分页。
+ * 本组件用 normalizePagePayload 同时吃下两种形态：
+ * 拿到 total 就展示真实总数，拿不到（旧裸数组接口）才退回「本页是否取满」推断，不做总数伪装。
  */
 import { computed, onMounted, ref } from 'vue'
 import { Button, message, Popconfirm, Table, Tag, type TableColumnType } from 'ant-design-vue'
@@ -13,6 +14,7 @@ import FormModal from './FormModal.vue'
 import QueryForm from './QueryForm.vue'
 import TablePager from './TablePager.vue'
 import type { CellRender, CrudDescriptor, RowAction } from './types'
+import { normalizePagePayload } from '@/types/api'
 
 type Row = Record<string, any>
 
@@ -26,6 +28,8 @@ const props = withDefaults(
 )
 
 const rows = ref<Row[]>([])
+/** 符合条件的总条数；null = 后端没给（旧裸数组接口），此时不显示「共 N 条」 */
+const total = ref<number | null>(null)
 const loading = ref(false)
 const queryValues = ref<Record<string, unknown>>({})
 const pageNum = ref(1)
@@ -136,16 +140,20 @@ function formatTime(value: unknown): string {
 async function load(): Promise<void> {
   loading.value = true
   try {
-    const list = await props.descriptor.api.query({
+    const result = await props.descriptor.api.query({
       ...queryValues.value,
       pageNum: pageNum.value,
       pageSize: pageSize.value,
     })
-    rows.value = Array.isArray(list) ? list : []
+    // 裸数组 / { list, total } 两种形态都能吃：后端迁移期间新旧接口并存
+    const page = normalizePagePayload<Row>(result)
+    rows.value = page.list
+    total.value = page.total
   } catch (error) {
     // 具体原因（网络 / 401）由请求层统一提示，这里只保证表格回到可用状态
     console.error(`[crud] 加载「${props.descriptor.title}」失败`, error)
     rows.value = []
+    total.value = null
   } finally {
     loading.value = false
   }
@@ -241,7 +249,9 @@ defineExpose({ reload: load })
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#F1F3F9] px-5 py-3.5">
         <div class="flex items-center gap-2.5">
           <h2 class="text-[14px] font-medium">{{ descriptor.title }}</h2>
-          <span class="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[11px] text-brand">本页 {{ rows.length }} 条</span>
+          <span class="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[11px] text-brand">
+            {{ total === null ? `本页 ${rows.length} 条` : `共 ${total} 条` }}
+          </span>
         </div>
 
         <div class="flex items-center gap-2">
@@ -357,6 +367,7 @@ defineExpose({ reload: load })
         :page-num="pageNum"
         :page-size="pageSize"
         :row-count="rows.length"
+        :total="total"
         :loading="loading"
         @update:page-num="handlePageNum"
         @update:page-size="handlePageSize"

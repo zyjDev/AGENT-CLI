@@ -2,9 +2,11 @@ package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
 import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -67,6 +69,30 @@ public interface IAiAgentDrawConfigDao extends BaseMapper<AiAgentDrawConfig> {
      */
     default List<AiAgentDrawConfig> queryAll() {
         return selectList(OwnerQuerySupport.<AiAgentDrawConfig>usableWrapper().orderByDesc("create_time"));
+    }
+
+    /**
+     * 管理端列表分页查询：条件与归属过滤一起下推 SQL，total 由 count 得出。
+     *
+     * <p><b>归属口径是 usable（系统默认 + 本人），刻意与其它 7 个资源模块的 visible 不同</b> ——
+     * 编排画布要能列出并使用平台默认配置，本模块改造前的 queryAll / queryByConfigName 就是 usable，
+     * 这里保持一致（属「原样保留」，不是疏漏）。前端据 platformDefault 字段对平台默认行隐藏编辑 / 删除。
+     */
+    default IPage<AiAgentDrawConfig> queryPage(IPage<AiAgentDrawConfig> page, String configId, String configName, String agentId, Integer status) {
+        LambdaQueryWrapper<AiAgentDrawConfig> wrapper = OwnerQuerySupport.usableLambdaWrapper(AiAgentDrawConfig::getOwnerId);
+        if (configId != null && !configId.isBlank()) {
+            wrapper.eq(AiAgentDrawConfig::getConfigId, configId);
+        }
+        if (configName != null && !configName.isBlank()) {
+            wrapper.like(AiAgentDrawConfig::getConfigName, configName);
+        }
+        if (agentId != null && !agentId.isBlank()) {
+            wrapper.eq(AiAgentDrawConfig::getAgentId, agentId);
+        }
+        if (status != null) {
+            wrapper.eq(AiAgentDrawConfig::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AiAgentDrawConfig::getCreateTime));
     }
 
 }

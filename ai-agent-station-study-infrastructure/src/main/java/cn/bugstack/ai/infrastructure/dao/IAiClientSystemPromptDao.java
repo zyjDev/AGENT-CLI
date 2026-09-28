@@ -5,6 +5,7 @@ import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -81,6 +82,25 @@ public interface IAiClientSystemPromptDao extends BaseMapper<AiClientSystemPromp
     default List<AiClientSystemPrompt> queryAll() {
         return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientSystemPrompt::getOwnerId)
                 .orderByDesc(AiClientSystemPrompt::getCreateTime));
+    }
+
+    /**
+     * 管理端列表分页查询：条件与归属过滤一起下推 SQL，total 由 count 得出。
+     * 归属口径同 {@link #queryAll()}（visible）。
+     * 改造前该接口没有分页，且 status 被「DAO 查一次 + 内存再滤一次」重复过滤两遍，现统一为一次下推。
+     */
+    default IPage<AiClientSystemPrompt> queryPage(IPage<AiClientSystemPrompt> page, String promptId, String promptName, Integer status) {
+        LambdaQueryWrapper<AiClientSystemPrompt> wrapper = OwnerQuerySupport.visibleLambdaWrapper(AiClientSystemPrompt::getOwnerId);
+        if (promptId != null && !promptId.isBlank()) {
+            wrapper.eq(AiClientSystemPrompt::getPromptId, promptId);
+        }
+        if (promptName != null && !promptName.isBlank()) {
+            wrapper.like(AiClientSystemPrompt::getPromptName, promptName);
+        }
+        if (status != null) {
+            wrapper.eq(AiClientSystemPrompt::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AiClientSystemPrompt::getCreateTime));
     }
 
 }

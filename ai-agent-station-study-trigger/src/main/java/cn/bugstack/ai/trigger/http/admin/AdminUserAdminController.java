@@ -7,15 +7,18 @@ import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAdminUserDao;
 import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.trigger.config.AdminJwtTokenService;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.common.PasswordUtil;
 import cn.bugstack.ai.types.common.SnowflakeId;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -587,51 +590,24 @@ public class AdminUserAdminController implements IAdminUserAdminService {
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AdminUserResponseDTO>> queryAdminUserList(@RequestBody AdminUserQueryRequestDTO request) {
+    public Response<PageResult<AdminUserResponseDTO>> queryAdminUserList(@RequestBody AdminUserQueryRequestDTO request) {
         try {
-            log.info("根据条件查询管理员用户列表请求，username={}", request.getUsername());
-            
-            // 这里可以根据查询条件进行过滤，暂时先查询所有
-            List<AdminUser> adminUsers = adminUserDao.queryAll();
-            
-            // 根据查询条件进行过滤
-            List<AdminUser> filteredUsers = adminUsers.stream()
-                    .filter(user -> {
-                        boolean match = true;
-                        if (StringUtils.hasText(request.getUserId())) {
-                            match = match && user.getUserId().equals(request.getUserId());
-                        }
-                        if (StringUtils.hasText(request.getUsername())) {
-                            match = match && user.getUsername().contains(request.getUsername());
-                        }
-                        if (request.getStatus() != null) {
-                            match = match && request.getStatus().equals(user.getStatus());
-                        }
-                        return match;
-                    })
-                    .collect(Collectors.toList());
-            
-            // 分页处理
-            int pageNum = request.getPageNum() != null ? Math.max(1, request.getPageNum()) : 1;
-            int pageSize = request.getPageSize() != null ? Math.max(1, request.getPageSize()) : 10;
-            int startIndex = (pageNum - 1) * pageSize;
-            int endIndex = Math.min(startIndex + pageSize, filteredUsers.size());
+            log.info("根据条件分页查询管理员用户列表请求，username={}", request.getUsername());
 
-            List<AdminUser> pagedUsers = startIndex >= filteredUsers.size()
-                    ? List.of()
-                    : filteredUsers.subList(startIndex, endIndex);
-            List<AdminUserResponseDTO> responseDTOs = pagedUsers.stream()
-                    .map(this::convertToAdminUserResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AdminUserResponseDTO>>builder()
+            // 条件一起下推 SQL，total 由 count 语句得出（真正的物理分页）。
+            // admin_user 表没有 owner_id 列，因此这里刻意不做归属过滤。
+            IPage<AdminUser> page = adminUserDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getUserId(), request.getUsername(), request.getStatus());
+
+            return Response.<PageResult<AdminUserResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAdminUserResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("根据条件查询管理员用户列表失败", e);
-            return Response.<List<AdminUserResponseDTO>>builder()
+            log.error("根据条件分页查询管理员用户列表失败", e);
+            return Response.<PageResult<AdminUserResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

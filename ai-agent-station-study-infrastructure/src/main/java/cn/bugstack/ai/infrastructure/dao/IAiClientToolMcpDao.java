@@ -2,9 +2,11 @@ package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientToolMcp;
 import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -47,6 +49,28 @@ public interface IAiClientToolMcpDao extends BaseMapper<AiClientToolMcp> {
 
     default List<AiClientToolMcp> queryAll() {
         return selectList(OwnerQuerySupport.<AiClientToolMcp>visibleWrapper().orderByDesc("create_time"));
+    }
+
+    /**
+     * 管理端列表分页查询：条件与归属过滤一起下推 SQL，total 由 count 得出。
+     * 归属口径同 {@link #queryAll()}（visible）。
+     * 改造前该列表接口完全没有分页（一次返回全量），现与其它列表接口对齐。
+     */
+    default IPage<AiClientToolMcp> queryPage(IPage<AiClientToolMcp> page, String mcpId, String mcpName, String transportType, Integer status) {
+        LambdaQueryWrapper<AiClientToolMcp> wrapper = OwnerQuerySupport.visibleLambdaWrapper(AiClientToolMcp::getOwnerId);
+        if (mcpId != null && !mcpId.isBlank()) {
+            wrapper.eq(AiClientToolMcp::getMcpId, mcpId);
+        }
+        if (mcpName != null && !mcpName.isBlank()) {
+            wrapper.like(AiClientToolMcp::getMcpName, mcpName);
+        }
+        if (transportType != null && !transportType.isBlank()) {
+            wrapper.eq(AiClientToolMcp::getTransportType, transportType);
+        }
+        if (status != null) {
+            wrapper.eq(AiClientToolMcp::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AiClientToolMcp::getCreateTime));
     }
 
     default List<AiClientToolMcp> queryByStatus(Integer status) {

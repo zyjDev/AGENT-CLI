@@ -4,6 +4,7 @@ import cn.bugstack.ai.api.IAiAgentDrawAdminService;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigRequestDTO;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigResponseDTO;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigQueryRequestDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.*;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
@@ -11,12 +12,14 @@ import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
 import cn.bugstack.ai.trigger.http.admin.util.DrawConfigParser;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnModelGuard;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.types.exception.BizException;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -59,77 +62,39 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiAgentDrawConfigResponseDTO>> queryDrawConfigList(@RequestBody AiAgentDrawConfigQueryRequestDTO request) {
+    public Response<PageResult<AiAgentDrawConfigResponseDTO>> queryDrawConfigList(@RequestBody AiAgentDrawConfigQueryRequestDTO request) {
         try {
-            log.info("查询拖拉拽流程图配置列表请求：{}", request);
+            log.info("分页查询拖拉拽流程图配置列表请求：{}", request);
 
-            List<AiAgentDrawConfig> configs;
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiAgentDrawConfig> page = aiAgentDrawConfigDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getConfigId(), request.getConfigName(), request.getAgentId(), request.getStatus());
 
-            // 条件查询
-            if (StringUtils.hasText(request.getConfigId())) {
-                AiAgentDrawConfig cfg = aiAgentDrawConfigDao.queryByConfigId(request.getConfigId());
-
-                // 读侧归属校验：queryByConfigId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (cfg != null && !OwnerGuard.readable(cfg.getOwnerId())) {
-                    cfg = null;
-                }
-                configs = cfg != null ? List.of(cfg) : List.of();
-            } else if (StringUtils.hasText(request.getConfigName())) {
-                configs = aiAgentDrawConfigDao.queryByConfigName(request.getConfigName());
-            } else if (StringUtils.hasText(request.getAgentId())) {
-                AiAgentDrawConfig cfg = aiAgentDrawConfigDao.queryByAgentId(request.getAgentId());
-
-                // 读侧归属校验：queryByAgentId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (cfg != null && !OwnerGuard.readable(cfg.getOwnerId())) {
-                    cfg = null;
-                }
-                configs = cfg != null ? List.of(cfg) : List.of();
-            } else if (request.getStatus() != null) {
-                if (request.getStatus().equals(1)) {
-                    configs = aiAgentDrawConfigDao.queryEnabledConfigs();
-                } else {
-                    configs = aiAgentDrawConfigDao.queryAll();
-                }
-            } else {
-                configs = aiAgentDrawConfigDao.queryAll();
-            }
-
-            // 简单分页（内存分页）
-            if (request.getPageNum() != null && request.getPageSize() != null) {
-                int pageNum = Math.max(1, request.getPageNum());
-                int pageSize = Math.max(1, request.getPageSize());
-                int start = (pageNum - 1) * pageSize;
-                int end = Math.min(start + pageSize, configs.size());
-                if (start < configs.size()) {
-                    configs = configs.subList(start, end);
-                } else {
-                    configs = List.of();
-                }
-            }
-
-            // PO 转 DTO
-            List<AiAgentDrawConfigResponseDTO> responseDTOs = new ArrayList<>();
-            for (AiAgentDrawConfig config : configs) {
-                AiAgentDrawConfigResponseDTO dto = new AiAgentDrawConfigResponseDTO();
-                BeanUtils.copyProperties(config, dto);
-                // 平台默认（owner 为空）的配置：普通用户可见只读，前端据此隐藏编辑/删除
-                dto.setPlatformDefault(config.getOwnerId() == null);
-                responseDTOs.add(dto);
-            }
-
-            return Response.<List<AiAgentDrawConfigResponseDTO>>builder()
+            return Response.<PageResult<AiAgentDrawConfigResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiAgentDrawConfigResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("查询拖拉拽流程图配置列表失败", e);
-            return Response.<List<AiAgentDrawConfigResponseDTO>>builder()
+            log.error("分页查询拖拉拽流程图配置列表失败", e);
+            return Response.<PageResult<AiAgentDrawConfigResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)
                     .build();
         }
+    }
+
+    /**
+     * PO 转响应 DTO。
+     * <p>平台默认（owner 为空）的配置：普通用户可见只读，前端据 platformDefault 隐藏编辑 / 删除。
+     */
+    private AiAgentDrawConfigResponseDTO convertToAiAgentDrawConfigResponseDTO(AiAgentDrawConfig config) {
+        AiAgentDrawConfigResponseDTO dto = new AiAgentDrawConfigResponseDTO();
+        BeanUtils.copyProperties(config, dto);
+        dto.setPlatformDefault(config.getOwnerId() == null);
+        return dto;
     }
 
     /**

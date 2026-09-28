@@ -7,6 +7,8 @@
  * 因此把差异收敛为一份 descriptor，由 CrudPage 统一承载交互范式。
  */
 
+import type { PagePayload } from '@/types/api'
+
 export type FieldType = 'input' | 'password' | 'textarea' | 'number' | 'select'
 
 export interface FieldOption {
@@ -72,7 +74,11 @@ export type CrudRow = Record<string, any>
  * 方法参数是双变的，这样 `CrudApi<具体DTO>` 才能赋给 `CrudApi<CrudRow>`。
  */
 export interface CrudApi<T = CrudRow> {
-  query(payload: Record<string, unknown>): Promise<T[]>
+  /**
+   * 查询列表。返回「裸数组」或「PageResult」两种形态之一 —— 迁移期的兼容契约，
+   * 消费方统一用 {@link normalizePagePayload} 归一，别假设一定是数组。
+   */
+  query(payload: Record<string, unknown>): Promise<T[] | PagePayload<T>>
   create?(payload: Record<string, unknown>): Promise<unknown>
   update?(payload: Record<string, unknown>): Promise<unknown>
   remove?(record: T): Promise<unknown>

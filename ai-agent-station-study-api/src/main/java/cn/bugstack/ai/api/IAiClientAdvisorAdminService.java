@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiClientAdvisorQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientAdvisorRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientAdvisorResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 
 import java.util.List;
@@ -85,11 +86,11 @@ public interface IAiClientAdvisorAdminService {
     Response<List<AiClientAdvisorResponseDTO>> queryAiClientAdvisorsByType(String advisorType);
 
     /**
-     * 根据条件查询顾问配置列表
-     * @param request 查询条件
-     * @return 顾问配置列表
+     * 根据条件分页查询顾问配置列表
+     * @param request 查询条件（含分页参数）
+     * @return 顾问配置分页结果
      */
-    Response<List<AiClientAdvisorResponseDTO>> queryAiClientAdvisorList(AiClientAdvisorQueryRequestDTO request);
+    Response<PageResult<AiClientAdvisorResponseDTO>> queryAiClientAdvisorList(AiClientAdvisorQueryRequestDTO request);
 
     /**
      * 查询所有顾问配置

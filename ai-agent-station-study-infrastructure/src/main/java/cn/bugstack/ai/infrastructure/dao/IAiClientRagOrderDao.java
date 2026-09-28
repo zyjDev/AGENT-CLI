@@ -5,6 +5,7 @@ import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
@@ -46,6 +47,28 @@ public interface IAiClientRagOrderDao extends BaseMapper<AiClientRagOrder> {
     default List<AiClientRagOrder> queryAll() {
         return selectList(OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId)
                 .orderByDesc(AiClientRagOrder::getUpdateTime));
+    }
+
+    /**
+     * 管理端列表分页查询：条件与归属过滤一起下推 SQL，total 由 count 得出。
+     * 归属口径与排序同 {@link #queryAll()}（visible；update_time 降序）。
+     * 三个条件沿用改造前的<b>模糊匹配</b>语义（原内存 contains），勿改成精确匹配。
+     */
+    default IPage<AiClientRagOrder> queryPage(IPage<AiClientRagOrder> page, String ragId, String ragName, String knowledgeTag, Integer status) {
+        LambdaQueryWrapper<AiClientRagOrder> wrapper = OwnerQuerySupport.visibleLambdaWrapper(AiClientRagOrder::getOwnerId);
+        if (ragId != null && !ragId.isBlank()) {
+            wrapper.like(AiClientRagOrder::getRagId, ragId);
+        }
+        if (ragName != null && !ragName.isBlank()) {
+            wrapper.like(AiClientRagOrder::getRagName, ragName);
+        }
+        if (knowledgeTag != null && !knowledgeTag.isBlank()) {
+            wrapper.like(AiClientRagOrder::getKnowledgeTag, knowledgeTag);
+        }
+        if (status != null) {
+            wrapper.eq(AiClientRagOrder::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AiClientRagOrder::getUpdateTime));
     }
 
     default List<AiClientRagOrder> queryEnabledRagOrders() {

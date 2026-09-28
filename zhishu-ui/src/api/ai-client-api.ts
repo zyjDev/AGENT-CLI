@@ -4,6 +4,7 @@
  */
 import { http } from './http'
 import { ADMIN_BASE, CRUD, ENDPOINTS } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiClientApiItem {
   id: number
@@ -20,7 +21,8 @@ export interface AiClientApiItem {
 const BASE = ADMIN_BASE.AI_CLIENT_API
 
 export const AiClientApiApi = {
-  queryList: (payload: Record<string, unknown>) => http.post<AiClientApiItem[]>(CRUD.queryList(BASE), payload),
+  queryList: (payload: Record<string, unknown>) =>
+    http.post<AiClientApiItem[] | PagePayload<AiClientApiItem>>(CRUD.queryList(BASE), payload),
   create: (payload: Record<string, unknown>) => http.post<boolean>(CRUD.create(BASE), payload),
   updateById: (payload: Record<string, unknown>) => http.put<boolean>(CRUD.updateById(BASE), payload),
   deleteById: (id: number | string) => http.delete<boolean>(CRUD.deleteById(BASE, id)),

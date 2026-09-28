@@ -4,11 +4,14 @@ import cn.bugstack.ai.api.IAiClientApiAdminService;
 import cn.bugstack.ai.api.dto.AiClientApiQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientApiRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientApiResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -313,53 +316,23 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientApiResponseDTO>> queryAiClientApiList(@RequestBody AiClientApiQueryRequestDTO request) {
+    public Response<PageResult<AiClientApiResponseDTO>> queryAiClientApiList(@RequestBody AiClientApiQueryRequestDTO request) {
         try {
             log.info("分页查询AI客户端API配置列表请求：{}", request);
-            
-            // 这里需要根据实际的DAO实现来调整，如果DAO没有分页查询方法，需要先添加
-            // 暂时使用查询所有然后过滤的方式
-            List<AiClientApi> allApiList = aiClientApiDao.queryAll();
-            
-            // 根据查询条件过滤
-            List<AiClientApi> filteredList = allApiList.stream()
-                    .filter(api -> {
-                        boolean match = true;
-                        if (StringUtils.hasText(request.getApiId())) {
-                            match = match && api.getApiId().contains(request.getApiId());
-                        }
-                        if (StringUtils.hasText(request.getBaseUrl())) {
-                            match = match && api.getBaseUrl().contains(request.getBaseUrl());
-                        }
-                        if (request.getStatus() != null) {
-                            match = match && request.getStatus().equals(api.getStatus());
-                        }
-                        return match;
-                    })
-                    .collect(Collectors.toList());
-            
-            // 简单分页处理
-            int pageNum = request.getPageNum() != null ? request.getPageNum() : 1;
-            int pageSize = request.getPageSize() != null ? request.getPageSize() : 10;
-            int startIndex = (pageNum - 1) * pageSize;
-            int endIndex = Math.min(startIndex + pageSize, filteredList.size());
-            
-            List<AiClientApi> pagedList = startIndex < filteredList.size() ? 
-                    filteredList.subList(startIndex, endIndex) : List.of();
-            
-            // PO转DTO
-            List<AiClientApiResponseDTO> responseDTOList = pagedList.stream()
-                    .map(this::convertToAiClientApiResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientApiResponseDTO>>builder()
+
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientApi> page = aiClientApiDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getApiId(), request.getBaseUrl(), request.getStatus());
+
+            return Response.<PageResult<AiClientApiResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOList)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientApiResponseDTO))
                     .build();
         } catch (Exception e) {
             log.error("分页查询AI客户端API配置列表失败", e);
-            return Response.<List<AiClientApiResponseDTO>>builder()
+            return Response.<PageResult<AiClientApiResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

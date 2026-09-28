@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiClientRagOrderQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientRagOrderRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientRagOrderResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -87,10 +88,10 @@ public interface IAiClientRagOrderAdminService {
 
     /**
      * 分页查询知识库配置列表
-     * @param request 查询请求对象
-     * @return 知识库配置列表
+     * @param request 查询请求对象（含分页参数）
+     * @return 知识库配置分页结果
      */
-    Response<List<AiClientRagOrderResponseDTO>> queryAiClientRagOrderList(AiClientRagOrderQueryRequestDTO request);
+    Response<PageResult<AiClientRagOrderResponseDTO>> queryAiClientRagOrderList(AiClientRagOrderQueryRequestDTO request);
 
     /**
      * 查询所有知识库配置

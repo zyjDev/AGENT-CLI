@@ -4,11 +4,14 @@ import cn.bugstack.ai.api.IAiClientToolMcpAdminService;
 import cn.bugstack.ai.api.dto.AiClientToolMcpQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientToolMcpRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientToolMcpResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientToolMcpDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientToolMcp;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -370,53 +373,23 @@ public class AiClientToolMcpAdminController implements IAiClientToolMcpAdminServ
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientToolMcpResponseDTO>> queryAiClientToolMcpList(@RequestBody AiClientToolMcpQueryRequestDTO request) {
+    public Response<PageResult<AiClientToolMcpResponseDTO>> queryAiClientToolMcpList(@RequestBody AiClientToolMcpQueryRequestDTO request) {
         try {
-            log.info("根据查询条件查询MCP客户端配置列表：{}", request);
-            
-            // 根据查询条件调用不同的DAO方法
-            List<AiClientToolMcp> aiClientToolMcps;
-            
-            if (StringUtils.hasText(request.getMcpId())) {
-                // 根据MCP ID查询
-                AiClientToolMcp single = aiClientToolMcpDao.queryByMcpId(request.getMcpId());
+            log.info("根据查询条件分页查询MCP客户端配置列表：{}", request);
 
-                // 读侧归属校验：queryByMcpId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (single != null && !OwnerGuard.readable(single.getOwnerId())) {
-                    single = null;
-                }
-                aiClientToolMcps = single != null ? List.of(single) : List.of();
-            } else if (request.getStatus() != null) {
-                // 根据状态查询
-                aiClientToolMcps = aiClientToolMcpDao.queryByStatus(request.getStatus());
-            } else if (StringUtils.hasText(request.getTransportType())) {
-                // 根据传输类型查询
-                aiClientToolMcps = aiClientToolMcpDao.queryByTransportType(request.getTransportType());
-            } else {
-                // 查询所有
-                aiClientToolMcps = aiClientToolMcpDao.queryAll();
-            }
-            
-            // 如果有MCP名称条件，进行过滤
-            if (StringUtils.hasText(request.getMcpName())) {
-                aiClientToolMcps = aiClientToolMcps.stream()
-                        .filter(mcp -> mcp.getMcpName() != null && 
-                                      mcp.getMcpName().contains(request.getMcpName()))
-                        .collect(Collectors.toList());
-            }
-            
-            List<AiClientToolMcpResponseDTO> responseDTOs = aiClientToolMcps.stream()
-                    .map(this::convertToAiClientToolMcpResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientToolMcpResponseDTO>>builder()
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientToolMcp> page = aiClientToolMcpDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getMcpId(), request.getMcpName(), request.getTransportType(), request.getStatus());
+
+            return Response.<PageResult<AiClientToolMcpResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientToolMcpResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("根据查询条件查询MCP客户端配置列表失败", e);
-            return Response.<List<AiClientToolMcpResponseDTO>>builder()
+            log.error("根据查询条件分页查询MCP客户端配置列表失败", e);
+            return Response.<PageResult<AiClientToolMcpResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

@@ -4,11 +4,14 @@ import cn.bugstack.ai.api.IAiClientSystemPromptAdminService;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientSystemPromptDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientSystemPrompt;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -345,59 +348,23 @@ public class AiClientSystemPromptAdminController implements IAiClientSystemPromp
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientSystemPromptResponseDTO>> queryAiClientSystemPromptList(@RequestBody AiClientSystemPromptQueryRequestDTO request) {
+    public Response<PageResult<AiClientSystemPromptResponseDTO>> queryAiClientSystemPromptList(@RequestBody AiClientSystemPromptQueryRequestDTO request) {
         try {
-            log.info("根据条件查询系统提示词配置列表：{}", request);
-            
-            // 根据查询条件构建查询逻辑
-            List<AiClientSystemPrompt> aiClientSystemPrompts;
-            
-            if (StringUtils.hasText(request.getPromptId())) {
-                // 根据提示词ID查询
-                AiClientSystemPrompt prompt = aiClientSystemPromptDao.queryByPromptId(request.getPromptId());
+            log.info("根据条件分页查询系统提示词配置列表：{}", request);
 
-                // 读侧归属校验：queryByPromptId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (prompt != null && !OwnerGuard.readable(prompt.getOwnerId())) {
-                    prompt = null;
-                }
-                aiClientSystemPrompts = prompt != null ? List.of(prompt) : List.of();
-            } else if (StringUtils.hasText(request.getPromptName())) {
-                // 根据提示词名称查询
-                aiClientSystemPrompts = aiClientSystemPromptDao.queryByPromptName(request.getPromptName());
-            } else if (request.getStatus() != null) {
-                // 根据状态查询
-                if (request.getStatus().equals(1)) {
-                    aiClientSystemPrompts = aiClientSystemPromptDao.queryEnabledPrompts();
-                } else {
-                    // 查询所有然后过滤
-                    aiClientSystemPrompts = aiClientSystemPromptDao.queryAll().stream()
-                            .filter(prompt -> request.getStatus().equals(prompt.getStatus()))
-                            .collect(Collectors.toList());
-                }
-            } else {
-                // 查询所有
-                aiClientSystemPrompts = aiClientSystemPromptDao.queryAll();
-            }
-            
-            // 应用状态过滤（如果有其他条件的话）
-            if (request.getStatus() != null && !StringUtils.hasText(request.getPromptId()) && !StringUtils.hasText(request.getPromptName())) {
-                aiClientSystemPrompts = aiClientSystemPrompts.stream()
-                        .filter(prompt -> request.getStatus().equals(prompt.getStatus()))
-                        .collect(Collectors.toList());
-            }
-            
-            List<AiClientSystemPromptResponseDTO> responseDTOs = aiClientSystemPrompts.stream()
-                    .map(this::convertToAiClientSystemPromptResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientSystemPromptResponseDTO>>builder()
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientSystemPrompt> page = aiClientSystemPromptDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getPromptId(), request.getPromptName(), request.getStatus());
+
+            return Response.<PageResult<AiClientSystemPromptResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientSystemPromptResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("根据条件查询系统提示词配置列表失败", e);
-            return Response.<List<AiClientSystemPromptResponseDTO>>builder()
+            log.error("根据条件分页查询系统提示词配置列表失败", e);
+            return Response.<PageResult<AiClientSystemPromptResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientSystemPromptResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 
 import java.util.List;
@@ -84,10 +85,10 @@ public interface IAiClientSystemPromptAdminService {
     Response<List<AiClientSystemPromptResponseDTO>> queryAiClientSystemPromptsByPromptName(String promptName);
 
     /**
-     * 根据条件查询系统提示词配置列表
-     * @param request 查询请求对象
-     * @return 系统提示词配置列表
+     * 根据条件分页查询系统提示词配置列表
+     * @param request 查询请求对象（含分页参数）
+     * @return 系统提示词配置分页结果
      */
-    Response<List<AiClientSystemPromptResponseDTO>> queryAiClientSystemPromptList(AiClientSystemPromptQueryRequestDTO request);
+    Response<PageResult<AiClientSystemPromptResponseDTO>> queryAiClientSystemPromptList(AiClientSystemPromptQueryRequestDTO request);
 
 }

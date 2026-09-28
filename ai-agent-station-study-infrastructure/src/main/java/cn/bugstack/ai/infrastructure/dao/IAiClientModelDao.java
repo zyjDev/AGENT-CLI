@@ -2,9 +2,11 @@ package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AiClientModel;
 import cn.bugstack.ai.infrastructure.dao.support.OwnerQuerySupport;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -59,6 +61,27 @@ public interface IAiClientModelDao extends BaseMapper<AiClientModel> {
 
     default List<AiClientModel> queryAll() {
         return selectList(OwnerQuerySupport.<AiClientModel>visibleWrapper().orderByDesc("create_time"));
+    }
+
+    /**
+     * 管理端列表分页查询：条件与归属过滤一起下推到 SQL，{@code total} 由 count 语句得出。
+     * 归属口径同 {@link #queryAll()}（{@code visible}）。
+     */
+    default IPage<AiClientModel> queryPage(IPage<AiClientModel> page, String modelId, String apiId, String modelType, Integer status) {
+        LambdaQueryWrapper<AiClientModel> wrapper = OwnerQuerySupport.visibleLambdaWrapper(AiClientModel::getOwnerId);
+        if (modelId != null && !modelId.isBlank()) {
+            wrapper.eq(AiClientModel::getModelId, modelId);
+        }
+        if (apiId != null && !apiId.isBlank()) {
+            wrapper.eq(AiClientModel::getApiId, apiId);
+        }
+        if (modelType != null && !modelType.isBlank()) {
+            wrapper.eq(AiClientModel::getModelType, modelType);
+        }
+        if (status != null) {
+            wrapper.eq(AiClientModel::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AiClientModel::getCreateTime));
     }
 
 }

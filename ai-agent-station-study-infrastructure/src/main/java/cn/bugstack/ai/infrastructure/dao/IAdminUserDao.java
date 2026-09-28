@@ -1,9 +1,11 @@
 package cn.bugstack.ai.infrastructure.dao;
 
 import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -53,6 +55,27 @@ public interface IAdminUserDao extends BaseMapper<AdminUser> {
 
     default List<AdminUser> queryAll() {
         return selectList(new QueryWrapper<AdminUser>().orderByDesc("create_time"));
+    }
+
+    /**
+     * 管理端列表分页查询：条件下推 SQL，total 由 count 得出。
+     *
+     * <p><b>本表没有归属列</b>（admin_user 是账号表，不属于任何用户），因此刻意不加
+     * OwnerQuerySupport 的 visible / usable 过滤 —— 与其它 8 个资源表不同，不是漏写。
+     * 接口自身的访问控制由 AdminUserAdminController 的「仅管理员」白名单保证。
+     */
+    default IPage<AdminUser> queryPage(IPage<AdminUser> page, String userId, String username, Integer status) {
+        LambdaQueryWrapper<AdminUser> wrapper = new LambdaQueryWrapper<>();
+        if (userId != null && !userId.isBlank()) {
+            wrapper.eq(AdminUser::getUserId, userId);
+        }
+        if (username != null && !username.isBlank()) {
+            wrapper.like(AdminUser::getUsername, username);
+        }
+        if (status != null) {
+            wrapper.eq(AdminUser::getStatus, status);
+        }
+        return selectPage(page, wrapper.orderByDesc(AdminUser::getCreateTime));
     }
 
 

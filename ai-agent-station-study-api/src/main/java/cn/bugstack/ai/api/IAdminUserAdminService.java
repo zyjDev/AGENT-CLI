@@ -6,6 +6,7 @@ import cn.bugstack.ai.api.dto.AdminUserQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRegisterRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserRequestDTO;
 import cn.bugstack.ai.api.dto.AdminUserResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 
 import java.util.List;
@@ -108,11 +109,11 @@ public interface IAdminUserAdminService {
     Response<List<AdminUserResponseDTO>> queryAdminUsersByStatus(Integer status);
 
     /**
-     * 根据条件查询管理员用户列表
-     * @param request 查询条件
-     * @return 管理员用户列表
+     * 根据条件分页查询管理员用户列表
+     * @param request 查询条件（含分页参数）
+     * @return 管理员用户分页结果
      */
-    Response<List<AdminUserResponseDTO>> queryAdminUserList(AdminUserQueryRequestDTO request);
+    Response<PageResult<AdminUserResponseDTO>> queryAdminUserList(AdminUserQueryRequestDTO request);
 
     /**
      * 查询所有管理员用户

@@ -4,13 +4,16 @@ import cn.bugstack.ai.api.IAiClientRagOrderAdminService;
 import cn.bugstack.ai.api.dto.AiClientRagOrderQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientRagOrderRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientRagOrderResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.service.IRagService;
 import cn.bugstack.ai.infrastructure.dao.IAiClientRagOrderDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientRagOrder;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -358,56 +361,23 @@ public class AiClientRagOrderAdminController implements IAiClientRagOrderAdminSe
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientRagOrderResponseDTO>> queryAiClientRagOrderList(@RequestBody AiClientRagOrderQueryRequestDTO request) {
+    public Response<PageResult<AiClientRagOrderResponseDTO>> queryAiClientRagOrderList(@RequestBody AiClientRagOrderQueryRequestDTO request) {
         try {
             log.info("分页查询知识库配置列表：{}", request);
-            
-            // 这里简化实现，实际项目中可能需要实现分页查询
-            List<AiClientRagOrder> aiClientRagOrders = aiClientRagOrderDao.queryAll();
-            
-            // 根据查询条件过滤
-            List<AiClientRagOrder> filteredOrders = aiClientRagOrders.stream()
-                    .filter(order -> {
-                        boolean match = true;
-                        if (StringUtils.hasText(request.getRagId())) {
-                            match = match && order.getRagId().contains(request.getRagId());
-                        }
-                        if (StringUtils.hasText(request.getRagName())) {
-                            match = match && order.getRagName().contains(request.getRagName());
-                        }
-                        if (StringUtils.hasText(request.getKnowledgeTag())) {
-                            match = match && order.getKnowledgeTag().contains(request.getKnowledgeTag());
-                        }
-                        if (request.getStatus() != null) {
-                            match = match && request.getStatus().equals(order.getStatus());
-                        }
-                        return match;
-                    })
-                    .collect(Collectors.toList());
-            
-            // 简单分页处理
-            if (request.getPageNum() != null && request.getPageSize() != null) {
-                int start = (request.getPageNum() - 1) * request.getPageSize();
-                int end = Math.min(start + request.getPageSize(), filteredOrders.size());
-                if (start < filteredOrders.size()) {
-                    filteredOrders = filteredOrders.subList(start, end);
-                } else {
-                    filteredOrders.clear();
-                }
-            }
-            
-            List<AiClientRagOrderResponseDTO> responseDTOs = filteredOrders.stream()
-                    .map(this::convertToAiClientRagOrderResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientRagOrderResponseDTO>>builder()
+
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientRagOrder> page = aiClientRagOrderDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getRagId(), request.getRagName(), request.getKnowledgeTag(), request.getStatus());
+
+            return Response.<PageResult<AiClientRagOrderResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientRagOrderResponseDTO))
                     .build();
         } catch (Exception e) {
             log.error("分页查询知识库配置列表失败", e);
-            return Response.<List<AiClientRagOrderResponseDTO>>builder()
+            return Response.<PageResult<AiClientRagOrderResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

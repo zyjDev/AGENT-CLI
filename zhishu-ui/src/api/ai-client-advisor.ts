@@ -1,6 +1,7 @@
 /** 顾问管理（/api/v1/admin/ai-client-advisor） */
 import { http } from './http'
 import { ADMIN_BASE, CRUD } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiClientAdvisorItem {
   id: number
@@ -24,7 +25,8 @@ export const ADVISOR_TYPE_OPTIONS = [
 const BASE = ADMIN_BASE.AI_CLIENT_ADVISOR
 
 export const AiClientAdvisorApi = {
-  queryList: (payload: Record<string, unknown>) => http.post<AiClientAdvisorItem[]>(CRUD.queryList(BASE), payload),
+  queryList: (payload: Record<string, unknown>) =>
+    http.post<AiClientAdvisorItem[] | PagePayload<AiClientAdvisorItem>>(CRUD.queryList(BASE), payload),
   create: (payload: Record<string, unknown>) => http.post<boolean>(CRUD.create(BASE), payload),
   updateById: (payload: Record<string, unknown>) => http.put<boolean>(CRUD.updateById(BASE), payload),
   deleteById: (id: number | string) => http.delete<boolean>(CRUD.deleteById(BASE, id)),

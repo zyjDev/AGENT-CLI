@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiClientModelQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientModelRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientModelResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 
 import java.util.List;
@@ -85,11 +86,11 @@ public interface IAiClientModelAdminService {
     Response<List<AiClientModelResponseDTO>> queryEnabledAiClientModels();
 
     /**
-     * 根据条件查询AI客户端模型配置列表
-     * @param request 查询条件
-     * @return AI客户端模型配置列表
+     * 根据条件分页查询AI客户端模型配置列表
+     * @param request 查询条件（含分页参数）
+     * @return AI客户端模型配置分页结果
      */
-    Response<List<AiClientModelResponseDTO>> queryAiClientModelList(AiClientModelQueryRequestDTO request);
+    Response<PageResult<AiClientModelResponseDTO>> queryAiClientModelList(AiClientModelQueryRequestDTO request);
 
     /**
      * 查询所有AI客户端模型配置

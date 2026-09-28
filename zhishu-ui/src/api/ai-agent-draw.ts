@@ -4,6 +4,7 @@
  */
 import { http } from './http'
 import { ENDPOINTS } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiAgentDrawConfigItem {
   id?: number
@@ -36,7 +37,10 @@ export interface SaveDrawConfigPayload {
 
 export const AiAgentDrawApi = {
   queryList: (payload: Record<string, unknown>) =>
-    http.post<AiAgentDrawConfigItem[]>(ENDPOINTS.AI_AGENT_DRAW.QUERY_LIST, payload),
+    http.post<AiAgentDrawConfigItem[] | PagePayload<AiAgentDrawConfigItem>>(
+      ENDPOINTS.AI_AGENT_DRAW.QUERY_LIST,
+      payload,
+    ),
 
   /** 保存成功时返回 configId */
   saveConfig: (payload: SaveDrawConfigPayload) =>

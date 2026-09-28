@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiClientToolMcpQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientToolMcpRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientToolMcpResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 
 import java.util.List;
@@ -91,10 +92,10 @@ public interface IAiClientToolMcpAdminService {
     Response<List<AiClientToolMcpResponseDTO>> queryEnabledAiClientToolMcps();
 
     /**
-     * 根据查询条件查询MCP客户端配置列表
-     * @param request 查询请求对象
-     * @return MCP客户端配置列表
+     * 根据查询条件分页查询MCP客户端配置列表
+     * @param request 查询请求对象（含分页参数）
+     * @return MCP客户端配置分页结果
      */
-    Response<List<AiClientToolMcpResponseDTO>> queryAiClientToolMcpList(AiClientToolMcpQueryRequestDTO request);
+    Response<PageResult<AiClientToolMcpResponseDTO>> queryAiClientToolMcpList(AiClientToolMcpQueryRequestDTO request);
 
 }

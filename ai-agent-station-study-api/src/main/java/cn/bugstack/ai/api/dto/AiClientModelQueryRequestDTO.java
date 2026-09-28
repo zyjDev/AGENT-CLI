@@ -43,4 +43,14 @@ public class AiClientModelQueryRequestDTO implements Serializable {
      */
     private Integer status;
 
+    /**
+     * 页码（从1开始）
+     */
+    private Integer pageNum;
+
+    /**
+     * 每页大小
+     */
+    private Integer pageSize;
+
 }

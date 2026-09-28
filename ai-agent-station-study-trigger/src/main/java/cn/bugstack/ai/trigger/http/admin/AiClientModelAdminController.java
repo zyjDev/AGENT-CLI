@@ -4,11 +4,14 @@ import cn.bugstack.ai.api.IAiClientModelAdminService;
 import cn.bugstack.ai.api.dto.AiClientModelQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientModelRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientModelResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientModelDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientModel;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -352,50 +355,23 @@ public class AiClientModelAdminController implements IAiClientModelAdminService 
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientModelResponseDTO>> queryAiClientModelList(@RequestBody AiClientModelQueryRequestDTO request) {
+    public Response<PageResult<AiClientModelResponseDTO>> queryAiClientModelList(@RequestBody AiClientModelQueryRequestDTO request) {
         try {
-            log.info("根据条件查询AI客户端模型配置列表请求：{}", request);
-            
-            List<AiClientModel> aiClientModels;
-            
-            // 根据不同条件查询
-            if (StringUtils.hasText(request.getModelId())) {
-                AiClientModel model = aiClientModelDao.queryByModelId(request.getModelId());
+            log.info("根据条件分页查询AI客户端模型配置列表请求：{}", request);
 
-                // 读侧归属校验：queryByModelId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (model != null && !OwnerGuard.readable(model.getOwnerId())) {
-                    model = null;
-                }
-                aiClientModels = model != null ? List.of(model) : List.of();
-            } else if (StringUtils.hasText(request.getApiId())) {
-                // 读侧归属校验：同上，按 apiId 一次查出的多行里剔除他人私有的
-                aiClientModels = OwnerGuard.readableOnly(
-                        aiClientModelDao.queryByApiId(request.getApiId()), AiClientModel::getOwnerId);
-            } else if (StringUtils.hasText(request.getModelType())) {
-                aiClientModels = aiClientModelDao.queryByModelType(request.getModelType());
-            } else if (request.getStatus() != null) {
-                if (request.getStatus().equals(1)) {
-                    aiClientModels = aiClientModelDao.queryEnabledModels();
-                } else {
-                    aiClientModels = aiClientModelDao.queryAll();
-                }
-            } else {
-                aiClientModels = aiClientModelDao.queryAll();
-            }
-            
-            // PO转DTO
-            List<AiClientModelResponseDTO> responseDTOs = aiClientModels.stream()
-                    .map(this::convertToAiClientModelResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientModelResponseDTO>>builder()
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientModel> page = aiClientModelDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getModelId(), request.getApiId(), request.getModelType(), request.getStatus());
+
+            return Response.<PageResult<AiClientModelResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientModelResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("根据条件查询AI客户端模型配置列表失败", e);
-            return Response.<List<AiClientModelResponseDTO>>builder()
+            log.error("根据条件分页查询AI客户端模型配置列表失败", e);
+            return Response.<PageResult<AiClientModelResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

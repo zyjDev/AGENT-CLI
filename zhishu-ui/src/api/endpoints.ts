@@ -7,11 +7,12 @@
  * - AiRagUpdateController                      → /api/v1/rag/**
  * - AdminWebConfig 放行 /api/v1/admin/admin-user/login 与 /validate-login
  *
- * 后端风格：create=POST、update-by-id=PUT、delete-by-id/{id}=DELETE、query-list=POST（内存分页）。
+ * 后端风格：create=POST、update-by-id=PUT、delete-by-id/{id}=DELETE、query-list=POST（数据库物理分页）。
  * 例外：/v1/agent/armory_agent 与 /v1/agent/armory_api 使用下划线命名。
  *
- * 注意：所有 query-list 统一返回裸数组，响应里**没有 total 字段**，
- * 因此列表页的「总数」只能取当前页条数，不能伪造分页总数。
+ * 注意：query-list 正在从「裸数组」迁到 PageResult（{ list, total, pageNum, pageSize }）。
+ * 迁移期间两种形态并存：消费方一律用 normalizePagePayload（@/types/api）归一后再用，
+ * 不要直接假设拿到的就是数组。
  */
 
 /** 请求前缀：开发环境为 /api（走 Vite 代理），由 VITE_API_BASE 控制 */

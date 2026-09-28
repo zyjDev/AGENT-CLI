@@ -1,7 +1,11 @@
 package cn.bugstack.ai.config;
 
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
+import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -49,9 +53,34 @@ public class DataSourceConfig {
         return dataSource;
     }
 
+    /**
+     * MyBatis-Plus 分页插件。
+     *
+     * <p>⚠️ 必须显式挂载：本项目的 {@code SqlSessionFactory} 是下面手工声明的
+     * {@link MybatisSqlSessionFactoryBean}，<b>不是</b> Spring Boot starter 自动配置出来的那个，
+     * 所以自动配置里的分页插件对本项目<b>不生效</b>。
+     *
+     * <p>漏挂的后果是「静默失效」：{@code selectPage} 不报错，但既不加 LIMIT 也不执行 count，
+     * {@code total} 恒为 0、{@code records} 是整表数据 —— 看起来就像「分页没生效」。
+     */
+    @Bean("mybatisPlusInterceptor")
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        // 兜底：与 AdminPageSupport.MAX_PAGE_SIZE 对齐，防止 pageSize 传得过大把整表捞回来
+        pagination.setMaxLimit((long) AdminPageSupport.MAX_PAGE_SIZE);
+        // 页码越界（如记录被删后 pageNum 仍停在旧的大值）返回空列表，而不是悄悄回到第一页
+        pagination.setOverflow(false);
+
+        interceptor.addInnerInterceptor(pagination);
+        return interceptor;
+    }
+
     @Bean("sqlSessionFactory")
     public SqlSessionFactory sqlSessionFactory(@Qualifier("mysqlDataSource") DataSource mysqlDataSource,
-                                               @Autowired(required = false) MetaObjectHandler metaObjectHandler) throws Exception {
+                                               @Autowired(required = false) MetaObjectHandler metaObjectHandler,
+                                               @Qualifier("mybatisPlusInterceptor") MybatisPlusInterceptor mybatisPlusInterceptor) throws Exception {
         MybatisSqlSessionFactoryBean sqlSessionFactoryBean = new MybatisSqlSessionFactoryBean();
         sqlSessionFactoryBean.setDataSource(mysqlDataSource);
 
@@ -61,6 +90,9 @@ public class DataSourceConfig {
             globalConfig.setMetaObjectHandler(metaObjectHandler);
         }
         sqlSessionFactoryBean.setGlobalConfig(globalConfig);
+
+        // 分页插件挂到手工工厂上（原因见 mybatisPlusInterceptor 的注释）
+        sqlSessionFactoryBean.setPlugins(mybatisPlusInterceptor);
 
         return sqlSessionFactoryBean.getObject();
     }

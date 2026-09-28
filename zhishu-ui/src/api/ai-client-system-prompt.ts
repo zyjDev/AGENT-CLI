@@ -1,6 +1,7 @@
 /** 系统提示词管理（/api/v1/admin/ai-client-system-prompt） */
 import { http } from './http'
 import { ADMIN_BASE, CRUD } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiClientSystemPromptItem {
   id: number
@@ -17,7 +18,7 @@ const BASE = ADMIN_BASE.AI_CLIENT_SYSTEM_PROMPT
 
 export const AiClientSystemPromptApi = {
   queryList: (payload: Record<string, unknown>) =>
-    http.post<AiClientSystemPromptItem[]>(CRUD.queryList(BASE), payload),
+    http.post<AiClientSystemPromptItem[] | PagePayload<AiClientSystemPromptItem>>(CRUD.queryList(BASE), payload),
   create: (payload: Record<string, unknown>) => http.post<boolean>(CRUD.create(BASE), payload),
   updateById: (payload: Record<string, unknown>) => http.put<boolean>(CRUD.updateById(BASE), payload),
   deleteById: (id: number | string) => http.delete<boolean>(CRUD.deleteById(BASE, id)),

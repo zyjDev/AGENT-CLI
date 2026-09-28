@@ -1,6 +1,7 @@
 /** MCP 工具管理（/api/v1/admin/ai-client-tool-mcp） */
 import { http } from './http'
 import { ADMIN_BASE, CRUD } from './endpoints'
+import type { PagePayload } from '@/types/api'
 
 export interface AiClientToolMcpItem {
   id: number
@@ -27,7 +28,8 @@ export const DEFAULT_MCP_TIMEOUT_MS = 30000
 const BASE = ADMIN_BASE.AI_CLIENT_TOOL_MCP
 
 export const AiClientToolMcpApi = {
-  queryList: (payload: Record<string, unknown>) => http.post<AiClientToolMcpItem[]>(CRUD.queryList(BASE), payload),
+  queryList: (payload: Record<string, unknown>) =>
+    http.post<AiClientToolMcpItem[] | PagePayload<AiClientToolMcpItem>>(CRUD.queryList(BASE), payload),
   create: (payload: Record<string, unknown>) => http.post<boolean>(CRUD.create(BASE), payload),
   updateById: (payload: Record<string, unknown>) => http.put<boolean>(CRUD.updateById(BASE), payload),
   deleteById: (id: number | string) => http.delete<boolean>(CRUD.deleteById(BASE, id)),

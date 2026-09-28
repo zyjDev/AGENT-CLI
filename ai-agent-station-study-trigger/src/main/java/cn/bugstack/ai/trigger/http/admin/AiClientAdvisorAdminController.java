@@ -4,11 +4,14 @@ import cn.bugstack.ai.api.IAiClientAdvisorAdminService;
 import cn.bugstack.ai.api.dto.AiClientAdvisorQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientAdvisorRequestDTO;
 import cn.bugstack.ai.api.dto.AiClientAdvisorResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.infrastructure.dao.IAiClientAdvisorDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientAdvisor;
+import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.enums.ResponseCode;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
@@ -345,75 +348,23 @@ public class AiClientAdvisorAdminController implements IAiClientAdvisorAdminServ
 
     @Override
     @PostMapping("/query-list")
-    public Response<List<AiClientAdvisorResponseDTO>> queryAiClientAdvisorList(@RequestBody AiClientAdvisorQueryRequestDTO request) {
+    public Response<PageResult<AiClientAdvisorResponseDTO>> queryAiClientAdvisorList(@RequestBody AiClientAdvisorQueryRequestDTO request) {
         try {
-            log.info("根据条件查询顾问配置列表请求：{}", request);
-            
-            // 根据查询条件获取数据
-            List<AiClientAdvisor> aiClientAdvisors;
-            
-            if (StringUtils.hasText(request.getAdvisorId())) {
-                // 如果有顾问ID，直接查询
-                AiClientAdvisor advisor = aiClientAdvisorDao.queryByAdvisorId(request.getAdvisorId());
+            log.info("根据条件分页查询顾问配置列表请求：{}", request);
 
-                // 读侧归属校验：queryByAdvisorId 刻意不带归属过滤，他人私有的行不能出现在我的列表里
-                if (advisor != null && !OwnerGuard.readable(advisor.getOwnerId())) {
-                    advisor = null;
-                }
-                aiClientAdvisors = advisor != null ? List.of(advisor) : List.of();
-            } else if (StringUtils.hasText(request.getAdvisorType())) {
-                // 如果有顾问类型，按类型查询
-                aiClientAdvisors = aiClientAdvisorDao.queryByAdvisorType(request.getAdvisorType());
-            } else if (request.getStatus() != null) {
-                // 如果有状态，按状态查询
-                aiClientAdvisors = aiClientAdvisorDao.queryByStatus(request.getStatus());
-            } else {
-                // 否则查询所有
-                aiClientAdvisors = aiClientAdvisorDao.queryAll();
-            }
-            
-            // 过滤条件
-            List<AiClientAdvisor> filteredAdvisors = aiClientAdvisors.stream()
-                    .filter(advisor -> {
-                        // 顾问名称模糊查询
-                        if (StringUtils.hasText(request.getAdvisorName()) && 
-                            !advisor.getAdvisorName().contains(request.getAdvisorName())) {
-                            return false;
-                        }
-                        // 状态过滤
-                        if (request.getStatus() != null && !request.getStatus().equals(advisor.getStatus())) {
-                            return false;
-                        }
-                        return true;
-                    })
-                    .collect(Collectors.toList());
-            
-            // 分页处理（简单实现）
-            if (request.getPageNum() != null && request.getPageSize() != null) {
-                int pageNum = Math.max(1, request.getPageNum());
-                int pageSize = Math.max(1, request.getPageSize());
-                int startIndex = (pageNum - 1) * pageSize;
-                int endIndex = Math.min(startIndex + pageSize, filteredAdvisors.size());
-                
-                if (startIndex < filteredAdvisors.size()) {
-                    filteredAdvisors = filteredAdvisors.subList(startIndex, endIndex);
-                } else {
-                    filteredAdvisors = List.of();
-                }
-            }
-            
-            List<AiClientAdvisorResponseDTO> responseDTOs = filteredAdvisors.stream()
-                    .map(this::convertToAiClientAdvisorResponseDTO)
-                    .collect(Collectors.toList());
-            
-            return Response.<List<AiClientAdvisorResponseDTO>>builder()
+            // 条件与归属过滤一起下推 SQL，total 由 count 语句得出（真正的物理分页）
+            IPage<AiClientAdvisor> page = aiClientAdvisorDao.queryPage(
+                    AdminPageSupport.page(request.getPageNum(), request.getPageSize()),
+                    request.getAdvisorId(), request.getAdvisorName(), request.getAdvisorType(), request.getStatus());
+
+            return Response.<PageResult<AiClientAdvisorResponseDTO>>builder()
                     .code(ResponseCode.SUCCESS.getCode())
                     .info(ResponseCode.SUCCESS.getInfo())
-                    .data(responseDTOs)
+                    .data(AdminPageSupport.of(page, this::convertToAiClientAdvisorResponseDTO))
                     .build();
         } catch (Exception e) {
-            log.error("根据条件查询顾问配置列表失败", e);
-            return Response.<List<AiClientAdvisorResponseDTO>>builder()
+            log.error("根据条件分页查询顾问配置列表失败", e);
+            return Response.<PageResult<AiClientAdvisorResponseDTO>>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .data(null)

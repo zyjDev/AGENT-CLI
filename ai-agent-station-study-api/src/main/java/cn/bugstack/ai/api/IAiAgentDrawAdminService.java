@@ -3,6 +3,7 @@ package cn.bugstack.ai.api;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigRequestDTO;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigQueryRequestDTO;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigResponseDTO;
+import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
 import java.util.List;
 
@@ -32,9 +33,9 @@ public interface IAiAgentDrawAdminService {
      * 分页查询拖拉拽流程图配置列表
      *
      * @param request 查询条件与分页参数
-     * @return 配置列表
+     * @return 配置分页结果
      */
-    Response<List<AiAgentDrawConfigResponseDTO>> queryDrawConfigList(AiAgentDrawConfigQueryRequestDTO request);
+    Response<PageResult<AiAgentDrawConfigResponseDTO>> queryDrawConfigList(AiAgentDrawConfigQueryRequestDTO request);
 
     /**
      * 删除拖拉拽流程图配置
