@@ -6,6 +6,7 @@ import cn.bugstack.ai.api.dto.AiAgentDrawConfigResponseDTO;
 import cn.bugstack.ai.api.dto.AiAgentDrawConfigQueryRequestDTO;
 import cn.bugstack.ai.api.response.PageResult;
 import cn.bugstack.ai.api.response.Response;
+import cn.bugstack.ai.domain.agent.service.IAgentAccessService;
 import cn.bugstack.ai.infrastructure.dao.*;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
 import cn.bugstack.ai.infrastructure.dao.po.AiAgentDrawConfig;
@@ -13,7 +14,6 @@ import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientConfig;
 import cn.bugstack.ai.trigger.http.admin.util.DrawConfigParser;
 import cn.bugstack.ai.trigger.support.AdminPageSupport;
-import cn.bugstack.ai.trigger.support.OwnModelGuard;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
@@ -56,9 +56,9 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
     private IAiAgentDao aiAgentDao;
     @Resource
     private IAiAgentFlowConfigDao aiAgentFlowConfigDao;
-    // 「普通用户自建智能体必须自带模型 Key」校验用
+    // 「普通用户自建智能体必须自带模型 Key」校验用（规则本体已收敛到领域服务，本类只调用）
     @Resource
-    private OwnModelGuard ownModelGuard;
+    private IAgentAccessService agentAccessService;
 
     @Override
     @PostMapping("/query-list")
@@ -175,9 +175,9 @@ public class AiAgentDrawAdminController implements IAiAgentDrawAdminService {
                     refModelIds.add(relation.getTargetId());
                 }
             }
-            String ownModelProblem = ownModelGuard.checkClients(refClientIds, UserContext.userId());
+            String ownModelProblem = agentAccessService.checkClients(refClientIds, UserContext.userId());
             if (ownModelProblem == null) {
-                ownModelProblem = ownModelGuard.checkModels(refModelIds, UserContext.userId());
+                ownModelProblem = agentAccessService.checkModels(refModelIds, UserContext.userId());
             }
             if (ownModelProblem != null) {
                 log.warn("拒绝保存：自建智能体借道了非本人资源，configId={}, userId={}", configId, UserContext.userId());

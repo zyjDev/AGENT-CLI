@@ -7,19 +7,14 @@ import cn.bugstack.ai.api.dto.ArmoryApiRequestDTO;
 import cn.bugstack.ai.api.dto.AutoAgentRequestDTO;
 import cn.bugstack.ai.api.response.Response;
 import cn.bugstack.ai.domain.agent.model.entity.ExecuteCommandEntity;
+import cn.bugstack.ai.domain.agent.model.valobj.AiAgentAccessVO;
+import cn.bugstack.ai.domain.agent.model.valobj.AiAgentClientFlowConfigVO;
 import cn.bugstack.ai.domain.agent.model.valobj.AiAgentVO;
 import cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO;
+import cn.bugstack.ai.domain.agent.service.IAgentAccessService;
 import cn.bugstack.ai.domain.agent.service.IAgentDispatchService;
 import cn.bugstack.ai.domain.agent.service.IArmoryService;
 import cn.bugstack.ai.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import cn.bugstack.ai.infrastructure.dao.IAiAgentDao;
-import cn.bugstack.ai.infrastructure.dao.IAiAgentFlowConfigDao;
-import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
-import cn.bugstack.ai.infrastructure.dao.po.AiAgent;
-import cn.bugstack.ai.infrastructure.dao.po.AiAgentFlowConfig;
-import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
-import cn.bugstack.ai.trigger.support.OwnModelGuard;
-import cn.bugstack.ai.types.common.OwnerScope;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import com.alibaba.fastjson.JSON;
@@ -59,34 +54,13 @@ public class AiAgentController implements IAiAgentService {
     // 注入装配服务
     @Resource
     private IArmoryService armoryService;
-    // 智能体归属校验用（系统默认资源 owner 为空，人人可用；私有资源只有 owner 本人可用）
+    // 归属与可执行性校验（领域服务）。
+    // 改造前这里是 3 个 infrastructure DAO + OwnModelGuard：规则散落在 HTTP 层，
+    // 且同一次请求里把同一份智能体数据查了 3 次；现已全部收敛进领域层，本类只做参数装配与响应转换。
     @Resource
-    private IAiAgentDao aiAgentDao;
-    // API 通道归属校验用
-    @Resource
-    private IAiClientApiDao aiClientApiDao;
-    // 「普通用户自建智能体必须自带模型 Key」校验用
-    @Resource
-    private OwnModelGuard ownModelGuard;
-    // 绑定关系（ai_agent_flow_config）与用户级链路补装用
-    @Resource
-    private IAiAgentFlowConfigDao aiAgentFlowConfigDao;
+    private IAgentAccessService agentAccessService;
     @Resource
     private ApplicationContext applicationContext;
-
-    /**
-     * 当前用户是否可用该智能体。
-     * <p>
-     * 列表接口已在 DAO 层按归属过滤（看不到别人的），但接口不能只靠"看不到"：
-     * agentId 一旦被猜到/泄露，没有这道校验就能白嫖别人的私有智能体（消耗其 API Key）。
-     */
-    private boolean canUseAgent(String agentId) {
-        if (agentId == null || agentId.trim().isEmpty()) {
-            return false;
-        }
-        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
-        return agent != null && OwnerScope.isVisible(agent.getOwnerId(), UserContext.userId());
-    }
 
     /** 以 SSE 事件的形式回错误（必须是合法 JSON，前端按 data: {type,content} 解析） */
     private ResponseBodyEmitter sseError(String message) {
@@ -116,50 +90,23 @@ public class AiAgentController implements IAiAgentService {
     }
 
     /**
-     * 普通用户「自建智能体必须自带模型 Key」校验。
+     * 解析归属与可执行性（<b>一次查库</b>，替代改造前「三次查询 + 三条独立校验」），
+     * 并对"被拒"的情况统一打日志。
      *
-     * @return null = 通过；否则返回给用户看的提示
+     * <p>规则本体在领域服务 {@link IAgentAccessService}：管理员不受限；普通用户自建的智能体
+     * 链路必须都是他自己的；平台默认智能体必须先绑定自己的 Key。
+     * 这里只负责把结论翻成协议层的响应。
      */
-    private String findOwnModelProblem(String agentId) {
-        if (UserContext.isAdmin()) {
-            return null;
+    private AiAgentAccessVO resolveAccess(String agentId) {
+        AiAgentAccessVO access = agentAccessService.resolveAccess(agentId, UserContext.userId(), UserContext.isAdmin());
+        if (!access.isAccessible()) {
+            log.warn("拒绝调用无权限的智能体，aiAgentId={}, userId={}", agentId, UserContext.userId());
+        } else if (access.getOwnModelProblem() != null) {
+            log.warn("拒绝调用：自建智能体借道了非本人资源，aiAgentId={}, userId={}", agentId, UserContext.userId());
+        } else if (access.getBindingProblem() != null) {
+            log.warn("拒绝调用：普通用户未绑定自己的 Key，aiAgentId={}, userId={}", agentId, UserContext.userId());
         }
-        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
-        String userId = UserContext.userId();
-        String agentOwner = agent == null ? null : agent.getOwnerId();
-        boolean mine = agentOwner != null && !agentOwner.isEmpty() && agentOwner.equals(userId);
-        if (!mine) {
-            // 平台默认智能体（owner 为空）：普通用户就是允许用平台 Key 跑它，不校验
-            return null;
-        }
-        return ownModelGuard.checkAgentChain(agentId, userId);
-    }
-
-    /**
-     * 「平台默认智能体必须先绑定自己的 Key」校验。
-     *
-     * <p>产品规则：平台默认 Key 只给管理员用。普通用户要跑平台默认智能体（6 个基础智能体那类），
-     * 必须先在「客户端 API 管理」配好自己的 base_url + api_key 并绑定它。
-     * 只校验平台默认智能体 —— 他自己搭的智能体已由 {@link #findOwnModelProblem(String)}
-     * 保证链路都是他本人的，不需要再要求"绑定"。
-     *
-     * @return null = 通过；否则返回给用户看的提示
-     */
-    private String findBindingProblem(String agentId) {
-        if (UserContext.isAdmin()) {
-            return null;
-        }
-        String userId = UserContext.userId();
-        if (userId == null || userId.isBlank()) {
-            return null;
-        }
-        AiAgent agent = aiAgentDao.queryByAgentId(agentId);
-        String agentOwner = agent == null ? null : agent.getOwnerId();
-        if (agentOwner != null && !agentOwner.isEmpty()) {
-            // 自己的智能体走链路校验；别人的私有智能体已由 canUseAgent 拦下
-            return null;
-        }
-        return ownModelGuard.checkBindingRequired(agentId, userId);
+        return access;
     }
 
     /**
@@ -174,8 +121,9 @@ public class AiAgentController implements IAiAgentService {
         if (userId == null || userId.isBlank()) {
             return;
         }
-        List<AiAgentFlowConfig> myBindings = aiAgentFlowConfigDao.queryEnabledByAgentIdAndOwner(agentId, userId);
-        for (AiAgentFlowConfig binding : myBindings) {
+        // 只认"他自己的绑定"（不回落系统默认链路），否则会把平台默认链路当成需要补装的对象
+        List<AiAgentClientFlowConfigVO> myBindings = agentAccessService.queryUserOwnFlowConfigs(agentId, userId);
+        for (AiAgentClientFlowConfigVO binding : myBindings) {
             String beanName = AiAgentEnumVO.AI_CLIENT.getBeanName(binding.getClientId());
             if (applicationContext.containsBean(beanName)) {
                 continue;
@@ -210,28 +158,22 @@ public class AiAgentController implements IAiAgentService {
             response.setHeader("Cache-Control", "no-cache");
             response.setHeader("Connection", "keep-alive");
 
-            // 0. 归属校验：只能调用「公共 + 本人」的智能体
-            if (!canUseAgent(request.getAiAgentId())) {
-                log.warn("拒绝调用无权限的智能体，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
+            // 0. 归属与可执行性校验（一次解析拿全三个结论）：
+            //    只能调用「公共 + 本人」的智能体；普通用户自建的智能体必须用自己的模型
+            //    （公共/别人的都算借道）；平台默认智能体必须绑过用户自己的 Key（平台 Key 只给管理员用）。
+            //    在服务端拦一道，避免绕过前端直接调接口白嫖平台 Key。
+            AiAgentAccessVO access = resolveAccess(request.getAiAgentId());
+            if (!access.isAccessible()) {
                 return sseError("智能体不存在或无权访问");
             }
-
-            // 0.1 自带 Key 校验：普通用户自建的智能体必须用自己的模型（公共/别人的都算借道）。
-            //     在这里也拦一道，避免绕过前端直接调接口白嫖平台 Key。
-            String ownModelProblem = findOwnModelProblem(request.getAiAgentId());
-            if (ownModelProblem != null) {
-                log.warn("拒绝调用：自建智能体借道了非本人资源，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
-                return sseError(ownModelProblem, ResponseCode.NEED_OWN_MODEL_KEY.getCode());
+            if (access.getOwnModelProblem() != null) {
+                return sseError(access.getOwnModelProblem(), ResponseCode.NEED_OWN_MODEL_KEY.getCode());
+            }
+            if (access.getBindingProblem() != null) {
+                return sseError(access.getBindingProblem(), ResponseCode.NEED_OWN_MODEL_KEY.getCode());
             }
 
-            // 0.2 绑定校验：平台默认智能体必须绑过用户自己的 Key（平台 Key 只给管理员用）
-            String bindingProblem = findBindingProblem(request.getAiAgentId());
-            if (bindingProblem != null) {
-                log.warn("拒绝调用：普通用户未绑定自己的 Key，aiAgentId={}, userId={}", request.getAiAgentId(), UserContext.userId());
-                return sseError(bindingProblem, ResponseCode.NEED_OWN_MODEL_KEY.getCode());
-            }
-
-            // 0.3 用户级链路补装：后端重启后他的 Bean 会丢，首次对话时自动装回来
+            // 0.1 用户级链路补装：后端重启后他的 Bean 会丢，首次对话时自动装回来
             ensureUserChainAssembled(request.getAiAgentId());
 
             // 1. 创建流式输出对象
@@ -289,34 +231,28 @@ public class AiAgentController implements IAiAgentService {
                         .build();
             }
 
-            // 归属校验：装配会把该智能体的资源注册成 Spring 单例 Bean，绝不能装配别人的私有智能体
-            if (!canUseAgent(request.getAgentId())) {
-                log.warn("拒绝装配无权限的智能体，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+            // 归属与可执行性校验（一次解析拿全三个结论）：
+            // 装配会把该智能体的资源注册成 Spring 单例 Bean，绝不能装配别人的私有智能体；
+            // 自建智能体的链路必须都是他自己的；平台默认智能体必须先绑过他自己的 Key
+            AiAgentAccessVO access = resolveAccess(request.getAgentId());
+            if (!access.isAccessible()) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("智能体不存在或无权访问")
                         .data(false)
                         .build();
             }
-
-            // 自带 Key 校验：普通用户自己建的智能体，链路上的客户端/模型必须都是他自己的
-            String ownModelProblem = findOwnModelProblem(request.getAgentId());
-            if (ownModelProblem != null) {
-                log.warn("拒绝装配：自建智能体借道了非本人资源，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+            if (access.getOwnModelProblem() != null) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
-                        .info(ownModelProblem)
+                        .info(access.getOwnModelProblem())
                         .data(false)
                         .build();
             }
-
-            // 绑定校验：平台默认智能体必须绑过用户自己的 Key（平台 Key 只给管理员用）
-            String bindingProblem = findBindingProblem(request.getAgentId());
-            if (bindingProblem != null) {
-                log.warn("拒绝装配：普通用户未绑定自己的 Key，agentId={}, userId={}", request.getAgentId(), UserContext.userId());
+            if (access.getBindingProblem() != null) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.NEED_OWN_MODEL_KEY.getCode())
-                        .info(bindingProblem)
+                        .info(access.getBindingProblem())
                         .data(false)
                         .build();
             }
@@ -408,9 +344,9 @@ public class AiAgentController implements IAiAgentService {
                         .build();
             }
             
-            // 归属校验：只能装配「自己」的 API 通道（系统默认的通道仅管理员可重新装配）
-            AiClientApi api = aiClientApiDao.queryByApiId(request.getApiId());
-            if (api == null || !OwnerScope.canWrite(api.getOwnerId(), UserContext.userId(), UserContext.isAdmin())) {
+            // 归属校验：只能装配「自己」的 API 通道（系统默认的通道仅管理员可重新装配）。
+            // 规则同样收在领域服务里，trigger 不再直连 DAO
+            if (!agentAccessService.canWriteApiChannel(request.getApiId(), UserContext.userId(), UserContext.isAdmin())) {
                 log.warn("拒绝装配无权限的 API 通道，apiId={}, userId={}", request.getApiId(), UserContext.userId());
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())

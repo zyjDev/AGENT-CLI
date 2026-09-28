@@ -525,6 +525,8 @@ public class AgentRepository implements IAgentRepository {
                 .channel(aiAgent.getChannel())
                 .strategy(aiAgent.getStrategy())
                 .status(aiAgent.getStatus())
+                // 归属校验（能否使用 / 是否"自建"）需要它，见 AgentAccessService
+                .ownerId(aiAgent.getOwnerId())
                 .build();
     }
 
@@ -556,11 +558,107 @@ public class AgentRepository implements IAgentRepository {
                     .sequence(flowConfig.getSequence())
                     .stepPrompt(flowConfig.getStepPrompt())
                     .build();
-
             aiAgentClientFlowConfigVOS.add(configVO);
         }
 
         return aiAgentClientFlowConfigVOS;
+    }
+
+    @Override
+    public List<AiResourceOwnerVO> queryClientOwners(List<String> clientIds) {
+        if (clientIds == null || clientIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<AiResourceOwnerVO> result = new ArrayList<>();
+        for (String clientId : clientIds) {
+            AiClient client = aiClientDao.queryByClientId(clientId);
+            if (client == null) {
+                // 引用不存在交给原有的「配置不完整」提示，归属校验不抢它的活
+                continue;
+            }
+            result.add(AiResourceOwnerVO.builder()
+                    .resourceId(client.getClientId())
+                    .resourceName(client.getClientName())
+                    .ownerId(client.getOwnerId())
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<AiResourceOwnerVO> queryModelOwners(List<String> modelIds) {
+        if (modelIds == null || modelIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<AiResourceOwnerVO> result = new ArrayList<>();
+        for (String modelId : modelIds) {
+            AiClientModel model = aiClientModelDao.queryByModelId(modelId);
+            if (model == null) {
+                continue;
+            }
+            result.add(AiResourceOwnerVO.builder()
+                    .resourceId(model.getModelId())
+                    .resourceName(model.getModelName())
+                    .ownerId(model.getOwnerId())
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<String> queryModelIdsByClientIds(List<String> clientIds) {
+        if (clientIds == null || clientIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> modelIds = new ArrayList<>();
+        for (String clientId : clientIds) {
+            // 与归属校验的历史语义保持一致：不过滤 status（这里问的是"引用了谁的资源"）
+            List<AiClientConfig> relations = aiClientConfigDao.queryBySourceTypeAndId(AI_CLIENT.getCode(), clientId);
+            for (AiClientConfig relation : relations) {
+                if (AI_CLIENT_MODEL.getCode().equals(relation.getTargetType()) && hasText(relation.getTargetId())) {
+                    modelIds.add(relation.getTargetId());
+                }
+            }
+        }
+        return modelIds;
+    }
+
+    @Override
+    public List<AiAgentClientFlowConfigVO> queryUserOwnFlowConfigs(String aiAgentId, String ownerId) {
+        List<AiAgentClientFlowConfigVO> result = new ArrayList<>();
+        if (!hasText(aiAgentId) || !hasText(ownerId)) {
+            return result;
+        }
+
+        List<AiAgentFlowConfig> flowConfigs = aiAgentFlowConfigDao.queryEnabledByAgentIdAndOwner(aiAgentId, ownerId);
+        for (AiAgentFlowConfig flowConfig : flowConfigs) {
+            result.add(AiAgentClientFlowConfigVO.builder()
+                    .clientId(flowConfig.getClientId())
+                    .clientName(flowConfig.getClientName())
+                    .clientType(flowConfig.getClientType())
+                    .sequence(flowConfig.getSequence())
+                    .stepPrompt(flowConfig.getStepPrompt())
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public AiResourceOwnerVO queryApiChannelOwner(String apiId) {
+        if (!hasText(apiId)) {
+            return null;
+        }
+        AiClientApi api = aiClientApiDao.queryByApiId(apiId);
+        if (api == null) {
+            return null;
+        }
+        return AiResourceOwnerVO.builder()
+                .resourceId(api.getApiId())
+                .ownerId(api.getOwnerId())
+                .build();
     }
 
     @Override
@@ -614,6 +712,7 @@ public class AgentRepository implements IAgentRepository {
                     .channel(aiAgent.getChannel())
                     .strategy(aiAgent.getStrategy())
                     .status(aiAgent.getStatus())
+                    .ownerId(aiAgent.getOwnerId())
                     .build());
         }
         return aiAgentVOS;
@@ -670,6 +769,21 @@ public class AgentRepository implements IAgentRepository {
      */
     private boolean isEnabled(Integer status) {
         return Integer.valueOf(1).equals(status);
+    }
+
+    /**
+     * 非空白判定（不引 Spring StringUtils，保持仓储的薄依赖）。
+     */
+    private boolean hasText(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (!Character.isWhitespace(value.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

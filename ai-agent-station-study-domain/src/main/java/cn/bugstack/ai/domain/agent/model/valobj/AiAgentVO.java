@@ -47,4 +47,12 @@ public class AiAgentVO {
      */
     private Integer status;
 
+    /**
+     * 归属用户；空/null = 平台默认资源（人人可用）。
+     * <p>
+     * 归属校验（能否使用 / 是否"自建"）本属领域规则，必须能在领域层判定，
+     * 因此把它带进 VO —— 改造前 trigger 层只能再直连 DAO 查一次 {@code ai_agent} 才拿得到它。
+     */
+    private String ownerId;
+
 }

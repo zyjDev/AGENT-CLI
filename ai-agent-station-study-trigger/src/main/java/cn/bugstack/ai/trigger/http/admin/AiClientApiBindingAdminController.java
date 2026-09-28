@@ -29,7 +29,7 @@ import java.util.Map;
  *
  * ============================ 为什么需要它 ============================
  * 平台默认 Key（管理员的）只给管理员用。普通用户要用某个智能体 —— 包括那 6 个基础智能体 ——
- * 必须先配好自己的 Key 并绑定给它，否则对话/装配会被 {@code OwnModelGuard} 拦下。
+ * 必须先配好自己的 Key 并绑定给它，否则对话/装配会被 {@code AgentAccessService} 拦下。
  *
  * 绑定关系<b>不引入新表</b>，就落在既有的 {@code ai_agent_flow_config}（agent_id + client_id + owner_id）：
  * <ol>
