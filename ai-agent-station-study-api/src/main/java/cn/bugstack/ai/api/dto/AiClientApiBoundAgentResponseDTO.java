@@ -11,8 +11,6 @@ import java.io.Serializable;
  * 「这条 API 密钥当前绑定给了哪些智能体」的展示项。
  *
  * <p>用于客户端 API 管理页：让用户看得见自己配的 Key 用在了哪儿，并能解绑。
- *
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

@@ -24,9 +24,6 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * 抽象类
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/8/24 14:28
  */
 public abstract class AbstractExecuteSupport extends AbstractMultiThreadStrategyRouter<ExecuteCommandEntity, DefaultFlowAgentExecuteStrategyFactory.DynamicContext, String> {
 

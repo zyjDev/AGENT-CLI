@@ -17,9 +17,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>
  * 注意：jtokkit 使用 OpenAI 的 BPE 编码，本项目实际模型为 OpenAI 兼容接口下的小米 MiMo，
  * 两者分词规则不同，因此估算值通过 EMA 校准系数向真实 usage 逼近。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Slf4j
 @Service

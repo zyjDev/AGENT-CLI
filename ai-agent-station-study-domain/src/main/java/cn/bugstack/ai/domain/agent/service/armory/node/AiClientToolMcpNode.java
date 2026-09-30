@@ -23,8 +23,6 @@ import java.util.Map;
 
 /**
  * MCP客户端配置节点
- *
- * 2025/7/5 12:48
  */
 @Slf4j
 @Service
@@ -90,6 +88,15 @@ public class AiClientToolMcpNode extends AbstractArmorySupport {
         if (requestTimeout != configured) {
             log.warn("⚠️ MCP 请求超时配置 {}分钟 超过上限，已钳制为 {} 分钟：toolMcpId={}",
                     configured, requestTimeout, aiClientToolMcpVO.getToolMcpId());
+        }
+
+        // 纵深防御（2026-09-30）：stdio 会把配置里的 command/args 交给 MCP SDK 在**本进程**上 fork/exec。
+        // 保存期已禁止普通用户配置 stdio，但存量数据 / 绕过接口写入的配置仍可能落库，
+        // 而这里的 ownerId 是判定依据：非空 = 普通用户自建（管理员新建的留空 = 平台默认）。
+        // 放在 switch 之前，保证「无论走哪个分支」都先拦一遍。
+        if ("stdio".equalsIgnoreCase(transportType) && StringUtils.isNotBlank(aiClientToolMcpVO.getOwnerId())) {
+            throw new IllegalStateException("拒绝装配该 MCP：私有 MCP 不允许使用 stdio 传输"
+                    + "（会在服务器上执行本地命令），请改用 sse 传输：mcpId=" + aiClientToolMcpVO.getToolMcpId());
         }
 
         switch (transportType) {

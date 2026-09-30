@@ -9,9 +9,6 @@ import java.util.List;
  * <p>
  * 用于在「模型调用之前」判断上下文是否超预算，这是本地估算不可替代的价值：
  * 模型返回的 usage 是事后数据，无法用来做调用前的门控。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 public interface ITokenCounter {
 

@@ -9,9 +9,6 @@ import java.util.List;
  * 上下文摘要抽象
  * <p>
  * 被挤出预算窗口的历史不直接丢弃，而是压成一段摘要保留，避免多轮/多步之后彻底失忆。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 public interface IContextSummarizer {
 

@@ -12,8 +12,6 @@ import java.util.Map;
 
 /**
  * 流程执行根节点
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/8/24 14:35
  */
 @Slf4j
 @Service("flowRootNode")

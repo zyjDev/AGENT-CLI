@@ -20,8 +20,6 @@ import org.springframework.web.client.RestClient;
  *   <li>read-timeout 要 &gt;= 最长的那个节点超时（否则正常长调用会被底层先掐断，节点超时永远轮不到生效）</li>
  *   <li>read-timeout 又不能太大（否则接口假死后线程要挂满 read-timeout 才回收）</li>
  * </ul>
- *
- * @author bugstack.cn
  */
 @Slf4j
 @Configuration

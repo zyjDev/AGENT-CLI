@@ -14,8 +14,6 @@ package cn.bugstack.ai.types.context;
  *    那里取不到值 —— 这类跨线程链路必须把 owner 作为**方法参数**显式传递。
  * 2. 必须在请求结束时清理（拦截器 afterCompletion），否则 Tomcat 复用线程时会串用户。
  * =====================================================================
- *
- * @author bugstack虫洞栈
  */
 public final class UserContext {
 

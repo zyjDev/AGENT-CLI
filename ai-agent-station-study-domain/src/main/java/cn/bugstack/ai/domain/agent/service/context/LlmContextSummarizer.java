@@ -20,9 +20,6 @@ import java.util.concurrent.TimeoutException;
  * <p>
  * 关键约束：摘要调用必须用「裸 ChatClient」，不能复用项目里挂了 ChatMemory / RagAnswer 顾问的
  * ChatClient——否则摘要过程会写回记忆，形成递归压缩。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Slf4j
 @Service

@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 
 /**
  * 知识库更新仓储实现
- * @author bugstack.cn
  * @description 知识库更新仓储实现
  */
 @Slf4j

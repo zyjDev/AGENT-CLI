@@ -6,7 +6,6 @@ import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 知识库更新任务表 DAO
- * @author bugstack.cn
  * @description 知识库更新任务表数据访问对象
  */
 @Mapper

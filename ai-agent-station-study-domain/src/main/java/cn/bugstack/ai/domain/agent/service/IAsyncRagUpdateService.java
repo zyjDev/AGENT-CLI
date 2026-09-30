@@ -6,7 +6,6 @@ import java.util.List;
 
 /**
  * 异步知识库更新服务接口
- * @author bugstack.cn
  * @description 异步知识库更新服务接口
  */
 public interface IAsyncRagUpdateService {

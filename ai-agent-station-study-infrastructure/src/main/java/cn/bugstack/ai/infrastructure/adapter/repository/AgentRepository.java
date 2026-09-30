@@ -19,9 +19,6 @@ import static cn.bugstack.ai.domain.agent.model.valobj.enums.AiAgentEnumVO.*;
 
 /**
  * AiAgent 仓储服务
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/6/28 18:09
  */
 @Slf4j
 @Repository
@@ -185,6 +182,8 @@ public class AgentRepository implements IAgentRepository {
                                         .toolMcpId(toolMcp.getMcpId())
                                         .toolMcpName(toolMcp.getMcpName())
                                         .transportType(toolMcp.getTransportType())
+                                        // 归属用于装配期的 stdio 安全判定（见 AiClientToolMcpNode）
+                                        .ownerId(toolMcp.getOwnerId())
                                         .build();
 
                                 result.add(toolMcpVO);

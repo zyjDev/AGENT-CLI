@@ -27,10 +27,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-/**
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/7/27 16:48
- */
 public abstract class AbstractExecuteSupport extends AbstractMultiThreadStrategyRouter<ExecuteCommandEntity, DefaultAutoAgentExecuteStrategyFactory.DynamicContext, String> {
 
     private final Logger log = LoggerFactory.getLogger(AbstractExecuteSupport.class);

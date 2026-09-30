@@ -47,16 +47,6 @@
 4. 画布配置持久化 JSON 的字段名为 `nodes[].{id,type,data.title,data.inputsValues}` 与 `edges[].{sourceNodeID,targetNodeID,sourcePortID?}`（**连线字段是大写 ID**，与 LogicFlow 原生的 `sourceNodeId` 不同，由 `logicflow/adapter.ts` 双向转换）。
 5. `ai-client-api/update-by-id` 后端为 **PUT**（历史实现误用过 POST）。
 
-## 相关文档
-
-- docker 使用文档：[https://bugstack.cn/md/road-map/docker.html](https://bugstack.cn/md/road-map/docker.html)
-- DDD 教程；
-  - [DDD 概念理论](https://bugstack.cn/md/road-map/ddd-guide-01.html)
-  - [DDD 建模方法](https://bugstack.cn/md/road-map/ddd-guide-02.html)
-  - [DDD 工程模型](https://bugstack.cn/md/road-map/ddd-guide-03.html)
-  - [DDD 架构设计](https://bugstack.cn/md/road-map/ddd.html)
-  - [DDD 建模案例](https://bugstack.cn/md/road-map/ddd-model.html)
-
 ## API接口文档
 
 ### Auto Agent 智能对话接口

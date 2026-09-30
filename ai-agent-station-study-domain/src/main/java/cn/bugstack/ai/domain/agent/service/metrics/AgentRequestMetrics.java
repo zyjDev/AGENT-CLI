@@ -30,8 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>
  * 已知局限：多实例部署时各进程各算一份（本机单实例运行，够用）；重启后当日计数清零。
  * 若要跨重启、跨实例，需落库或接 Micrometer，不在本次重构范围内。
- *
- * @author bugstack.cn
  */
 @Slf4j
 @Component

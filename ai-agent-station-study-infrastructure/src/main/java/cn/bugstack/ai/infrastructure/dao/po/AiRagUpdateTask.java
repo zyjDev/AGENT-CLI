@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 
 /**
  * 知识库更新任务表
- * @author bugstack.cn
  * @description 知识库更新任务 PO 对象
  */
 @Data

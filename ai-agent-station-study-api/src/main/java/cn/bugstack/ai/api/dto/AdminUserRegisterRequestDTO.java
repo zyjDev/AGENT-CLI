@@ -10,8 +10,6 @@ import java.io.Serializable;
 
 /**
  * 用户自助注册请求 DTO
- *
- * @author bugstack虫洞栈
  * @description 登录页注册入口的请求体；两次密码由服务端再校验一次，不能只信前端
  */
 @Data

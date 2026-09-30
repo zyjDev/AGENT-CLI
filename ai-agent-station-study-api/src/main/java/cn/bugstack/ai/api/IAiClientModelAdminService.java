@@ -10,8 +10,6 @@ import java.util.List;
 
 /**
  * AI客户端模型管理服务接口
- *
- * @author bugstack虫洞栈
  * @description AI客户端模型配置管理服务接口
  */
 public interface IAiClientModelAdminService {

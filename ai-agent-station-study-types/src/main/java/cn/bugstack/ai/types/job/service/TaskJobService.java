@@ -16,8 +16,6 @@ import java.util.concurrent.ScheduledFuture;
 
 /**
  * 任务调度服务实现类
- *
- * @author @小傅哥
  */
 public class TaskJobService implements ITaskJobService, DisposableBean {
 

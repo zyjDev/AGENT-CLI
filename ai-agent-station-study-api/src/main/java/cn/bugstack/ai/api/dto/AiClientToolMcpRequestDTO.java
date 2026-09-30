@@ -4,14 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.io.Serial;
 import java.io.Serializable;
 
 /**
  * MCP客户端配置请求 DTO
- *
- * @author bugstack虫洞栈
  * @description MCP客户端配置请求数据传输对象
  */
 @Data
@@ -45,7 +44,11 @@ public class AiClientToolMcpRequestDTO implements Serializable {
 
     /**
      * 传输配置(sse/stdio)
+     * <p>
+     * ⚠️ 不参与 {@code toString()}：创建 / 更新接口会把整个请求对象打进日志，
+     * 而本字段可能含 stdio 的 env、或 sse baseUri 里附带的 apikey。
      */
+    @ToString.Exclude
     private String transportConfig;
 
     /**

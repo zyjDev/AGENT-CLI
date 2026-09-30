@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 
 /**
  * AI客户端统一关联配置表
- * @author bugstack虫洞栈
  * @description AI客户端统一关联配置表 PO 对象
  */
 @Data

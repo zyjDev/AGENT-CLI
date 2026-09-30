@@ -24,8 +24,6 @@ import java.util.stream.Collectors;
 
 /**
  * 顾问配置管理控制器
- *
- * @author bugstack虫洞栈
  * @description 顾问配置管理控制器
  */
 @Slf4j

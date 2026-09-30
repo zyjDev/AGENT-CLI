@@ -16,9 +16,6 @@ import java.time.Duration;
  * <p>
  * 本地估算解决「调用前门控」，真实 usage 解决「估算准不准」。
  * 本类把模型返回的真实 usage 登记下来，并驱动 {@link ITokenCounter} 更新校准系数。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Slf4j
 @Service

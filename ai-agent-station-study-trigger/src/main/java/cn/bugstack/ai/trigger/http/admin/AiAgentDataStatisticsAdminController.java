@@ -18,9 +18,6 @@ import java.util.stream.Collectors;
 
 /**
  * 数据统计
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/10/4 10:33
  */
 @Slf4j
 @RestController

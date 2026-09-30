@@ -10,9 +10,6 @@ import java.util.Map;
 
 /**
  * MCP客户端配置，值对象
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/6/27 18:29
  */
 @Data
 @Builder
@@ -44,6 +41,14 @@ public class AiClientToolMcpVO {
      * 请求超时时间(分钟)
      */
     private Integer requestTimeout;
+
+    /**
+     * 归属用户ID；为空表示公共资源（人人可用），非空表示该用户私有。
+     * <p>
+     * 装配期判定用：{@code AiClientToolMcpNode} 靠它决定能否执行 stdio ——
+     * 非空 = 普通用户自建（管理员新建的留空），一律不允许在服务器上执行本地命令。
+     */
+    private String ownerId;
 
     /**
      * 传输配置 - sse

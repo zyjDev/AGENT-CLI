@@ -13,7 +13,6 @@ import java.util.List;
 
 /**
  * AI客户端API配置表 DAO
- * @author bugstack虫洞栈
  * @description AI客户端API配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper

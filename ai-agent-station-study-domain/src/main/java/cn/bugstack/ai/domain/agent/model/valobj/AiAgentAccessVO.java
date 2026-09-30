@@ -16,8 +16,6 @@ import lombok.NoArgsConstructor;
  *
  * <p>这三个结论共用<b>同一次</b>智能体归属查询，因此打包成一个 VO 返回。
  * 改造前它们在 HTTP 层各自独立触发一次 {@code queryByAgentId}，同一份数据在一次请求里被查了 3 次。
- *
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

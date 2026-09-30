@@ -10,8 +10,6 @@ import java.io.Serializable;
 
 /**
  * 版本回滚请求 DTO
- *
- * @author bugstack.cn
  * @description 版本回滚请求数据传输对象
  */
 @Data

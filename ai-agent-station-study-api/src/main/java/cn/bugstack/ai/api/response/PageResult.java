@@ -23,7 +23,6 @@ import java.util.List;
  * 不再是把全表捞进内存再 {@code subList}。
  *
  * @param <T> 列表元素类型（通常是各资源的 ResponseDTO）
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

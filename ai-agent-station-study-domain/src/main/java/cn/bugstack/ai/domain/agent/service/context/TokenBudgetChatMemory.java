@@ -24,9 +24,6 @@ import java.util.concurrent.locks.ReentrantLock;
  *   <li>被裁掉的历史不直接丢弃，而是压成一段摘要消息保留在队首；</li>
  *   <li>压缩发生在 get()（即模型调用前），使当次请求立刻受益，而不是等到下一轮。</li>
  * </ol>
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Slf4j
 public class TokenBudgetChatMemory implements ChatMemory {

@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 /**
  * 任务调度值对象
- * @author @小傅哥
  */
 @Data
 public class TaskScheduleVO {

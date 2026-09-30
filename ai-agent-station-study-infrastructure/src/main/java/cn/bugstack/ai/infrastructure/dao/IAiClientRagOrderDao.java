@@ -13,7 +13,6 @@ import java.util.List;
 
 /**
  * 知识库配置表 DAO
- * @author bugstack.cn
  * @description 知识库配置表数据访问对象（MyBatis-Plus BaseMapper + 自定义方法用 Wrapper 实现，XML 已移除）
  */
 @Mapper

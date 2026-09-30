@@ -12,8 +12,6 @@ import java.util.List;
  * <p>产品规则：平台默认 Key 只给管理员用，普通用户要用某个智能体（包括 6 个基础智能体）
  * 必须先在「客户端 API 管理」里配好自己的 base_url + api_key，并绑定给它。
  * 绑定后运行时优先走用户自己的链路（见 IAgentRepository.queryAiAgentClientFlowConfig(agentId, ownerId)）。
- *
- * @author bugstack虫洞栈
  */
 public interface IAiClientApiBindingAdminService {
 

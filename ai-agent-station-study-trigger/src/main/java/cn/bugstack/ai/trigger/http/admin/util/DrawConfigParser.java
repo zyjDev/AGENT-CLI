@@ -11,9 +11,6 @@ import java.util.*;
 /**
  * 拖拽配置解析工具类
  * 用于解析前端传来的JSON配置数据，生成ai_client_config表的关系映射
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/1/20 10:00
  */
 @Slf4j
 public class DrawConfigParser {

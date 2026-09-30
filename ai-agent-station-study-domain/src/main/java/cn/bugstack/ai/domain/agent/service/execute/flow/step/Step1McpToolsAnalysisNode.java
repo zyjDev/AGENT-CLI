@@ -21,9 +21,6 @@ import java.util.Map;
 
 /**
  * 步骤1：MCP工具能力分析节点
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/8/25 09:56
  */
 @Slf4j
 @Service

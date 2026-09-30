@@ -20,8 +20,6 @@ import java.net.InetAddress;
  *   <li>时钟回拨时退化为"沿用上一毫秒"，宁可短暂重复等待也不产生重复 ID；</li>
  *   <li>机器位取主机名哈希低 10 位：单机部署恒定，多实例也能大概率错开。</li>
  * </ul>
- *
- * @author bugstack虫洞栈
  */
 public final class SnowflakeId {
 

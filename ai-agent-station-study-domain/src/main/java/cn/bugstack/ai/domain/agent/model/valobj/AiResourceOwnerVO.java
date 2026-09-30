@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
  * <p>只用于归属类校验（如「自建智能体必须使用自己的模型 Key」），
  * 因此只带判定所需的最小字段：id、名称（提示语要用）、ownerId。
  * 不携带 base_url / api_key 等敏感或无关字段。
- *
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

@@ -10,6 +10,8 @@ import cn.bugstack.ai.infrastructure.dao.IAiClientApiDao;
 import cn.bugstack.ai.infrastructure.dao.po.AiClientApi;
 import cn.bugstack.ai.trigger.support.AdminPageSupport;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
+import cn.bugstack.ai.types.common.UrlSafetyGuard;
+import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +26,6 @@ import java.util.stream.Collectors;
 
 /**
  * AI客户端API配置管理控制器
- *
- * @author bugstack虫洞栈
  * @description AI客户端API配置管理控制器
  */
 @Slf4j
@@ -42,7 +42,21 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
     public Response<Boolean> createAiClientApi(@RequestBody AiClientApiRequestDTO request) {
         try {
             log.info("创建AI客户端API配置请求：{}", request);
-            
+
+            // base_url 是「装配后由服务端主动去请求的地址」，必须过 SSRF 校验（2026-09-30 加固）：
+            // 普通用户填内网 / 链路本地地址（如 http://169.254.169.254/... 云元数据），
+            // 就等于借服务端的网络位置去访问内网。管理员维护平台默认资源时放行内网。
+            String baseUrlProblem = UrlSafetyGuard.checkHttpUrl(request.getBaseUrl(), UserContext.isAdmin());
+            if (baseUrlProblem != null) {
+                log.warn("拒绝创建API通道：baseUrl={}, userId={}, reason={}",
+                        request.getBaseUrl(), UserContext.userId(), baseUrlProblem);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("base_url 不合法：" + baseUrlProblem)
+                        .data(false)
+                        .build();
+            }
+
             // DTO转PO
             AiClientApi aiClientApi = convertToAiClientApi(request);
             aiClientApi.setCreateTime(LocalDateTime.now());
@@ -99,6 +113,20 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
                 return OwnerGuard.deny("API 通道");
             }
+
+            // 部分更新：只传 apiKey 时 base_url 沿用库中原值，所以按「生效后的 base_url」校验
+            String baseUrlProblem = UrlSafetyGuard.checkHttpUrl(
+                    effectiveValue(request.getBaseUrl(), existing.getBaseUrl()), UserContext.isAdmin());
+            if (baseUrlProblem != null) {
+                log.warn("拒绝更新API通道：apiId={}, userId={}, reason={}",
+                        existing.getApiId(), UserContext.userId(), baseUrlProblem);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("base_url 不合法：" + baseUrlProblem)
+                        .data(false)
+                        .build();
+            }
+
             int result = aiClientApiDao.updateById(aiClientApi);
             
             return Response.<Boolean>builder()
@@ -141,6 +169,20 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
             if (existing == null || !OwnerGuard.writable(existing.getOwnerId())) {
                 return OwnerGuard.deny("API 通道");
             }
+
+            // 同上：按生效后的 base_url 做 SSRF 校验
+            String baseUrlProblem = UrlSafetyGuard.checkHttpUrl(
+                    effectiveValue(request.getBaseUrl(), existing.getBaseUrl()), UserContext.isAdmin());
+            if (baseUrlProblem != null) {
+                log.warn("拒绝更新API通道：apiId={}, userId={}, reason={}",
+                        aiClientApi.getApiId(), UserContext.userId(), baseUrlProblem);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("base_url 不合法：" + baseUrlProblem)
+                        .data(false)
+                        .build();
+            }
+
             int result = aiClientApiDao.updateByApiId(aiClientApi);
             
             return Response.<Boolean>builder()
@@ -375,6 +417,17 @@ public class AiClientApiAdminController implements IAiClientApiAdminService {
         AiClientApi aiClientApi = new AiClientApi();
         BeanUtils.copyProperties(requestDTO, aiClientApi);
         return aiClientApi;
+    }
+
+    /**
+     * 部分更新语义取值：请求带了新值就用新值，没带（null / 空白）就沿用库中原值 ——
+     * 与 {@link #convertToAiClientApi} 的「只更新非 null 字段」保持一致。
+     * <p>
+     * SSRF 校验必须基于「生效后的 base_url」：否则只要不传 base_url 就能绕过校验，
+     * 却仍然把库里的地址交给装配链路去请求。
+     */
+    private String effectiveValue(String fromRequest, String existing) {
+        return StringUtils.hasText(fromRequest) ? fromRequest : existing;
     }
 
     /**

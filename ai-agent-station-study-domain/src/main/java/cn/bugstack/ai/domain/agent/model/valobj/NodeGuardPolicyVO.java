@@ -24,8 +24,6 @@ import java.util.Map;
  *       Java 无法中断阻塞的 socket 读，{@code Future#get(timeout)} 只能让调用方「不再等待」，
  *       被放弃的任务线程仍要等到 HTTP read timeout 才释放 —— 三者必须同时配置才有意义。</li>
  * </ol>
- *
- * @author bugstack.cn
  */
 @Data
 @Builder

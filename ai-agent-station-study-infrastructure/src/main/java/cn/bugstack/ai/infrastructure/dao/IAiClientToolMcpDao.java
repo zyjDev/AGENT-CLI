@@ -13,7 +13,6 @@ import java.util.List;
 
 /**
  * MCP客户端配置表 DAO
- * @author bugstack虫洞栈
  * @description MCP客户端配置表数据访问对象（MyBatis-Plus 迁移版，SQL 由 Wrapper 拼接，无 XML）
  */
 @Mapper

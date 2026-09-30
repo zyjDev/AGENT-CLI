@@ -19,8 +19,6 @@ import java.io.Serializable;
  * </ul>
  *
  * <p>刻意不带 userId：身份只认 JWT，否则普通用户能替别人绑定。
- *
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

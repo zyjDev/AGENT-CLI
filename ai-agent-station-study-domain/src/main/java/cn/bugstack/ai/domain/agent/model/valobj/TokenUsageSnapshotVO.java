@@ -10,9 +10,6 @@ import lombok.NoArgsConstructor;
  * <p>
  * 记录一次模型调用前后的「本地估算」与「模型返回的真实 usage」，
  * 用于校准估算偏差。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Data
 @Builder

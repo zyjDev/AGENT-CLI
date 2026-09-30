@@ -47,8 +47,6 @@ import java.util.stream.Collectors;
  *   }
  *   // 一次查出多行的：Xxx = OwnerGuard.readableOnly(xxxDao.queryByApiId(apiId), Xxx::getOwnerId);
  * </pre>
- *
- * @author bugstack虫洞栈
  */
 public final class OwnerGuard {
 

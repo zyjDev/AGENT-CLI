@@ -13,8 +13,6 @@ import java.io.Serializable;
  *
  * <p>刻意**不包含 userId**：改自己的密码身份只能来自 JWT（服务端 UserContext），
  * 一旦允许请求体里指定 userId，普通用户就能改别人的密码。
- *
- * @author bugstack虫洞栈
  */
 @Data
 @Builder

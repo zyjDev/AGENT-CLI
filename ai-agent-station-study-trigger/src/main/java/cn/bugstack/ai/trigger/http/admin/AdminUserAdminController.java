@@ -14,6 +14,7 @@ import cn.bugstack.ai.infrastructure.dao.po.AdminUser;
 import cn.bugstack.ai.types.enums.ResponseCode;
 import cn.bugstack.ai.trigger.config.AdminJwtTokenService;
 import cn.bugstack.ai.trigger.support.AdminPageSupport;
+import cn.bugstack.ai.trigger.support.LoginAttemptGuard;
 import cn.bugstack.ai.trigger.support.OwnerGuard;
 import cn.bugstack.ai.types.context.UserContext;
 import cn.bugstack.ai.types.common.PasswordUtil;
@@ -33,8 +34,6 @@ import java.util.stream.Collectors;
 
 /**
  * 管理员用户管理控制器
- *
- * @author bugstack虫洞栈
  * @description 管理员用户管理控制器
  */
 @Slf4j
@@ -48,6 +47,10 @@ public class AdminUserAdminController implements IAdminUserAdminService {
 
     @Resource
     private AdminJwtTokenService adminJwtTokenService;
+
+    /** 密码校验入口的限流与临时锁定（防爆破 / 防批量注册） */
+    @Resource
+    private LoginAttemptGuard loginAttemptGuard;
 
     @Override
     @PostMapping("/register")
@@ -86,7 +89,20 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(null)
                         .build();
             }
-            log.info("用户自助注册请求，username={}", username);
+            log.info("用户自助注册请求，username={}, ip={}", username, loginAttemptGuard.clientIp());
+
+            // 注册是匿名接口：没有验证码、也没有邮箱验证，脚本可以无限开号（每号一行数据 + 一个 token）。
+            // 这里按来源 IP 做滑动窗口限流，只计成功创建 —— 重试「用户名已存在」不吃配额，
+            // 否则前端的用户名冲突提示会先把正常用户挡在门外。
+            long registerWaitSeconds = loginAttemptGuard.registerBlockedSeconds();
+            if (registerWaitSeconds > 0) {
+                log.warn("注册过于频繁，已限流：ip={}, username={}", loginAttemptGuard.clientIp(), username);
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info("注册过于频繁，请约 " + Math.max(1, (registerWaitSeconds + 59) / 60) + " 分钟后再试")
+                        .data(null)
+                        .build();
+            }
 
             if (adminUserDao.queryByUsername(username) != null) {
                 return Response.<AdminUserResponseDTO>builder()
@@ -115,6 +131,9 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(null)
                         .build();
             }
+
+            // 真正建号成功才吃配额
+            loginAttemptGuard.recordRegister();
 
             // 注册即登录：直接签发 token，前端不必再走一次登录
             AdminUserResponseDTO responseDTO = convertToAdminUserResponseDTO(adminUser);
@@ -189,8 +208,24 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(false)
                         .build();
             }
+
+            // 原密码同样是「密码校验入口」：不接限流的话，
+            // 「拿到 token（或偷到 token）后用本接口慢慢试原密码」就是一条不受限的旁路。
+            // 按 userId 计数：与登录的账号维度计数是两套 key（见 LoginAttemptGuard 的 key 说明）。
+            String attemptKey = LoginAttemptGuard.userKey(currentUserId);
+            long lockedSeconds = loginAttemptGuard.lockedSecondsRemaining(attemptKey);
+            if (lockedSeconds > 0) {
+                log.warn("账号处于临时锁定中，拒绝修改密码：userId={}，剩余 {} 秒", currentUserId, lockedSeconds);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info(loginLockedMessage(lockedSeconds))
+                        .data(false)
+                        .build();
+            }
+
             // 必须先验原密码：否则 token 一旦泄露就能直接改密码接管账号
             if (!passwordMatches(request.getOldPassword(), adminUser.getPassword())) {
+                loginAttemptGuard.recordFailure(attemptKey);
                 log.warn("修改密码失败：原密码不正确，userId={}", currentUserId);
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
@@ -198,6 +233,7 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(false)
                         .build();
             }
+            loginAttemptGuard.reset(attemptKey);
 
             // 只更新密码与更新时间（MyBatis-Plus 默认忽略 null 字段），避免整行覆盖
             AdminUser update = new AdminUser();
@@ -652,16 +688,35 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(null)
                         .build();
             }
-            log.info("管理员用户登录请求：{}", request.getUsername());
+            String username = request.getUsername().trim();
+            log.info("管理员用户登录请求：{}", username);
 
-            AdminUser adminUser = adminUserDao.queryByUsername(request.getUsername());
+            // 锁定检查放在密码校验之前（2026-09-30 加固）：被锁期间不再做一次昂贵的 PBKDF2 计算，
+            // 也不让「响应耗时」成为口令试错的旁路信号。key 走 trim + 小写，
+            // 避免靠大小写变化换一个计数器绕过限流。
+            String attemptKey = LoginAttemptGuard.accountKey(username);
+            long lockedSeconds = loginAttemptGuard.lockedSecondsRemaining(attemptKey);
+            if (lockedSeconds > 0) {
+                log.warn("账号处于临时锁定中，拒绝登录：username={}，剩余 {} 秒", username, lockedSeconds);
+                return Response.<AdminUserResponseDTO>builder()
+                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
+                        .info(loginLockedMessage(lockedSeconds))
+                        .data(null)
+                        .build();
+            }
+
+            AdminUser adminUser = adminUserDao.queryByUsername(username);
             if (adminUser == null || !passwordMatches(request.getPassword(), adminUser.getPassword())) {
+                // 不存在的账号同样计数：否则「你已被锁定」就成了账号存在性的探测信号
+                loginAttemptGuard.recordFailure(attemptKey);
                 return Response.<AdminUserResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("用户名或密码错误")
                         .data(null)
                         .build();
             }
+            // 密码正确即清零失败计数（下面还有禁用 / 锁定状态检查，与「猜对密码」是两件事）
+            loginAttemptGuard.reset(attemptKey);
 
             Integer status = adminUser.getStatus();
             if (status != null && status == 0) {
@@ -705,7 +760,6 @@ public class AdminUserAdminController implements IAdminUserAdminService {
     @PostMapping("/validate-login")
     public Response<Boolean> validateAdminUserLogin(@RequestBody AdminUserLoginRequestDTO request) {
         try {
-            log.info("管理员用户登录校验请求：{}", request.getUsername());
             if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
                 return Response.<Boolean>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
@@ -713,16 +767,32 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                         .data(false)
                         .build();
             }
-            log.info("管理员用户登录校验请求：{}", request.getUsername());
+            String username = request.getUsername().trim();
+            log.info("管理员用户登录校验请求：{}", username);
 
-            AdminUser adminUser = adminUserDao.queryByUsername(request.getUsername());
+            // 本接口同样在验密码，而且被 AdminWebConfig 显式放行为匿名接口 ——
+            // 不接同一套锁定，就等于给爆破留了一条绕过 /login 的旁路。
+            String attemptKey = LoginAttemptGuard.accountKey(username);
+            long lockedSeconds = loginAttemptGuard.lockedSecondsRemaining(attemptKey);
+            if (lockedSeconds > 0) {
+                log.warn("账号处于临时锁定中，拒绝登录校验：username={}，剩余 {} 秒", username, lockedSeconds);
+                return Response.<Boolean>builder()
+                        .code(ResponseCode.LOGIN_FAILED.getCode())
+                        .info(loginLockedMessage(lockedSeconds))
+                        .data(false)
+                        .build();
+            }
+
+            AdminUser adminUser = adminUserDao.queryByUsername(username);
             if (adminUser == null || !passwordMatches(request.getPassword(), adminUser.getPassword())) {
+                loginAttemptGuard.recordFailure(attemptKey);
                 return Response.<Boolean>builder()
                         .code(ResponseCode.LOGIN_FAILED.getCode())
                         .info(ResponseCode.LOGIN_FAILED.getInfo())
                         .data(false)
                         .build();
             }
+            loginAttemptGuard.reset(attemptKey);
 
             Integer status = adminUser.getStatus();
             if (status != null && status == 0) {
@@ -756,6 +826,14 @@ public class AdminUserAdminController implements IAdminUserAdminService {
                     .data(false)
                     .build();
         }
+    }
+
+    /**
+     * 锁定时长的对外提示：只给「大约多少分钟」，不暴露精确剩余秒数（少给一点探测信息）。
+     */
+    private String loginLockedMessage(long lockedSeconds) {
+        long minutes = Math.max(1, (lockedSeconds + 59) / 60);
+        return "尝试次数过多，账号已临时锁定，请约 " + minutes + " 分钟后再试";
     }
 
     /**

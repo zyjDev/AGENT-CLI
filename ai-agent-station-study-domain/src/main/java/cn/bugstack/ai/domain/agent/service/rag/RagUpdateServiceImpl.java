@@ -21,7 +21,6 @@ import java.util.List;
 
 /**
  * 知识库更新服务实现
- * @author bugstack.cn
  * @description 知识库更新服务实现
  * <p>
  * 2026-09-19 收敛：删除了 4 个零调用的旧版方法（{@code incrementalUpdateRag} /

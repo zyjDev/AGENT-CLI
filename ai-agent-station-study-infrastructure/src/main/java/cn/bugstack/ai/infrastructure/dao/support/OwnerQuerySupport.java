@@ -24,8 +24,6 @@ import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
  *      无用户上下文（启动装配 / 定时任务）时**只返回公共资源** —— 这是刻意的：
  *      私有资源应由其 owner 触发装配，而不是开机时替所有用户全量装进 Spring 容器。
  * ==========================================================================
- *
- * @author bugstack虫洞栈
  */
 public final class OwnerQuerySupport {
 

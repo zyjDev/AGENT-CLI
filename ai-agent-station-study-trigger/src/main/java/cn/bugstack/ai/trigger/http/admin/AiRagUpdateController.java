@@ -17,7 +17,6 @@ import java.util.List;
 
 /**
  * 知识库更新管理接口
- * @author bugstack.cn
  * @description 知识库更新管理接口
  * <p>
  * 异常处理约定：本类不做 try/catch。领域层抛出的 BizException 由

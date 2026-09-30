@@ -22,8 +22,6 @@ import java.util.concurrent.TimeUnit;
  * 职责：
  * 1. 把 yml 配置汇总为 domain 层可直接注入的 {@link NodeGuardPolicyVO}；
  * 2. 提供两个专用线程池 —— 节点执行池与心跳调度池。
- *
- * @author bugstack.cn
  */
 @Slf4j
 @Configuration

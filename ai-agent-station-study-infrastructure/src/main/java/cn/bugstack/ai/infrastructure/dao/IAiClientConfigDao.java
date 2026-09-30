@@ -11,7 +11,6 @@ import java.util.List;
 
 /**
  * AI客户端统一关联配置表 DAO
- * @author bugstack虫洞栈
  * @description AI客户端统一关联配置表数据访问对象（MyBatis-Plus BaseMapper + 自定义方法用 Wrapper 实现，XML 已移除）
  */
 @Mapper

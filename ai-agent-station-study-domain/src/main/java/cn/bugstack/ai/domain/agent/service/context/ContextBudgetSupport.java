@@ -8,9 +8,6 @@ import java.util.List;
  * <p>
  * 抽出来是为了避免「执行历史切分」与「按 token 硬截断」这两段逻辑在
  * LlmContextSummarizer 与 AbstractExecuteSupport 里各写一遍。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 public final class ContextBudgetSupport {
 

@@ -12,8 +12,6 @@ import java.util.List;
 
 /**
  * 知识库更新请求 DTO
- *
- * @author bugstack.cn
  * @description 知识库更新请求数据传输对象
  */
 @Data

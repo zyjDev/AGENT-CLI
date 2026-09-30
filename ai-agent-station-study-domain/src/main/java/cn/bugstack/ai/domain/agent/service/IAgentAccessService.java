@@ -22,8 +22,6 @@ import java.util.List;
  *   <li>规则有了明确的落点，将来要加缓存 / 事件也有地方挂。</li>
  * </ul>
  * ======================================================================
- *
- * @author bugstack虫洞栈
  */
 public interface IAgentAccessService {
 

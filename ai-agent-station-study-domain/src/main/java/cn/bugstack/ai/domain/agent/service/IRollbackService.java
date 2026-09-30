@@ -8,7 +8,6 @@ import java.util.List;
 
 /**
  * 回滚服务接口
- * @author bugstack.cn
  * @description 回滚服务接口
  */
 public interface IRollbackService {

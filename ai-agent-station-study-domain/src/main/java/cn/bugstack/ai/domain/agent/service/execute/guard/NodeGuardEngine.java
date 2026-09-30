@@ -33,8 +33,6 @@ import java.util.concurrent.TimeoutException;
  * 被放弃的那次调用会一直占到「底层 HTTP read timeout」才释放当前线线程。若要在
  * AiAgentController → 服务链路的部署环境里少一些悬挂线程：NodeTask 的底层 HTTP 超时必须 <b>同时</b>配好
  * （app 层 {@code AiHttpClientConfig} 为 OpenAiApi 注入带超时的 RestClient.Builder）。
- *
- * @author bugstack.cn
  */
 @Slf4j
 @Service

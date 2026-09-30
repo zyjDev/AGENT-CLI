@@ -38,9 +38,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 拖拉拽， 方便快速装配agent，不需要去数据库中进行配置
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/9/28 07:35
  */
 @Slf4j
 @RestController

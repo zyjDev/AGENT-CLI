@@ -14,7 +14,6 @@ import java.util.List;
 
 /**
  * 异步知识库更新服务
- * @author bugstack.cn
  * @description 异步知识库更新服务实现
  */
 @Slf4j

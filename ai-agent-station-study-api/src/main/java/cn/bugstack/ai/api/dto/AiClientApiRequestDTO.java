@@ -4,14 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.io.Serial;
 import java.io.Serializable;
 
 /**
  * AI客户端API配置请求 DTO
- *
- * @author bugstack虫洞栈
  * @description AI客户端API配置请求数据传输对象
  */
 @Data
@@ -40,7 +39,11 @@ public class AiClientApiRequestDTO implements Serializable {
 
     /**
      * API密钥
+     * <p>
+     * ⚠️ 不参与 {@code toString()}：创建 / 更新接口会把整个请求对象打进日志
+     * （{@code log.info("...请求：{}", request)}），带上就会把明文密钥写进日志文件与日志平台。
      */
+    @ToString.Exclude
     private String apiKey;
 
     /**

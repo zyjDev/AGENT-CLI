@@ -8,7 +8,6 @@ import java.util.List;
 
 /**
  * 知识库更新服务接口
- * @author bugstack.cn
  * @description 知识库更新服务接口
  * <p>
  * 2026-09-19 收敛：原声明 8 个方法，实测只有下面 4 个真正被 {@code AiRagUpdateController} 调用。

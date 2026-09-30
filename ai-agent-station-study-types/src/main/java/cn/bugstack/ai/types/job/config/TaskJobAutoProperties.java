@@ -4,7 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 任务调度器配置属性
- * @author Fuzhengwei bugstack.cn @小傅哥
  */
 @ConfigurationProperties(prefix = "xfg.wrench.task.job", ignoreInvalidFields = true)
 public class TaskJobAutoProperties {

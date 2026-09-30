@@ -11,8 +11,6 @@ import java.time.LocalDateTime;
 
 /**
  * 任务状态响应 DTO
- *
- * @author bugstack.cn
  * @description 任务状态响应数据传输对象
  */
 @Data

@@ -14,9 +14,6 @@ import org.springframework.ai.vectorstore.VectorStore;
  * <p>
  * 背景：{@code AiClientAdvisorTypeEnumVO.createAdvisor} 是枚举静态方法，拿不到 Spring Bean，
  * 而 Token 预算版的 ChatMemory 需要 token 计数器与摘要器。故把创建期所需依赖打包传入。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Data
 @Builder

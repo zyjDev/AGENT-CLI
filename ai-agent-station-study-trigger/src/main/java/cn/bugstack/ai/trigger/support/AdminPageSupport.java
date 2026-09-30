@@ -31,8 +31,6 @@ import java.util.stream.Collectors;
  * <p><b>依赖分页插件</b>：{@code queryPage} 内部走 {@code selectPage}，必须在
  * {@code DataSourceConfig} 自定义的 {@code MybatisSqlSessionFactoryBean} 上显式挂载
  * {@code PaginationInnerInterceptor}，否则不会报错、只会静默退化成「全量查询 + total=0」。
- *
- * @author bugstack虫洞栈
  */
 public final class AdminPageSupport {
 

@@ -24,8 +24,6 @@ import java.util.stream.Collectors;
 
 /**
  * AI客户端管理控制器
- *
- * @author bugstack虫洞栈
  * @description AI客户端配置管理控制器
  */
 @Slf4j

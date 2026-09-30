@@ -21,9 +21,6 @@ import java.util.Map;
  * 设计取舍：项目里有 8 处 {@code .call().content()}，改成 {@code .call().chatResponse()}
  * 才能拿到 usage，但那样要动所有调用点。这里改用 Advisor 的 after() 旁路读取，
  * 一处新增、零处改动，且 Auto / Fixed 策略自动全覆盖。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Slf4j
 public class TokenUsageAdvisor implements BaseAdvisor {

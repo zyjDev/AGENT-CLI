@@ -11,7 +11,6 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * 全局异常处理器
- * @author bugstack.cn
  * @description 全局异常处理器
  */
 @Slf4j

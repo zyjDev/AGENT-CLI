@@ -31,8 +31,6 @@ import java.util.List;
  *
  * <p>本类只依赖 {@link IAgentRepository}（领域端口），不碰任何 DAO —— 这正是把规则
  * 从 HTTP 层收回领域层的意义：换协议、加缓存、写单测都不再受表现层形态牵制。
- *
- * @author bugstack虫洞栈
  */
 @Slf4j
 @Service

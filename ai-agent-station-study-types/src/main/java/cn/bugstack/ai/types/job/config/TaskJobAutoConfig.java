@@ -18,8 +18,6 @@ import java.util.List;
 
 /**
  * 任务调度器自动配置类
- *
- * @author @小傅哥
  */
 @Configuration
 @EnableScheduling

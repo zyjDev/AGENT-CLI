@@ -4,8 +4,6 @@ import cn.bugstack.ai.types.job.model.TaskScheduleVO;
 
 /**
  * 任务调度服务接口
- *
- * @author @小傅哥
  */
 public interface ITaskJobService {
 

@@ -17,8 +17,6 @@ import org.springframework.context.annotation.Configuration;
  *
  * 影响范围：所有 Long / long 字段（含统计计数），前端按字符串展示与回传均无影响。
  * ======================================================================
- *
- * @author bugstack虫洞栈
  */
 @Configuration
 public class JacksonConfig {

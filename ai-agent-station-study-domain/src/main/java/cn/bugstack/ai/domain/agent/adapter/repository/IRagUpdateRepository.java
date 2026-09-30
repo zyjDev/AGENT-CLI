@@ -12,7 +12,6 @@ import java.util.List;
 
 /**
  * 知识库更新仓储接口
- * @author bugstack.cn
  * @description 知识库更新仓储接口
  */
 public interface IRagUpdateRepository {

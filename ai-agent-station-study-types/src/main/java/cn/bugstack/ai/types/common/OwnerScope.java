@@ -19,8 +19,6 @@ package cn.bugstack.ai.types.common;
  * ⚠️ 视图层（Controller）用 {@link #isVisible} 判断；跨线程的装配/检索链路必须显式传 owner，
  *    不能用线程上下文（详见 trigger 模块的 UserContext 注释）。
  * ==============================================================
- *
- * @author bugstack虫洞栈
  */
 public final class OwnerScope {
 

@@ -6,7 +6,6 @@ import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 知识库版本历史表 DAO
- * @author bugstack.cn
  * @description 知识库版本历史表数据访问对象
  */
 @Mapper

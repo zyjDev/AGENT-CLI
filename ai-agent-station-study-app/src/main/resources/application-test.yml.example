@@ -20,6 +20,18 @@ thread:
         block-queue-size: 5000
         policy: CallerRunsPolicy
 
+# 登录 / 注册限流（2026-09-30 加固）：计数在进程内，重启即清空、多实例各算一份
+xfg:
+  ai:
+    auth:
+      login:
+        max-failures: 5
+        lock-minutes: 15
+        failure-window-minutes: 15
+      register:
+        max-per-window: 20
+        window-minutes: 60
+
 # 简化配置，禁用数据库自动配置
 spring:
   autoconfigure:

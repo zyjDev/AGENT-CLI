@@ -15,7 +15,6 @@ import java.util.List;
 
 /**
  * 回滚服务实现
- * @author bugstack.cn
  * @description 回滚服务实现
  */
 @Slf4j

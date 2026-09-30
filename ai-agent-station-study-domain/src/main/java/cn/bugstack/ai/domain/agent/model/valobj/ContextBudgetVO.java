@@ -10,9 +10,6 @@ import lombok.NoArgsConstructor;
  * <p>
  * 由 app 层 {@code ContextBudgetProperties} 绑定 yml 后构造为 Bean；
  * DB {@code ai_client_advisor.ext_param} 可通过 {@link #override(AiClientAdvisorVO.ChatMemory)} 逐项覆盖。
- *
- * @author xiaofuge bugstack.cn @小傅哥
- * 2026/09/14
  */
 @Data
 @Builder

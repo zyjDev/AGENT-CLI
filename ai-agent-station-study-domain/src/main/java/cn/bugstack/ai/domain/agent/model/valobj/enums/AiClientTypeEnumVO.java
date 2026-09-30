@@ -4,10 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * @author xiaofuge bugstack.cn @小傅哥
- * 2025/7/27 17:25
- */
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
