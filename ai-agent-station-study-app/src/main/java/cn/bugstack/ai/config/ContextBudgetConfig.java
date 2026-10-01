@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  * 职责：
  * 1. 把 yml 的 {@link ContextBudgetProperties} 汇总为 domain 层可直接注入的 {@link ContextBudgetVO} Bean；
  * 2. 提供摘要专用线程池——摘要调用会阻塞等待模型，放在业务线程池里会拖累正常请求。
+ *
  */
 @Slf4j
 @Configuration

@@ -16,6 +16,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- 健康探针：只暴露 /actuator/health（配置见 application.yml 的 management 段）。
+             没有它，K8s / docker / 负载均衡都只能靠「端口通不通」判断实例是否可用，
+             而本应用启动强依赖 MySQL + PostgreSQL（PG 还是快速失败），
+             「端口通了」并不等于「能干活」。—— 2026-09-30 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

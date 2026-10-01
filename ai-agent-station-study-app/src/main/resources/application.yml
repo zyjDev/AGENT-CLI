@@ -1,5 +1,36 @@
+server:
+  # 优雅停机（2026-09-30）：先停止接收新请求，再等在途请求收敛，最后才关容器。
+  # 没有它，滚动发布 / docker restart 会把正在进行的请求直接掐断。
+  shutdown: graceful
+
 spring:
   config:
     name: ai-agent-station-study-app
   profiles:
     active: dev
+  lifecycle:
+    # 等在途 HTTP 请求（含 SSE 流）收敛的最长时间，与执行池的停机等待共用这一个值。
+    # ⚠️ 它有上限：长的流式回答（xfg.ai.sse-timeout-millis 默认 10 分钟）在停机窗口内跑不完时仍会被截断。
+    # 这是刻意的取舍 —— 停机窗口不能跟着「最长的一次对话」走，否则一次发布要等十几分钟。
+    timeout-per-shutdown-phase: 30s
+
+# 健康探针（2026-09-30 接入 actuator）。
+# 路径不带 /api/v1 前缀，因此不受 AdminAuthInterceptor 保护：只暴露 health，
+# 且 show-details=never，未认证调用方只能拿到 UP / DOWN，拿不到库名、版本、连接串片段。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      # 同时提供 /actuator/health/liveness 与 /actuator/health/readiness，供 K8s 探针使用
+      probes:
+        enabled: true
+      group:
+        # ⚠️ 只改 readiness，不动 liveness：本应用「进程活着」不等于「能干活」
+        # （对话链路依赖 MySQL + PostgreSQL），数据库不可用时该实例必须被判为不就绪；
+        # 但 liveness 里绝不能带 db —— 否则数据库抖一下，K8s 会把好好的实例重启掉。
+        readiness:
+          include: readinessState,db

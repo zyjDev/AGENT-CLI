@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>
  * 对应 application-*.yml 中的 {@code xfg.ai.context.*}，
  * 由 {@link ContextBudgetConfig} 汇总为 {@code ContextBudgetVO} Bean 供 domain 层使用。
+ *
  */
 @Data
 @ConfigurationProperties(prefix = "xfg.ai.context", ignoreInvalidFields = true)
